@@ -17,6 +17,15 @@ internal sealed class DbInitializer(
         await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", cancellationToken);
         await db.Database.MigrateAsync(cancellationToken);
 
+        // Seed idempotente del catálogo (solo si la tabla está vacía).
+        if (!await db.Ejercicios.AnyAsync(cancellationToken))
+        {
+            var catalogo = CatalogoEjercicioSeed.Crear();
+            db.Ejercicios.AddRange(catalogo);
+            await db.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Catálogo de ejercicios sembrado: {Cant} ejercicios.", catalogo.Count);
+        }
+
         logger.LogInformation("Base de datos lista: SQLite en modo WAL y migrations aplicadas.");
     }
 
