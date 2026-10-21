@@ -814,7 +814,8 @@ internal sealed class SesionCapturaServicio(
 
     // Conversiones EXPLÍCITAS del servicio (ADR-0004): lb→kg con factor fijo;
     // null significa "no lo dijo", jamás un valor por defecto inventado.
-    private static (decimal? PesoKg, Unidad? Unidad) NormalizarValores(decimal? peso, Unidad? unidad)
+    // internal para reuso: el CRUD de la SPA aplica el MISMO criterio.
+    internal static (decimal? PesoKg, Unidad? Unidad) NormalizarValores(decimal? peso, Unidad? unidad)
     {
         if (unidad == Unidad.Lb && peso is decimal enLibras)
         {

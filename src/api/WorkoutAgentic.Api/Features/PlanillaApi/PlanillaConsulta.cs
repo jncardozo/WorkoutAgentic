@@ -13,6 +13,9 @@ internal interface IPlanillaConsulta
     // null = alumno inexistente (404 en el borde); Sesion = null sin sesión
     // hablante (sin sesiones o todas confirmadas).
     Task<RespuestaSesionActual?> SesionActualAsync(int alumnoId, CancellationToken cancellationToken);
+
+    // Catálogo para el selector de la cuadrícula (agregar/editar filas).
+    Task<List<EjercicioCatalogoVista>> CatalogoAsync(CancellationToken cancellationToken);
 }
 
 internal sealed class PlanillaConsulta(CapturasDbContext db) : IPlanillaConsulta
@@ -29,45 +32,30 @@ internal sealed class PlanillaConsulta(CapturasDbContext db) : IPlanillaConsulta
             return null;
         }
 
-        var sesion = await db.SesionesCaptura
+        var sesion = await SesionHablanteSinTrackingAsync(alumnoId, cancellationToken);
+
+        return VistaPlanilla.Armar(alumno.Id, alumno.TelefonoWa, sesion);
+    }
+
+    // Catálogo para el selector de la cuadrícula (agregar/editar filas).
+    public async Task<List<EjercicioCatalogoVista>> CatalogoAsync(CancellationToken cancellationToken) =>
+        await db.Ejercicios
+            .AsNoTracking()
+            .OrderBy(e => e.Id)
+            .Select(e => new EjercicioCatalogoVista(e.Id, e.NombreCanonico, e.GrupoMuscular, e.UsaPeso, e.UsaTiempo))
+            .ToListAsync(cancellationToken);
+
+    // Sesión hablante con el grafo completo que necesita la vista (ADR-0004 S1:
+    // la última del alumno con estado distinto de Confirmada).
+    internal Task<SesionCaptura?> SesionHablanteSinTrackingAsync(int alumnoId, CancellationToken cancellationToken) =>
+        db.SesionesCaptura
             .AsNoTracking()
             .Include(s => s.EjercicioActivo)
             .Include(s => s.AclaracionPendiente)
             .Include(s => s.Registros).ThenInclude(r => r.Ejercicio)
             .Where(s => s.AlumnoId == alumnoId
-                // Sesión hablante: cualquier estado menos Confirmada (ADR-0004 S1).
                 && s.Estado != EstadoSesionCaptura.Confirmada)
             .OrderByDescending(s => s.Id)
             .FirstOrDefaultAsync(cancellationToken);
-
-        return new RespuestaSesionActual(alumno, sesion is null ? null : MapearSesion(sesion));
-    }
-
-    private static SesionActualVista MapearSesion(SesionCaptura sesion) => new(
-        sesion.Id,
-        sesion.Estado.ToString(),
-        sesion.EjercicioActivoId,
-        sesion.EjercicioActivo?.NombreCanonico,
-        sesion.OrdenSerieSiguiente,
-        sesion.AclaracionPendiente is { } aclaracion
-            ? new AclaracionVista(aclaracion.Campo, aclaracion.Reintento)
-            : null,
-        sesion.UltimaActividadUtc,
-        [.. sesion.Registros
-            .OrderBy(r => r.Id)
-            .Select(MapearFila)]);
-
-    private static FilaParcialVista MapearFila(RegistroParcial fila) => new(
-        fila.Id,
-        fila.EjercicioId,
-        fila.Ejercicio?.NombreCanonico,
-        fila.EjercicioCrudo,
-        fila.DescripcionPendiente,
-        fila.NroSerie,
-        fila.Reps,
-        fila.PesoKg,
-        fila.Unidad?.ToString(),
-        fila.TiempoSeg,
-        fila.PendienteAclaracion,
-        fila.CreadoUtc);
 }
+

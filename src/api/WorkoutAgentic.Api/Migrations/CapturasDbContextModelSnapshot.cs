@@ -188,6 +188,9 @@ namespace WorkoutAgentic.Api.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Incompleta")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("NroSerie")
                         .HasColumnType("INTEGER");
 
@@ -195,6 +198,9 @@ namespace WorkoutAgentic.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("Reps")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TiempoSeg")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Unidad")
