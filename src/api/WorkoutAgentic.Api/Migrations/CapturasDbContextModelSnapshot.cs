@@ -27,6 +27,10 @@ namespace WorkoutAgentic.Api.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Contexto")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("ExpiraUtc")
                         .HasColumnType("TEXT");
 
@@ -262,6 +266,9 @@ namespace WorkoutAgentic.Api.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("SesionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TiempoSeg")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Unidad")

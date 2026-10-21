@@ -1,4 +1,5 @@
 using WorkoutAgentic.Api.Data;
+using WorkoutAgentic.Api.Features.CapturaSesion;
 using WorkoutAgentic.Api.Features.Nlu;
 using WorkoutAgentic.Api.Features.WhatsappMedia;
 using WorkoutAgentic.Api.Features.WhatsappSender;
@@ -13,6 +14,7 @@ builder.Services.AddWhatsappWebhook();
 builder.Services.AddWhatsappSender();
 builder.Services.AddWhatsappMedia();
 builder.Services.AddNluCaptura();
+builder.Services.AddCapturaSesion();
 
 var app = builder.Build();
 

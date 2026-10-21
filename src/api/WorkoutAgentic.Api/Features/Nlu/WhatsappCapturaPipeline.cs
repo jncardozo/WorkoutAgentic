@@ -4,59 +4,20 @@ using WorkoutAgentic.Api.Features.WhatsappWebhook;
 
 namespace WorkoutAgentic.Api.Features.Nlu;
 
-// Pipeline del slice NLU (etapas 1→3 + resolver, ADR-0002 S1/S2):
-//   texto:  NLU → resolver
-//   audio:  descarga del medio → STT → NLU → resolver
-// Cada etapa separada y con su tipo de resultado; si una etapa falla el
-// mensaje queda con log de error y SIN dato inventado. La máquina de estados
-// de SesionCaptura (persistencia, aclaraciones y respuestas) es el slice que
-// sigue; mientras tanto el log auditable es la salida.
+// Analizador del slice NLU (etapas 1→3 + resolver, ADR-0002 S1/S2). Cada
+// etapa separada y con su tipo de resultado; si una etapa falla devuelve null
+// SIN dato inventado. La línea de log es la huella auditable de la
+// interpretación (reglas de negocio §4); el slice de sesión la consume vía
+// IMensajesNlu para aplicar el estado y responder al alumno.
 internal sealed class WhatsappCapturaPipeline(
     IWhatsappAudioDownloader audioDownloader,
     ISpeechToText speechToText,
     IIntentClassifier classifier,
     IEntityExtractor extractor,
     IWhatsappCatalogoEjercicios catalogo,
-    ILogger<WhatsappCapturaPipeline> logger) : ICapturaPipeline
+    ILogger<WhatsappCapturaPipeline> logger) : IMensajesNlu
 {
-    public async Task ProcesarAsync(IncomingWhatsappMessage message, CancellationToken cancellationToken)
-    {
-        var analisis = await AnalizarMensajeAsync(message, cancellationToken);
-        if (analisis is null)
-        {
-            return; // etapa fallida: el error específico ya quedó logueado.
-        }
-
-        // Línea auditable (reglas de negocio §4: el texto crudo queda para
-        // rastrear desvíos). Ningún dato inventado: los faltantes muestran '-'.
-        logger.LogInformation(
-            "Captura interpretada: msg={Id} kind={Kind} texto='{Texto}' intent={Intento} " +
-            "(conf={Confianza}) ejercicio='{Ejercicio}' resolver={Estado} ejercicioId={EjercicioId} " +
-            "serie={Serie} cantidadSeries={CantidadSeries} reps={Reps} peso={Peso} unidad={Unidad} " +
-            "tiempoSeg={TiempoSeg} descansoSeg={DescansoSeg} aclarar={CampoAclarar} " +
-            "sugerencias=[{Sugerencias}]",
-            message.MessageId,
-            analisis.MensajeKind,
-            analisis.TextoProcesado,
-            analisis.Clasificacion.Intento,
-            analisis.Clasificacion.Confianza?.ToString("0.00") ?? "-",
-            analisis.Entidades?.EjercicioTexto ?? "-",
-            analisis.ResolucionEjercicio?.Estado.ToString() ?? "-",
-            analisis.ResolucionEjercicio?.EjercicioId,
-            analisis.Entidades?.SerieOrdinal,
-            analisis.Entidades?.CantidadSeries,
-            analisis.Entidades?.Reps,
-            analisis.Entidades?.PesoKg,
-            analisis.Entidades?.Unidad.ToString() ?? "-",
-            analisis.Entidades?.TiempoSegundos,
-            analisis.Entidades?.DescansoSegundos,
-            analisis.Entidades?.CampoAclarar ?? "-",
-            Sugerencias(analisis.ResolucionEjercicio));
-    }
-
-    // Visible para tests del slice (WebApplicationFactory no alcanza para
-    // inspeccionar la interpretación; el resultado se retorna tipado).
-    internal async Task<AnalisisCaptura?> AnalizarMensajeAsync(
+    public async Task<AnalisisCaptura?> AnalizarAsync(
         IncomingWhatsappMessage message, CancellationToken cancellationToken)
     {
         string texto;
@@ -123,13 +84,41 @@ internal sealed class WhatsappCapturaPipeline(
                 crudo, await catalogo.LeerAsync(cancellationToken));
         }
 
-        return new AnalisisCaptura(
+        var analisis = new AnalisisCaptura(
             message.Kind,
             texto,
             transcripcion,
             clasificacion,
             entidades.Exito ? entidades.Entidades : null,
             resolucion);
+
+        // Línea auditable (reglas de negocio §4: el texto crudo queda para
+        // rastrear desvíos). Ningún dato inventado: los faltantes muestran '-'.
+        logger.LogInformation(
+            "Captura interpretada: msg={Id} kind={Kind} texto='{Texto}' intent={Intento} " +
+            "(conf={Confianza}) ejercicio='{Ejercicio}' resolver={Estado} ejercicioId={EjercicioId} " +
+            "serie={Serie} cantidadSeries={CantidadSeries} reps={Reps} peso={Peso} unidad={Unidad} " +
+            "tiempoSeg={TiempoSeg} descansoSeg={DescansoSeg} aclarar={CampoAclarar} " +
+            "sugerencias=[{Sugerencias}]",
+            message.MessageId,
+            analisis.MensajeKind,
+            analisis.TextoProcesado,
+            analisis.Clasificacion.Intento,
+            analisis.Clasificacion.Confianza?.ToString("0.00") ?? "-",
+            analisis.Entidades?.EjercicioTexto ?? "-",
+            analisis.ResolucionEjercicio?.Estado.ToString() ?? "-",
+            analisis.ResolucionEjercicio?.EjercicioId,
+            analisis.Entidades?.SerieOrdinal,
+            analisis.Entidades?.CantidadSeries,
+            analisis.Entidades?.Reps,
+            analisis.Entidades?.PesoKg,
+            analisis.Entidades?.Unidad.ToString() ?? "-",
+            analisis.Entidades?.TiempoSegundos,
+            analisis.Entidades?.DescansoSegundos,
+            analisis.Entidades?.CampoAclarar ?? "-",
+            Sugerencias(analisis.ResolucionEjercicio));
+
+        return analisis;
     }
 
     private static string Sugerencias(ResultadoResolucionEjercicio? resolucion) =>

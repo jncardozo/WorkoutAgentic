@@ -29,6 +29,9 @@ public class RegistroParcial
     // NULL = todavía no se definió (aclaración en curso); ver Unidad para los valores.
     public Unidad? Unidad { get; set; }
 
+    // Segundos de ejercicios por tiempo (plancha, dinámicas): unidad = Tiempo.
+    public int? TiempoSeg { get; set; }
+
     public bool PendienteAclaracion { get; set; }
 
     public DateTime CreadoUtc { get; set; }

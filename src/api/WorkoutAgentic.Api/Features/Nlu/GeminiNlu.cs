@@ -38,7 +38,9 @@ internal sealed class GeminiNlu(
         "rioplatense. Tu única tarea es clasificar el mensaje y extraer entidades. " +
         "REGLA MÁS IMPORTANTE: nunca inventes datos. Si un valor falta o es ambiguo " +
         "por más de un criterio (\"y pico\", \"cincuenta y pico\", \"unos 40\"), poné null " +
-        "en ese campo y completá aclarar.campo con qué preguntar.\n" +
+        "en ese campo y completá aclarar.campo con qué preguntar: ejercicio | serie | " +
+        "reps | peso | tiempo | unidad | valor_exacto (este último solo cuando el " +
+        "alumno lo dijo de forma vaga).\n" +
         "Intents: CARGA_EJERCICIO nombra/actualiza un ejercicio (con o sin datos de serie; " +
         "si vienen datos de serie en el mismo mensaje sigue siendo CARGA_EJERCICIO). " +
         "CARGA_SERIE es datos de una serie SIN ejercicio nuevo (el activo de la sesión lo " +

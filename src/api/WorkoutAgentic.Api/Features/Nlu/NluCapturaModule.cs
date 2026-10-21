@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using WorkoutAgentic.Api.Features.WhatsappWebhook;
 
 namespace WorkoutAgentic.Api.Features.Nlu;
 
@@ -27,7 +26,7 @@ internal static class NluCapturaModule
         services.AddScoped<IEntityExtractor>(sp => sp.GetRequiredService<GeminiNlu>());
 
         services.AddScoped<IWhatsappCatalogoEjercicios, EjercicioCatalogoSource>();
-        services.AddScoped<ICapturaPipeline, WhatsappCapturaPipeline>();
+        services.AddScoped<IMensajesNlu, WhatsappCapturaPipeline>();
 
         return services;
     }

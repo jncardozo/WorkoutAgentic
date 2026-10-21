@@ -35,7 +35,7 @@ internal static class NluSchema
           "properties": {
             "campo": {
               "type": "string",
-              "enum": ["ejercicio", "serie", "reps", "peso", "unidad", "valor_exacto"]
+              "enum": ["ejercicio", "serie", "reps", "peso", "tiempo", "unidad", "valor_exacto"]
             },
             "pregunta": { "type": "string", "nullable": true }
           }

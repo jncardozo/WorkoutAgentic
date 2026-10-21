@@ -30,7 +30,7 @@ public class WhatsappCapturaPipelineTests
                 CampoAclarar: "peso", PreguntaAclarar: "¿Con cuánto peso?"))),
             catalogo: new StubCatalogo(Catalogo));
 
-        var analisis = await pipeline.AnalizarMensajeAsync(mensaje, CancellationToken.None);
+        var analisis = await pipeline.AnalizarAsync(mensaje, CancellationToken.None);
 
         Assert.NotNull(analisis);
         Assert.Equal(WhatsappMessageKind.Audio, analisis.MensajeKind);
@@ -55,7 +55,7 @@ public class WhatsappCapturaPipelineTests
                 CampoAclarar: "ejercicio", PreguntaAclarar: null))),
             catalogo: new StubCatalogo(Catalogo));
 
-        var analisis = await pipeline.AnalizarMensajeAsync(
+        var analisis = await pipeline.AnalizarAsync(
             new IncomingWhatsappMessage(
                 MessageId: "wamid.1", From: "5215512345678", Kind: WhatsappMessageKind.Text,
                 TextBody: "anotame el pecho, la máquina con pulley, 3x12", AudioMediaId: null,
@@ -82,7 +82,7 @@ public class WhatsappCapturaPipelineTests
             new StubExtractor(EntidadesExtraidas.Fallo("no aplica")),
             new StubCatalogo(Catalogo));
 
-        var analisis = await pipeline.AnalizarMensajeAsync(
+        var analisis = await pipeline.AnalizarAsync(
             new IncomingWhatsappMessage("wamid.2", "5215512345678", WhatsappMessageKind.Audio,
                 TextBody: null, AudioMediaId: null, AudioMimeType: null,
                 AudioDurationSeconds: 10, AudioSha256: "abc"),
@@ -102,7 +102,7 @@ public class WhatsappCapturaPipelineTests
             extractor: new StubExtractor(EntidadesExtraidas.Fallo("no aplica")),
             catalogo: new StubCatalogo(Catalogo));
 
-        var analisis = await pipeline.AnalizarMensajeAsync(MensajeAudio(), CancellationToken.None);
+        var analisis = await pipeline.AnalizarAsync(MensajeAudio(), CancellationToken.None);
 
         Assert.Null(analisis);                  // etapa falló → sin texto inventado
     }
@@ -117,7 +117,7 @@ public class WhatsappCapturaPipelineTests
             extractor: new StubExtractor(EntidadesExtraidas.Fallo("no aplica")),
             catalogo: new StubCatalogo(Catalogo));
 
-        var analisis = await pipeline.AnalizarMensajeAsync(MensajeAudio(), CancellationToken.None);
+        var analisis = await pipeline.AnalizarAsync(MensajeAudio(), CancellationToken.None);
 
         Assert.Null(analisis);
     }
@@ -132,7 +132,7 @@ public class WhatsappCapturaPipelineTests
             extractor: new StubExtractor(EntidadesExtraidas.Fallo("Fallo de red: timeout")),
             catalogo: new StubCatalogo(Catalogo));
 
-        var analisis = await pipeline.AnalizarMensajeAsync(MensajeAudio(), CancellationToken.None);
+        var analisis = await pipeline.AnalizarAsync(MensajeAudio(), CancellationToken.None);
 
         Assert.NotNull(analisis);                              // el análisis existe (auditable)
         Assert.False(analisis.Clasificacion.Exito);
@@ -151,7 +151,7 @@ public class WhatsappCapturaPipelineTests
             extractor: new StubExtractor(EntidadesExtraidas.Fallo("no aplica")),
             catalogo: new StubCatalogo(Catalogo));
 
-        var analisis = await pipeline.AnalizarMensajeAsync(
+        var analisis = await pipeline.AnalizarAsync(
             new IncomingWhatsappMessage("wamid.3", "5215512345678", WhatsappMessageKind.Other,
                 TextBody: null, AudioMediaId: null, AudioMimeType: null,
                 AudioDurationSeconds: null, AudioSha256: null),

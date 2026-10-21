@@ -12,6 +12,10 @@ public class AclaracionPendiente
     // canónico lo fija el slice NLU siguiendo el spec.
     public string Campo { get; set; } = string.Empty;
 
+    // Contexto mínimo para resolverla (JSON): {"registroId":N,"crudo":"…"}.
+    // Lo demás se re-deriva de forma determinística (parser + CatalogResolver).
+    public string? Contexto { get; set; }
+
     // Reintento actual: tras 2 reintentos sin resolver, la fila queda marcada
     // con RegistroParcial.PendienteAclaracion=true y el flujo continúa.
     public int Reintento { get; set; }

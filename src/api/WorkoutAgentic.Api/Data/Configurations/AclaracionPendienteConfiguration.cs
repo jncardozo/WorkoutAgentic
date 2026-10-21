@@ -14,6 +14,9 @@ public sealed class AclaracionPendienteConfiguration : IEntityTypeConfiguration<
 
         builder.Property(a => a.Campo).HasMaxLength(30);
 
+        // JSON chico con el contexto de la pregunta ({registroId, crudo}).
+        builder.Property(a => a.Contexto).HasMaxLength(500);
+
         builder.HasOne(a => a.Sesion)
             .WithOne(s => s.AclaracionPendiente!)
             .HasForeignKey<AclaracionPendiente>(a => a.SesionId)
