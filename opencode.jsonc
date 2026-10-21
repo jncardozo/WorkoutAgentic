@@ -1,0 +1,92 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // ── Modelo principal ────────────────────────────────────────────────────────
+  // GLM-5.3 Flash Free: gratis, flagship de código de Z.ai.
+  "model": "opencode/glm-5.3-flash-free",
+
+  // ── Permisos: confirmar antes de operaciones sensibles ─────────────────────
+  "permissions": [
+    // Nunca publicar al remoto sin confirmación humana
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    // Operaciones destructivas de base de datos
+    { "action": "shell", "resource": "dotnet ef database drop *", "effect": "ask" },
+    { "action": "shell", "resource": "* rm -rf *", "effect": "ask" },
+    // Los secretos viven fuera del repo; pedir confirmación para leerlos/editarlos
+    { "action": "edit", "resource": "**/.env", "effect": "ask" },
+    { "action": "edit", "resource": "**/appsettings*.json", "effect": "ask" },
+    // Eliminar proyectos del prototipo de Stitch solo con confirmación humana
+    { "action": "stitch_delete_project", "resource": "*", "effect": "ask" },
+  ],
+
+  // ── Contexto nombrado disponible para el agente ─────────────────────────────
+  "references": {
+    "conventions": {
+      "path": "docs/conventions",
+      "description": "Convenciones de código para .NET, Angular 21 y WhatsApp Cloud API",
+    },
+    "domain": {
+      "path": "docs/domain",
+      "description": "Glosario y reglas de negocio del dominio de gimnasio (rutinas, progresiones)",
+    },
+    "adr": {
+      "path": "docs/adr",
+      "description": "Architecture Decision Records: decisiones tomadas y pendientes",
+    },
+  },
+
+  // ── MCP servers ─────────────────────────────────────────────────────────────
+  "mcp": {
+    "servers": {
+      // Documentación actualizada de librerías (Angular 21, .NET 10, EF Core…)
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+      },
+      // Pruebas E2E de la SPA Angular. Requiere Node/npx en PATH.
+      // Deshabilitado hasta que exista el proyecto frontend.
+      "playwright": {
+        "type": "local",
+        "command": ["npx", "-y", "@playwright/mcp"],
+        "disabled": true,
+      },
+      // ── Stitch (Google) — prototipo UX generado en Stitch ───────────────────
+      // MCP oficial de Stitch. La API key NUNCA va aquí: se lee del entorno con
+      // {env:...}. Crea/regenera la key en https://aistudio.google.com/apikey
+      "stitch": {
+        "type": "remote",
+        "url": "https://stitch.googleapis.com/mcp",
+        "oauth": false,
+        "headers": {
+          "X-Goog-Api-Key": "{env:STITCH_API_KEY}",
+        },
+      },
+    },
+      // MCP oficial de Figma (OAuth). Diseño UX del proyecto exportado desde Stitch.
+      // Al primer uso: /mcps → figma → iniciar sesión con la cuenta de Figma.
+      "figma": {
+        "type": "remote",
+        "url": "https://mcp.figma.com/mcp",
+      },
+    },
+  },
+
+  // ── Formateo automático tras cada write/edit ────────────────────────────────
+  "formatter": true,
+
+  // No vigilar artefactos de build (evita recargas/índices inútiles)
+  "watcher": {
+    "ignore": [
+      "**/bin/**",
+      "**/obj/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.angular/**",
+      "**/TestResults/**",
+    ],
+  },
+
+  // Dar al agente la herramienta de todos para trabajo multi-paso
+  "experimental": {
+    "todo": true,
+  },
+}

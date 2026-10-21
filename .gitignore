@@ -1,0 +1,31 @@
+# .NET
+bin/
+obj/
+*.user
+TestResults/
+*.binlog
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+coverage/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# Secretos — NUNCA versionar
+.env
+.env.*
+!.env.example
+appsettings.Development.local.json
+
+# SO / sistema
+Thumbs.db
+.DS_Store
+
+# OpenCode (contexto local de sesiones)
+.opencode/cache/
