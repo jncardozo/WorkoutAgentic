@@ -1,0 +1,288 @@
+/* Vista Alumno · Planilla: encabezado, cuadrícula editable y alta de filas. */
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.meta {
+  color: var(--texto-2);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.encabezado-lado {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.texto-suave {
+  color: var(--texto-2);
+}
+
+.panel-falla h2 {
+  margin-bottom: 6px;
+}
+
+/* ─── Cuadrícula ─────────────────────────────────────────────────────────────── */
+
+.cabecera-cuadricula {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.tarjeta .banner {
+  margin-bottom: 14px;
+}
+
+.cuadricula {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.cuadricula th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texto-3);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.cuadricula td {
+  padding: 10px;
+  border-bottom: 1px solid var(--borde-suave);
+  vertical-align: middle;
+}
+
+.cuadricula tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.num {
+  font-family: var(--tipografia-numeros);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+th.num {
+  font-family: var(--tipografia-texto);
+}
+
+.nombre-ejercicio {
+  font-weight: 500;
+}
+
+.nombre-ejercicio + .badge {
+  margin-left: 8px;
+}
+
+.col-acciones {
+  text-align: right;
+}
+
+.col-acciones .btn-enlace {
+  margin-left: 6px;
+}
+
+.vacia {
+  color: var(--texto-2);
+  text-align: center;
+  padding: 28px 0 16px;
+}
+
+.sin-sesion h2 {
+  margin-bottom: 8px;
+}
+
+.sin-sesion p {
+  color: var(--texto-2);
+  margin: 0;
+}
+
+/* ─── Entradas de la cuadrícula (edición inline) ────────────────────────────── */
+
+.entrada-num {
+  width: 78px;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  color: var(--texto);
+  padding: 6px 8px;
+  font-family: var(--tipografia-numeros);
+  font-size: 13px;
+  outline: none;
+}
+
+.entrada-num:focus,
+.selector-ejercicio:focus,
+.entrada-crudo:focus {
+  border-color: color-mix(in srgb, var(--acento) 55%, var(--borde));
+}
+
+.entrada-num:disabled,
+.selector-ejercicio:disabled,
+.entrada-crudo:disabled {
+  opacity: 0.4;
+}
+
+.selector-ejercicio {
+  min-width: 200px;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  color: var(--texto);
+  padding: 6px 8px;
+  font-family: var(--tipografia-texto);
+  font-size: 13px;
+  outline: none;
+}
+
+.entrada-crudo {
+  width: 210px;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  color: var(--texto);
+  padding: 6px 8px;
+  font-family: var(--tipografia-texto);
+  font-size: 13px;
+  outline: none;
+}
+
+.celda-peso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.al-cuerpo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--texto-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.al-cuerpo input[type='checkbox'] {
+  accent-color: var(--acento);
+}
+
+.acciones-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 230px;
+}
+
+.par-de-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-chico {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-eliminar {
+  color: var(--peligro);
+}
+
+/* ─── Panel de alta ─────────────────────────────────────────────────────────── */
+
+.panel-alta {
+  margin-top: 18px;
+  border-top: 1px solid var(--borde-suave);
+  padding-top: 16px;
+}
+
+.panel-alta h3 {
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.campos-alta {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 80px 80px 110px 90px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.campo-ejercicio select {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  color: var(--texto);
+  padding: 8px 10px;
+  font-family: var(--tipografia-texto);
+  font-size: 13px;
+  outline: none;
+}
+
+@media (max-width: 860px) {
+  .campos-alta {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+/* ─── Confirmación ──────────────────────────────────────────────────────────── */
+
+.barra-confirmar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ok) 30%, var(--borde));
+  background: color-mix(in srgb, var(--ok) 6%, transparent);
+}
+
+.barra-confirmar p {
+  margin: 0;
+  color: var(--texto-2);
+  max-width: 640px;
+}
+
+/* ─── Planilla congelada (post confirmación) ────────────────────────────────── */
+
+.cabecera-confirmada {
+  margin-bottom: 12px;
+}
+
+.pie-confirmada {
+  color: var(--texto-2);
+  font-size: 13px;
+  margin-top: 14px;
+}
+
+.sr-solo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

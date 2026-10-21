@@ -1,0 +1,410 @@
+@if (cargando()) {
+  <p class="cargando">Cargando tu planilla…</p>
+} @else if (fallaCarga(); as fallo) {
+  <div class="tarjeta panel-falla">
+    <h2>No pudimos cargar tu planilla</h2>
+    <p>
+      {{ fallo.titulo }}
+      @if (fallo.detalle) {
+        <span class="texto-suave"> · {{ fallo.detalle }}</span>
+      }
+    </p>
+    <button type="button" class="btn btn-primario" (click)="recargar()">Reintentar</button>
+  </div>
+} @else {
+  @if (sesion(); as espacio) {
+    <header class="encabezado">
+      <div>
+        <h1>Planilla del alumno #{{ espacio.alumno.id }}</h1>
+        <p class="meta">
+          WhatsApp {{ espacio.alumno.telefonoWa }}
+          @if (sesionViva(); as viva) {
+            · última actividad {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}
+          }
+        </p>
+      </div>
+      <div class="encabezado-lado">
+        <span class="badge {{ chipEstado().clase }}">{{ chipEstado().texto }}</span>
+        <button type="button" class="btn" (click)="recargar()">Actualizar</button>
+        <button type="button" class="btn" (click)="irAEntrada()">Cambiar alumno</button>
+      </div>
+    </header>
+
+    @if (planillaConfirmada(); as congelada) {
+      <section class="tarjeta panel-confirmada">
+        <div class="cabecera-confirmada">
+          <h2>Planilla confirmada ✓</h2>
+          <p class="meta">
+            Congelada el {{ congelada.confirmadaUtc | date: 'dd MMM, HH:mm' }} · tu profesor ya la
+            puede ver en solo lectura.
+          </p>
+        </div>
+
+        <table class="cuadricula">
+          <thead>
+            <tr>
+              <th class="num">Serie</th>
+              <th>Ejercicio</th>
+              <th class="num">Reps</th>
+              <th class="num">Peso</th>
+              <th class="num">Tiempo</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (firma of congelada.filas; track firma.orden) {
+              <tr>
+                <td class="num">{{ firma.nroSerie }}</td>
+                <td>
+                  <span class="nombre-ejercicio">{{ firma.ejercicioCanonical }}</span>
+                  @if (firma.incompleta) {
+                    <span class="badge badge-aviso">incompleta</span>
+                  }
+                </td>
+                <td class="num">{{ firma.reps ?? '—' }}</td>
+                <td class="num">
+                  {{
+                    firma.unidad === 'PesoCorporal'
+                      ? 'al cuerpo'
+                      : firma.pesoKg === null
+                        ? '—'
+                        : firma.pesoKg + ' kg'
+                  }}
+                </td>
+                <td class="num">{{ firma.tiempoSeg === null ? '—' : firma.tiempoSeg + ' s' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <p class="pie-confirmada">
+          Para anotar otro entrenamiento, arrancá una nueva carga por WhatsApp.
+        </p>
+      </section>
+    } @else {
+      @if (sesionViva(); as viva) {
+        <section class="tarjeta">
+          <div class="cabecera-cuadricula">
+            <div>
+              <h2>Sesión #{{ viva.id }}</h2>
+              @if (viva.ejercicioActivoNombre) {
+                <p class="meta">En el chat estás cargando: {{ viva.ejercicioActivoNombre }}</p>
+              }
+            </div>
+            @if (cuadriculaEditable()) {
+              <button
+                type="button"
+                class="btn btn-primario"
+                (click)="abrirAlta()"
+                [disabled]="altaAbierta()"
+              >
+                + Agregar fila
+              </button>
+            }
+          </div>
+
+          @switch (viva.estado) {
+            @case ('EsperandoAclaracion') {
+              <div class="banner banner-aviso" role="status">
+                <div>
+                  <strong>El bot está esperando tu respuesta por WhatsApp.</strong>
+                  Te preguntó por «{{ viva.aclaracion?.campo ?? 'un dato de la serie' }}» (intento
+                  {{ viva.aclaracion?.reintento ?? 1 }} de 2). Respondelo en el chat; la cuadrícula
+                  queda congelada mientras tanto.
+                </div>
+              </div>
+            }
+            @case ('Expirada') {
+              <div class="banner banner-aviso" role="status">
+                <div>
+                  <strong>La sesión está pausada por inactividad.</strong>
+                  Escribí «seguir» en el chat para reanudar la carga; mientras tanto no se puede
+                  editar la planilla.
+                </div>
+              </div>
+            }
+            @case ('EnCurso') {
+              <div class="banner banner-info" role="status">
+                <div>
+                  Estás cargando por WhatsApp: la cuadrícula se actualiza sola a medida que
+                  respondés al bot.
+                </div>
+              </div>
+            }
+            @case ('Lista') {
+              <div class="banner banner-ok" role="status">
+                <div><strong>Tu carga quedó cerrada.</strong> Revisá la cuadrícula y confirmá la planilla.</div>
+              </div>
+            }
+          }
+
+          @if (fallaAccion(); as falla) {
+            <div class="banner banner-peligro" role="alert">
+              <div>
+                <strong>{{ falla.titulo }}.</strong>
+                {{ falla.detalle ?? 'Probá otra vez.' }}
+              </div>
+            </div>
+          }
+
+          @if (viva.filas.length === 0) {
+            <p class="vacia">Sin filas todavía: tus series aparecen a medida que las cargás por WhatsApp.</p>
+          } @else {
+            <table class="cuadricula">
+              <thead>
+                <tr>
+                  <th class="num">Serie</th>
+                  <th>Ejercicio</th>
+                  <th class="num">Reps</th>
+                  <th class="num">Peso</th>
+                  <th class="num">Tiempo</th>
+                  <th class="col-acciones"><span class="sr-solo">Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (fila of viva.filas; track fila.id) {
+                  <tr>
+                    <td class="num">
+                      @if (editando(fila) && borradorEdicion(); as borrador) {
+                        <input
+                          type="number"
+                          class="entrada-num"
+                          min="1"
+                          aria-label="Número de serie"
+                          [value]="borrador.serie"
+                          (input)="actualizarBorradorEdicion('serie', $any($event.target).value)"
+                        />
+                      } @else {
+                        {{ fila.nroSerie }}
+                      }
+                    </td>
+                    <td>
+                      <span class="nombre-ejercicio">{{ etiquetaEjercicio(fila) }}</span>
+                      @if (fila.descripcionPendiente) {
+                        <span class="badge badge-violeta">sin ejercicio</span>
+                      }
+                      @if (fila.pendienteAclaracion) {
+                        <span class="badge badge-aviso">pendiente del bot</span>
+                      }
+                    </td>
+                    <td class="num">
+                      @if (editando(fila) && borradorEdicion(); as borrador) {
+                        <input
+                          type="number"
+                          class="entrada-num"
+                          min="1"
+                          aria-label="Repeticiones"
+                          [value]="borrador.reps"
+                          [disabled]="ejercicioDelCatalogo(borrador.ejercicioId)?.usaTiempo === true"
+                          (input)="actualizarBorradorEdicion('reps', $any($event.target).value)"
+                        />
+                      } @else {
+                        {{ fila.reps ?? '—' }}
+                      }
+                    </td>
+                    <td class="num">
+                      @if (editando(fila) && borradorEdicion(); as borrador) {
+                        <div class="celda-peso">
+                          <input
+                            type="number"
+                            class="entrada-num"
+                            min="0"
+                            step="0.5"
+                            aria-label="Peso en kg"
+                            [value]="borrador.peso"
+                            [disabled]="
+                              borrador.pesoAlCuerpo
+                                || borrador.ejercicioId === null
+                                || ejercicioDelCatalogo(borrador.ejercicioId)?.usaTiempo === true
+                            "
+                            (input)="actualizarBorradorEdicion('peso', $any($event.target).value)"
+                          />
+                          <label class="al-cuerpo">
+                            <input
+                              type="checkbox"
+                              [checked]="borrador.pesoAlCuerpo"
+                              (change)="marcarAlCuerpoEdicion($any($event.target).checked)"
+                            />
+                            cuerpo
+                          </label>
+                        </div>
+                      } @else {
+                        {{ pesoTexto(fila) }}
+                      }
+                    </td>
+                    <td class="num">
+                      @if (editando(fila) && borradorEdicion(); as borrador) {
+                        <input
+                          type="number"
+                          class="entrada-num"
+                          min="1"
+                          aria-label="Tiempo en segundos"
+                          [value]="borrador.tiempo"
+                          [disabled]="ejercicioDelCatalogo(borrador.ejercicioId)?.usaTiempo !== true"
+                          (input)="actualizarBorradorEdicion('tiempo', $any($event.target).value)"
+                        />
+                      } @else {
+                        {{ tiempoTexto(fila) }}
+                      }
+                    </td>
+                    <td class="col-acciones">
+                      @if (editando(fila) && borradorEdicion(); as borrador) {
+                        <div class="acciones-editor">
+                          <select
+                            class="selector-ejercicio"
+                            aria-label="Ejercicio de la fila"
+                            [value]="idEjercicioTexto(borrador.ejercicioId)"
+                            (change)="cambiarEjercicioBorrador('edicion', $any($event.target).value)"
+                          >
+                            <option value="">— descripción libre —</option>
+                            @for (e of catalogo(); track e.id) {
+                              <option [value]="e.id">{{ e.nombreCanonico }}</option>
+                            }
+                          </select>
+                          @if (borrador.ejercicioId === null) {
+                            <input
+                              type="text"
+                              class="entrada-crudo"
+                              placeholder="¿Qué hiciste?"
+                              aria-label="Descripción de la fila"
+                              [value]="borrador.ejercicioCrudo"
+                              (input)="actualizarBorradorEdicion('ejercicioCrudo', $any($event.target).value)"
+                            />
+                          }
+                          <div class="par-de-acciones">
+                            <button type="button" class="btn btn-chico" (click)="guardarEdicion(fila)">
+                              Guardar
+                            </button>
+                            <button type="button" class="btn btn-chico" (click)="cancelarEdicion()">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      } @else if (cuadriculaEditable()) {
+                        <button type="button" class="btn-enlace" (click)="abrirEdicion(fila)">
+                          Editar
+                        </button>
+                        @if (filaEnConfirmacion() === fila.id) {
+                          <button type="button" class="btn-enlace btn-eliminar" (click)="eliminarFila(fila)">
+                            ¿Borrarla?
+                          </button>
+                          <button type="button" class="btn-enlace" (click)="cancelarBorrado()">No</button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn-enlace btn-eliminar"
+                            (click)="pedirBorrado(fila.id)"
+                          >
+                            Eliminar
+                          </button>
+                        }
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+
+          @if (altaAbierta() && borradorAlta(); as alta) {
+            <div class="panel-alta">
+              <h3>Agregar fila</h3>
+              <div class="campos-alta">
+                <label class="campo campo-ejercicio">
+                  Ejercicio
+                  <select
+                    aria-label="Ejercicio de la nueva fila"
+                    [value]="idEjercicioTexto(alta.ejercicioId)"
+                    (change)="cambiarEjercicioBorrador('alta', $any($event.target).value)"
+                  >
+                    @for (e of catalogo(); track e.id) {
+                      <option [value]="e.id">{{ e.nombreCanonico }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="campo">
+                  Serie
+                  <input
+                    type="number"
+                    min="1"
+                    [value]="alta.serie"
+                    (input)="actualizarBorradorAlta('serie', $any($event.target).value)"
+                  />
+                </label>
+                <label class="campo">
+                  Reps
+                  <input
+                    type="number"
+                    min="1"
+                    [value]="alta.reps"
+                    [disabled]="ejercicioDelCatalogo(alta.ejercicioId)?.usaTiempo === true"
+                    (input)="actualizarBorradorAlta('reps', $any($event.target).value)"
+                  />
+                </label>
+                <label class="campo">
+                  Peso (kg)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    [value]="alta.peso"
+                    [disabled]="
+                      alta.pesoAlCuerpo || ejercicioDelCatalogo(alta.ejercicioId)?.usaTiempo === true
+                    "
+                    (input)="actualizarBorradorAlta('peso', $any($event.target).value)"
+                  />
+                  <span class="al-cuerpo">
+                    <input
+                      type="checkbox"
+                      [checked]="alta.pesoAlCuerpo"
+                      (change)="marcarAlCuerpoAlta($any($event.target).checked)"
+                    />
+                    al cuerpo
+                  </span>
+                </label>
+                <label class="campo">
+                  Tiempo (s)
+                  <input
+                    type="number"
+                    min="1"
+                    [value]="alta.tiempo"
+                    [disabled]="ejercicioDelCatalogo(alta.ejercicioId)?.usaTiempo !== true"
+                    (input)="actualizarBorradorAlta('tiempo', $any($event.target).value)"
+                  />
+                </label>
+              </div>
+              <div class="par-de-acciones">
+                <button type="button" class="btn btn-primario" (click)="guardarAlta()">Guardar fila</button>
+                <button type="button" class="btn" (click)="cerrarAlta()">Cancelar</button>
+              </div>
+            </div>
+          }
+
+          @if (viva.estado === 'Lista' && !altaAbierta() && filaEditandoId() === null) {
+            <div class="barra-confirmar">
+              <p>
+                ¿La cuadrícula está como querés? Al confirmar, la planilla congela tal cual está y
+                queda visible para tu profesor.
+              </p>
+              <button
+                type="button"
+                class="btn btn-primario"
+                [disabled]="viva.filas.length === 0 || accionEnCurso()"
+                (click)="confirmar()"
+              >
+                Confirmar planilla
+              </button>
+            </div>
+          }
+        </section>
+      } @else {
+        <div class="tarjeta sin-sesion">
+          <h2>No hay una carga en curso</h2>
+          <p>
+            Tu planilla se abre cuando cargás por WhatsApp: mandá un mensaje (texto o nota de voz)
+            al bot con tu guía de entrenamiento y volvé acá para revisar todo en la cuadrícula.
+          </p>
+        </div>
+      }
+    }
+  }
+}

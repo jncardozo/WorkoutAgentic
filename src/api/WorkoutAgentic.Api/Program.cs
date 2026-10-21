@@ -25,7 +25,13 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// Redirección HTTPS solo fuera de Development: en dev el proxy de la SPA y
+// los túneles del webhook hablan http directo (el perfil https queda
+// disponible para pruebas manuales).
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // Los endpoints reales entran por vertical slices.
 app.MapWhatsappWebhook();

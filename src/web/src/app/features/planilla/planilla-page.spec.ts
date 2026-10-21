@@ -1,0 +1,257 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { vi } from 'vitest';
+
+import {
+  ComandoEdicionFila,
+  EjercicioCatalogoVista,
+  FilaParcialVista,
+  PlanillaApi,
+  PlanillaConfirmadaVista,
+  RespuestaSesionActual,
+  SesionActualVista,
+} from '../../core/planilla-api';
+import { PlanillaPage } from './planilla-page';
+
+const CATALOGO: EjercicioCatalogoVista[] = [
+  { id: 11, nombreCanonico: 'Press banca', grupoMuscular: 'Pecho', usaPeso: true, usaTiempo: false },
+  { id: 22, nombreCanonico: 'Plancha', grupoMuscular: 'Core', usaPeso: false, usaTiempo: true },
+  { id: 33, nombreCanonico: 'Dominadas', grupoMuscular: 'Espalda', usaPeso: false, usaTiempo: false },
+];
+
+function fila(sobre: Partial<FilaParcialVista> = {}): FilaParcialVista {
+  return {
+    id: 5,
+    ejercicioId: 11,
+    ejercicioCanonico: 'Press banca',
+    ejercicioCrudo: null,
+    descripcionPendiente: false,
+    nroSerie: 1,
+    reps: 8,
+    pesoKg: 45,
+    unidad: 'Kg',
+    tiempoSeg: null,
+    pendienteAclaracion: false,
+    creadoUtc: '2026-10-21T15:00:00Z',
+    ...sobre,
+  };
+}
+
+function sesion(sobre: Partial<SesionActualVista> = {}): SesionActualVista {
+  return {
+    id: 3,
+    estado: 'EnCurso',
+    ejercicioActivoId: null,
+    ejercicioActivoNombre: null,
+    ordenSerieSiguiente: 2,
+    aclaracion: null,
+    ultimaActividadUtc: '2026-10-21T15:00:00Z',
+    filas: [fila()],
+    ...sobre,
+  };
+}
+
+function respuesta(sesionActual: SesionActualVista | null): RespuestaSesionActual {
+  return { alumno: { id: 1, telefonoWa: '+5491100000000' }, sesion: sesionActual };
+}
+
+const PLANILLA_CONFIRMADA: PlanillaConfirmadaVista = {
+  id: 9,
+  alumnoId: 1,
+  sesionId: 3,
+  confirmadaUtc: '2026-10-21T16:00:00Z',
+  filas: [
+    {
+      orden: 1,
+      ejercicioCanonical: 'Press banca',
+      nroSerie: 1,
+      reps: 8,
+      pesoKg: 45,
+      unidad: 'Kg',
+      tiempoSeg: null,
+      incompleta: false,
+    },
+    {
+      orden: 2,
+      ejercicioCanonical: 'hice quedadas',
+      nroSerie: 2,
+      reps: null,
+      pesoKg: null,
+      unidad: null,
+      tiempoSeg: null,
+      incompleta: true,
+    },
+  ],
+};
+
+interface StubPlanilla {
+  sesionActual: ReturnType<typeof vi.fn>;
+  catalogo: ReturnType<typeof vi.fn>;
+  agregarFila: ReturnType<typeof vi.fn>;
+  editarFila: ReturnType<typeof vi.fn>;
+  eliminarFila: ReturnType<typeof vi.fn>;
+  confirmar: ReturnType<typeof vi.fn>;
+}
+
+function stubPlanilla(
+  respuestaInicial: RespuestaSesionActual,
+  sobres: Partial<StubPlanilla> = {},
+): StubPlanilla {
+  return {
+    sesionActual: vi.fn(() => of(respuestaInicial)),
+    catalogo: vi.fn(() => of(CATALOGO)),
+    agregarFila: vi.fn(() => of(respuestaInicial)),
+    editarFila: vi.fn(() => of(respuestaInicial)),
+    eliminarFila: vi.fn(() => of(respuestaInicial)),
+    confirmar: vi.fn(() => of(PLANILLA_CONFIRMADA)),
+    ...sobres,
+  };
+}
+
+async function montar(stub: StubPlanilla): Promise<ComponentFixture<PlanillaPage>> {
+  TestBed.configureTestingModule({
+    imports: [PlanillaPage],
+    providers: [provideRouter([]), { provide: PlanillaApi, useValue: stub }],
+  });
+  const fixture = TestBed.createComponent(PlanillaPage);
+  fixture.componentRef.setInput('alumnoId', 1);
+  await fixture.whenStable();
+  fixture.detectChanges();
+  return fixture;
+}
+
+function texto(fixture: ComponentFixture<PlanillaPage>): string {
+  return (fixture.nativeElement as HTMLElement).textContent ?? '';
+}
+
+function boton(fixture: ComponentFixture<PlanillaPage>, buscado: string): HTMLButtonElement {
+  const encontrado = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+    (botonActual) => (botonActual.textContent ?? '').includes(buscado),
+  );
+  if (!encontrado) {
+    throw new Error(`No está el botón: ${buscado}`);
+  }
+  return encontrado;
+}
+
+function escribir(fixture: ComponentFixture<PlanillaPage>, selector: string, valor: string): void {
+  const entrada = (fixture.nativeElement as HTMLElement).querySelector(selector) as HTMLInputElement;
+  entrada.value = valor;
+  entrada.dispatchEvent(new Event('input'));
+}
+
+describe('PlanillaPage', () => {
+  it('sin sesión muestra el aviso de cargar por WhatsApp y no cuadrícula', async () => {
+    const fixture = await montar(stubPlanilla(respuesta(null)));
+
+    expect(texto(fixture)).toContain('No hay una carga en curso');
+    expect(fixture.nativeElement.querySelector('table.cuadricula')).toBeNull();
+  });
+
+  it('en curso muestra las filas con sus valores', async () => {
+    const filas = [
+      fila({ id: 5, nroSerie: 1, reps: 8, pesoKg: 45 }),
+      fila({
+        id: 6,
+        nroSerie: 2,
+        ejercicioId: 22,
+        ejercicioCanonico: 'Plancha',
+        reps: null,
+        pesoKg: null,
+        unidad: 'Tiempo',
+        tiempoSeg: 45,
+      }),
+    ];
+    const fixture = await montar(stubPlanilla(respuesta(sesion({ filas }))));
+
+    expect(fixture.nativeElement.querySelectorAll('table.cuadricula tbody tr').length).toBe(2);
+    const cuerpo = texto(fixture);
+    expect(cuerpo).toContain('Press banca');
+    expect(cuerpo).toContain('45 kg');
+    expect(cuerpo).toContain('45 s');
+  });
+
+  it('con aclaración viva congela la cuadrícula y explica el campo pedido', async () => {
+    const fixture = await montar(
+      stubPlanilla(respuesta(sesion({ estado: 'EsperandoAclaracion', aclaracion: { campo: 'peso', reintento: 1 } }))),
+    );
+    const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+
+    expect(texto(fixture)).toContain('El bot está esperando');
+    expect(botones.some((b) => (b.textContent ?? '').includes('Editar'))).toBe(false);
+    expect(botones.some((b) => (b.textContent ?? '').includes('Confirmar'))).toBe(false);
+  });
+
+  it('confirmar desde Lista congela y muestra la planilla post-sesión', async () => {
+    const fixture = await montar(stubPlanilla(respuesta(sesion({ estado: 'Lista' }))));
+
+    boton(fixture, 'Confirmar planilla').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const cuerpo = texto(fixture);
+    expect(cuerpo).toContain('Planilla confirmada');
+    expect(cuerpo).toContain('incompleta');
+    expect(fixture.nativeElement.querySelector('table.cuadricula')).not.toBeNull();
+  });
+
+  it('una fila alta incompleta no llama al API y explica qué falta', async () => {
+    const stub = stubPlanilla(respuesta(sesion({ estado: 'EnCurso' })));
+    const fixture = await montar(stub);
+
+    boton(fixture, '+ Agregar fila').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    boton(fixture, 'Guardar fila').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(stub.agregarFila).not.toHaveBeenCalled();
+    expect(texto(fixture)).toContain('La fila necesita las repeticiones.');
+    expect(texto(fixture)).toContain('La fila necesita el peso');
+  });
+
+  it('editar guarda el reemplazo completo y repinta la cuadrícula', async () => {
+    const respuestaEdicion = respuesta(sesion({ filas: [fila({ id: 5, pesoKg: 42.5 })] }));
+    const stub = stubPlanilla(respuesta(sesion({ filas: [fila({ id: 5 })] })), {
+      editarFila: vi.fn(() => of(respuestaEdicion)),
+    });
+    const fixture = await montar(stub);
+
+    boton(fixture, 'Editar').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    escribir(fixture, 'input[aria-label="Peso en kg"]', '42.5');
+    boton(fixture, 'Guardar').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(stub.editarFila).toHaveBeenCalledTimes(1);
+    const [filaId, comando] = stub.editarFila.mock.calls[0] as [number, ComandoEdicionFila];
+    expect(filaId).toBe(5);
+    expect(comando).toEqual({
+      ejercicioId: 11,
+      ejercicioCrudo: null,
+      nroSerie: 1,
+      reps: 8,
+      pesoKg: 42.5,
+      unidad: 'Kg',
+      tiempoSeg: null,
+    });
+    expect(texto(fixture)).toContain('42.5 kg');
+  });
+
+  it('confirmar usa el alumno de la ruta', async () => {
+    const stub = stubPlanilla(respuesta(sesion({ estado: 'Lista' })));
+    const fixture = await montar(stub);
+
+    boton(fixture, 'Confirmar planilla').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(stub.confirmar).toHaveBeenCalledWith(1);
+  });
+});

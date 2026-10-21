@@ -1,1 +1,233 @@
-/* You can add global styles to this file, and also import other style files */
+/* ─── Tokens del diseño (dark, arquitectura §6) ─────────────────────────────── */
+
+:root {
+  --bg: #0a0c11;
+  --panel: #12161f;
+  --panel-2: #171d29;
+  --borde: #232a39;
+  --borde-suave: #1b2130;
+
+  --texto: #e9edf4;
+  --texto-2: #9aa5b8;
+  --texto-3: #667083;
+
+  --acento: #a3e635;        /* lima: acción primaria */
+  --acento-texto: #10160a;
+  --violeta: #8b93ff;
+  --aviso: #ffce67;
+  --peligro: #ff6b6b;
+  --ok: #4ade80;
+
+  --tipografia-titulo: 'Space Grotesk', system-ui, sans-serif;
+  --tipografia-texto: 'Geist', system-ui, sans-serif;
+  --tipografia-numeros: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1100px 420px at 85% -10%, rgba(139, 147, 255, 0.08), transparent 60%),
+    radial-gradient(900px 380px at -10% 0%, rgba(163, 230, 53, 0.05), transparent 55%),
+    var(--bg);
+  color: var(--texto);
+  font-family: var(--tipografia-texto);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--tipografia-titulo);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* ─── Piezas comunes: tarjetas, botones, campos, badges ─────────────────────── */
+
+.tarjeta {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.btn {
+  font-family: var(--tipografia-texto);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 10px;
+  border: 1px solid var(--borde);
+  background: var(--panel-2);
+  color: var(--texto);
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--texto-3);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primario {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-texto);
+  font-weight: 600;
+}
+
+.btn-primario:hover:not(:disabled) {
+  background: #b5ef55;
+  border-color: #b5ef55;
+}
+
+.btn-peligro {
+  color: var(--peligro);
+  border-color: color-mix(in srgb, var(--peligro) 45%, var(--borde));
+}
+
+.btn-enlace {
+  background: none;
+  border: none;
+  color: var(--texto-2);
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-enlace:hover {
+  color: var(--texto);
+}
+
+button:not(.btn):not(.btn-primario):not(.btn-peligro):not(.btn-enlace) {
+  border: 1px solid transparent;
+  background: var(--panel-2);
+  color: var(--texto);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.campo > label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--texto);
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  padding: 8px 10px;
+  width: 100%;
+  outline: none;
+}
+
+.campo input:focus,
+.campo select:focus {
+  border-color: color-mix(in srgb, var(--acento) 55%, var(--borde));
+}
+
+.campo input:disabled,
+.campo select:disabled {
+  opacity: 0.4;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  padding: 3px 10px;
+  border: 1px solid var(--borde);
+  background: var(--panel-2);
+  color: var(--texto-2);
+  white-space: nowrap;
+}
+
+.badge-aviso {
+  color: var(--aviso);
+  border-color: color-mix(in srgb, var(--aviso) 40%, var(--borde));
+  background: color-mix(in srgb, var(--aviso) 9%, transparent);
+}
+
+.badge-ok {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--borde));
+  background: color-mix(in srgb, var(--ok) 9%, transparent);
+}
+
+.badge-violeta {
+  color: var(--violeta);
+  border-color: color-mix(in srgb, var(--violeta) 40%, var(--borde));
+  background: color-mix(in srgb, var(--violeta) 9%, transparent);
+}
+
+.banner {
+  border-radius: 12px;
+  border: 1px solid var(--borde);
+  padding: 13px 16px;
+  font-size: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.banner-aviso {
+  border-color: color-mix(in srgb, var(--aviso) 35%, var(--borde));
+  background: color-mix(in srgb, var(--aviso) 8%, transparent);
+  color: color-mix(in srgb, var(--aviso) 85%, var(--texto));
+}
+
+.banner-peligro {
+  border-color: color-mix(in srgb, var(--peligro) 35%, var(--borde));
+  background: color-mix(in srgb, var(--peligro) 8%, transparent);
+  color: color-mix(in srgb, var(--peligro) 80%, var(--texto));
+}
+
+.banner-ok {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--borde));
+  background: color-mix(in srgb, var(--ok) 7%, transparent);
+  color: color-mix(in srgb, var(--ok) 75%, var(--texto));
+}
+
+.banner-info {
+  background: color-mix(in srgb, var(--violeta) 7%, transparent);
+  border-color: color-mix(in srgb, var(--violeta) 25%, var(--borde));
+  color: color-mix(in srgb, var(--violeta) 70%, var(--texto));
+}
+
+.cargando {
+  color: var(--texto-2);
+  padding: 40px 0;
+  text-align: center;
+}
