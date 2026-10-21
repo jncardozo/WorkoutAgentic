@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="WorkoutAgentic.Api.Tests/WorkoutAgentic.Api.Tests.csproj" />
+  <Project Path="WorkoutAgentic.Api/WorkoutAgentic.Api.csproj" />
+</Solution>

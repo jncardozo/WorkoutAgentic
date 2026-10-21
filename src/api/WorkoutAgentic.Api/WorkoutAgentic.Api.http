@@ -1,0 +1,6 @@
+@WorkoutAgentic.Api_HostAddress = http://localhost:5259
+
+GET {{WorkoutAgentic.Api_HostAddress}}/
+Accept: application/json
+
+###
