@@ -1,7 +1,10 @@
+using WorkoutAgentic.Api.Features.WhatsappWebhook;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Registro de servicios — cada feature agrega lo suyo desde Features/<Nombre>/.
 builder.Services.AddOpenApi();
+builder.Services.AddWhatsappWebhook();
 
 var app = builder.Build();
 
@@ -12,7 +15,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Ping para verificar el scaffold; los endpoints reales entran por vertical slices.
+// Los endpoints reales entran por vertical slices.
+app.MapWhatsappWebhook();
 app.MapGet("/", () => "WorkoutAgentic API");
 
 app.Run();
+
+public partial class Program;
