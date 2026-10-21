@@ -1,3 +1,6 @@
+using Microsoft.Extensions.DependencyInjection;
+using WorkoutAgentic.Api.Features.Whatsapp;
+
 namespace WorkoutAgentic.Api.Features.WhatsappWebhook;
 
 // Punto de registro del slice: opciones (secretos), cola, worker y rutas.

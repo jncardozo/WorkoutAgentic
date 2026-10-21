@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
+using WorkoutAgentic.Api.Features.Whatsapp;
 
 namespace WorkoutAgentic.Api.Features.WhatsappWebhook;
 

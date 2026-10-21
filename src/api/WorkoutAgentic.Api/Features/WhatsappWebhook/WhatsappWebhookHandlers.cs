@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using WorkoutAgentic.Api.Features.Whatsapp;
 
 namespace WorkoutAgentic.Api.Features.WhatsappWebhook;
 
