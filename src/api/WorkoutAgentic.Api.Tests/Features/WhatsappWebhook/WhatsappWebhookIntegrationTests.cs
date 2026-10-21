@@ -28,6 +28,10 @@ public class WhatsappWebhookIntegrationTests : IDisposable
     private readonly TestWhatsappMessageQueue _queue = new();
     private readonly WebApplicationFactory<Program> _factory;
 
+    // BD efímera por instancia de test: el DbInitializer del host corre
+    // Migrate() sin pisar ninguna otra base en paralelo.
+    private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"wa-hook-{Guid.NewGuid():N}.db");
+
     public WhatsappWebhookIntegrationTests()
     {
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -37,6 +41,7 @@ public class WhatsappWebhookIntegrationTests : IDisposable
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
+                    ["ConnectionStrings:Sqlite"] = $"Data Source={_dbPath}",
                     ["Whatsapp:AppSecret"] = AppSecret,
                     ["Whatsapp:VerifyToken"] = VerifyToken,
                 }));
@@ -49,6 +54,23 @@ public class WhatsappWebhookIntegrationTests : IDisposable
     public void Dispose()
     {
         _factory.Dispose();
+
+        foreach (var suffix in new[] { "", "-wal", "-shm", "-journal" })
+        {
+            var file = _dbPath + suffix;
+            if (File.Exists(file))
+            {
+                try
+                {
+                    File.SetAttributes(file, FileAttributes.Normal);
+                    File.Delete(file);
+                }
+                catch (IOException)
+                {
+                    // best effort: el archivo queda en %TEMP%.
+                }
+            }
+        }
     }
 
     [Fact]

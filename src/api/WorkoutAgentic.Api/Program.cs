@@ -1,9 +1,11 @@
+using WorkoutAgentic.Api.Data;
 using WorkoutAgentic.Api.Features.WhatsappWebhook;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Registro de servicios — cada feature agrega lo suyo desde Features/<Nombre>/.
 builder.Services.AddOpenApi();
+builder.Services.AddCapturasDb(builder.Configuration);
 builder.Services.AddWhatsappWebhook();
 
 var app = builder.Build();

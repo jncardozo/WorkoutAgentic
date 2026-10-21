@@ -23,6 +23,12 @@ coverage/
 !.env.example
 appsettings.Development.local.json
 
+# SQLite (artefactos locales de la BD de desarrollo/tests)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
 # SO / sistema
 Thumbs.db
 .DS_Store
