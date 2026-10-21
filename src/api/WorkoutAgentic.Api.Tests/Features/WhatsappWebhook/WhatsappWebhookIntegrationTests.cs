@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using WorkoutAgentic.Api.Features.WhatsappWebhook;
 
@@ -36,15 +35,12 @@ public class WhatsappWebhookIntegrationTests : IDisposable
     {
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
-            // Secretos para tests vía configuración en memoria:
-            // nunca van en código productivo ni en appsettings.json.
-            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:Sqlite"] = $"Data Source={_dbPath}",
-                    ["Whatsapp:AppSecret"] = AppSecret,
-                    ["Whatsapp:VerifyToken"] = VerifyToken,
-                }));
+            // Secretos y BD para tests: UseSetting tiene más derecho que la
+            // config de appsettings en hosts minimal-API (el connection string
+            // se lee al construir el host, antes de los callbacks de config).
+            builder.UseSetting("ConnectionStrings:Sqlite", $"Data Source={_dbPath}");
+            builder.UseSetting("Whatsapp:AppSecret", AppSecret);
+            builder.UseSetting("Whatsapp:VerifyToken", VerifyToken);
 
             builder.ConfigureTestServices(services =>
                 services.AddSingleton<IWhatsappMessageQueue>(_queue));

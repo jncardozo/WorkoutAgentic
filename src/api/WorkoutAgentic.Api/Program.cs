@@ -1,6 +1,7 @@
 using WorkoutAgentic.Api.Data;
 using WorkoutAgentic.Api.Features.CapturaSesion;
 using WorkoutAgentic.Api.Features.Nlu;
+using WorkoutAgentic.Api.Features.PlanillaApi;
 using WorkoutAgentic.Api.Features.WhatsappMedia;
 using WorkoutAgentic.Api.Features.WhatsappSender;
 using WorkoutAgentic.Api.Features.WhatsappWebhook;
@@ -15,6 +16,7 @@ builder.Services.AddWhatsappSender();
 builder.Services.AddWhatsappMedia();
 builder.Services.AddNluCaptura();
 builder.Services.AddCapturaSesion();
+builder.Services.AddPlanillaApi();
 
 var app = builder.Build();
 
@@ -27,6 +29,7 @@ app.UseHttpsRedirection();
 
 // Los endpoints reales entran por vertical slices.
 app.MapWhatsappWebhook();
+app.MapPlanillaApi();
 app.MapGet("/", () => "WorkoutAgentic API");
 
 app.Run();
