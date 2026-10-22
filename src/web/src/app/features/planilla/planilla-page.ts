@@ -81,6 +81,12 @@ export class PlanillaPage {
   /** Borrado en dos pasos: primer click arma la confirmación. */
   readonly filaEnConfirmacion = signal<number | null>(null);
 
+  /** Panel de dictado (ADR-0009): borrador del texto + última respuesta del bot. */
+  readonly borradorCaptura = signal('');
+  readonly ultimoMensajeBot = signal<string | null>(null);
+  readonly capturaEnCurso = signal(false);
+  readonly fallaCaptura = signal<FallaApi | null>(null);
+
   readonly sesionViva = computed(() => this.sesion()?.sesion ?? null);
   readonly filas = computed(() => this.sesionViva()?.filas ?? []);
   readonly cuadriculaEditable = computed(() => {
@@ -97,6 +103,9 @@ export class PlanillaPage {
       untracked(() => {
         this.planillaConfirmada.set(null);
         this.cerrarBorradores();
+        this.borradorCaptura.set('');
+        this.ultimoMensajeBot.set(null);
+        this.fallaCaptura.set(null);
         this.cargar(id);
         this.rearmarEncuesta(id);
       });
@@ -153,6 +162,7 @@ export class PlanillaPage {
       || this.altaAbierta()
       || this.planillaConfirmada()
       || this.accionEnCurso()
+      || this.capturaEnCurso()
     ) {
       return;
     }
@@ -164,6 +174,45 @@ export class PlanillaPage {
       },
       error: () => {
         // La encuesta falla en silencio: el estado de carga ya está mostrado.
+      },
+    });
+  }
+
+  // ─── Captura por texto (dictado desde la PWA, ADR-0009) ─────────────────────
+
+  /**
+   * Envia el texto crudo del dictado al mismo pipeline NLU del chat: la
+   * respuesta repinta la cuadrícula y el banner muestra lo que respondió el bot.
+   * Dictar tras una confirmación abre una carga nueva (la congelada cede).
+   */
+  enviarCaptura(): void {
+    if (this.capturaEnCurso()) {
+      return;
+    }
+
+    const texto = this.borradorCaptura().trim();
+    if (texto.length === 0) {
+      this.fallaCaptura.set({
+        estadoHttp: 0,
+        titulo: 'Sin texto',
+        detalle: 'Dictá o escribí el ejercicio y volvé a enviar.',
+      });
+      return;
+    }
+
+    this.capturaEnCurso.set(true);
+    this.fallaCaptura.set(null);
+    this.planillaApi.capturarTexto(this.alumnoId(), texto).subscribe({
+      next: (respuesta) => {
+        this.planillaConfirmada.set(null);
+        this.sesion.set(respuesta.respuesta);
+        this.ultimoMensajeBot.set(respuesta.mensajeAlumno);
+        this.borradorCaptura.set('');
+        this.capturaEnCurso.set(false);
+      },
+      error: (error: unknown) => {
+        this.fallaCaptura.set(fallaDe(error));
+        this.capturaEnCurso.set(false);
       },
     });
   }
@@ -484,7 +533,7 @@ export class PlanillaPage {
       case 'Lista':
         return { clase: 'badge-ok', texto: 'Lista para confirmar' };
       case 'EsperandoAclaracion':
-        return { clase: 'badge-aviso', texto: 'Respondí en el chat' };
+        return { clase: 'badge-aviso', texto: 'Falta un dato' };
       case 'Expirada':
         return { clase: 'badge-aviso', texto: 'Pausada' };
       default:

@@ -46,6 +46,31 @@ internal sealed class SesionCapturaServicio(
     {
         var telefono = WhatsappPhone.Canonizar(mensaje.From);
         var alumno = await AlumnoPorTelefonoAsync(telefono, cancellationToken);
+        return await NucleoAsync(alumno, mensaje, analisis, ahora, cancellationToken);
+    }
+
+    public async Task<CapturaRespuesta> AplicarTextoAsync(
+        int alumnoId,
+        AnalisisCaptura analisis,
+        DateTime ahora,
+        CancellationToken cancellationToken)
+    {
+        var alumno = await db.Alumnos.SingleOrDefaultAsync(a => a.Id == alumnoId, cancellationToken)
+                     ?? throw new InvalidOperationException(
+                         $"Alumno {alumnoId} inexistente: el borde valida 404 antes de aplicar.");
+        return await NucleoAsync(alumno, mensaje: null, analisis, ahora, cancellationToken);
+    }
+
+    // Núcleo de identificado de sesión + resolución de aclaraciones + intent
+    // (compartido por WhatsApp y la PWA; ADR-0009). El mensaje es único
+    // si viene de WhatsApp y aporta la auditoría de audio.
+    private async Task<CapturaRespuesta> NucleoAsync(
+        Alumno alumno,
+        IncomingWhatsappMessage? mensaje,
+        AnalisisCaptura analisis,
+        DateTime ahora,
+        CancellationToken cancellationToken)
+    {
         var sesion = await SesionRecienteAsync(alumno.Id, cancellationToken);
 
         if (sesion is null)
@@ -58,7 +83,9 @@ internal sealed class SesionCapturaServicio(
             };
             db.SesionesCaptura.Add(sesion);
             await db.SaveChangesAsync(cancellationToken); // la cabecera hace falta con Id antes de las filas
-            logger.LogInformation("Sesión de captura nueva para el alumno {Alumno} (contacto {Telefono}).", alumno.Id, telefono);
+            logger.LogInformation(
+                "Sesión de captura nueva para el alumno {Alumno} (origen {Origen}).",
+                alumno.Id, mensaje is null ? "PWA" : "WhatsApp");
         }
         else if (sesion.Estado == EstadoSesionCaptura.Lista)
         {
@@ -154,9 +181,9 @@ internal sealed class SesionCapturaServicio(
 
     // ─── Auditoría de voz ──────────────────────────────────────────────────────
 
-    private void RegistrarTranscripcion(SesionCaptura sesion, IncomingWhatsappMessage mensaje, AnalisisCaptura analisis, DateTime ahora)
+    private void RegistrarTranscripcion(SesionCaptura sesion, IncomingWhatsappMessage? mensaje, AnalisisCaptura analisis, DateTime ahora)
     {
-        if (mensaje.Kind != WhatsappMessageKind.Audio || mensaje.AudioMediaId is null)
+        if (mensaje is null || mensaje.Kind != WhatsappMessageKind.Audio || mensaje.AudioMediaId is null)
         {
             return;
         }

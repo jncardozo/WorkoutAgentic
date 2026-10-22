@@ -17,9 +17,13 @@
       <div>
         <h1>Planilla del alumno #{{ espacio.alumno.id }}</h1>
         <p class="meta">
-          WhatsApp {{ espacio.alumno.telefonoWa }}
-          @if (sesionViva(); as viva) {
-            · última actividad {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}
+          @if (espacio.alumno.telefonoWa) {
+            WhatsApp {{ espacio.alumno.telefonoWa }}
+            @if (sesionViva(); as viva) {
+              · última actividad {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}
+            }
+          } @else if (sesionViva(); as viva) {
+            última actividad {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}
           }
         </p>
       </div>
@@ -29,6 +33,47 @@
         <button type="button" class="btn" (click)="irAEntrada()">Cambiar alumno</button>
       </div>
     </header>
+
+    <!-- Panel de dictado (ADR-0009): siempre disponible; tras una confirmación,
+         el primer mensaje dictado abre una carga nueva y saca la vista congelada. -->
+    <section class="tarjeta panel-captura">
+      <div class="cabecera-captura">
+        <h2>Dictá tu entrenamiento</h2>
+        <p class="meta">Un mensaje por serie. Ej.: «prensa segunda serie 10 con 45».</p>
+      </div>
+      <div class="captura">
+        <textarea
+          rows="2"
+          class="entrada-captura"
+          placeholder="Dictá o escribí lo que hiciste…"
+          aria-label="Ejercicio a dictar"
+          [value]="borradorCaptura()"
+          (input)="borradorCaptura.set($any($event.target).value)"
+          (keydown.enter)="$event.preventDefault(); enviarCaptura()"
+        ></textarea>
+        <button
+          type="button"
+          class="btn btn-primario"
+          (click)="enviarCaptura()"
+          [disabled]="capturaEnCurso()"
+        >
+          Enviar
+        </button>
+      </div>
+      @if (ultimoMensajeBot(); as mensaje) {
+        <div class="banner banner-info" role="status">
+          <div>{{ mensaje }}</div>
+        </div>
+      }
+      @if (fallaCaptura(); as falla) {
+        <div class="banner banner-peligro" role="alert">
+          <div>
+            <strong>{{ falla.titulo }}.</strong>
+            {{ falla.detalle ?? 'Probá otra vez.' }}
+          </div>
+        </div>
+      }
+    </section>
 
     @if (planillaConfirmada(); as congelada) {
       <section class="tarjeta panel-confirmada">
@@ -77,7 +122,8 @@
         </table>
 
         <p class="pie-confirmada">
-          Para anotar otro entrenamiento, arrancá una nueva carga por WhatsApp.
+          Para anotar otro entrenamiento, dictá la primera serie en el panel
+          «Dictá tu entrenamiento».
         </p>
       </section>
     } @else {
@@ -87,7 +133,7 @@
             <div>
               <h2>Sesión #{{ viva.id }}</h2>
               @if (viva.ejercicioActivoNombre) {
-                <p class="meta">En el chat estás cargando: {{ viva.ejercicioActivoNombre }}</p>
+                <p class="meta">Estás cargando: {{ viva.ejercicioActivoNombre }}</p>
               }
             </div>
             @if (cuadriculaEditable()) {
@@ -106,10 +152,10 @@
             @case ('EsperandoAclaracion') {
               <div class="banner banner-aviso" role="status">
                 <div>
-                  <strong>El bot está esperando tu respuesta por WhatsApp.</strong>
+                  <strong>Te falta responder un detalle.</strong>
                   Te preguntó por «{{ viva.aclaracion?.campo ?? 'un dato de la serie' }}» (intento
-                  {{ viva.aclaracion?.reintento ?? 1 }} de 2). Respondelo en el chat; la cuadrícula
-                  queda congelada mientras tanto.
+                  {{ viva.aclaracion?.reintento ?? 1 }} de 2). Respondelo desde el panel
+                  «Dictá tu entrenamiento»; la cuadrícula queda congelada mientras tanto.
                 </div>
               </div>
             }
@@ -117,16 +163,15 @@
               <div class="banner banner-aviso" role="status">
                 <div>
                   <strong>La sesión está pausada por inactividad.</strong>
-                  Escribí «seguir» en el chat para reanudar la carga; mientras tanto no se puede
-                  editar la planilla.
+                  Escribí «seguir» en el panel de arriba para reanudar la carga; mientras tanto no se
+                  puede editar la planilla.
                 </div>
               </div>
             }
             @case ('EnCurso') {
               <div class="banner banner-info" role="status">
                 <div>
-                  Estás cargando por WhatsApp: la cuadrícula se actualiza sola a medida que
-                  respondés al bot.
+                  Estás cargando: la cuadrícula se actualiza sola a medida que dictás tus series.
                 </div>
               </div>
             }
@@ -147,7 +192,9 @@
           }
 
           @if (viva.filas.length === 0) {
-            <p class="vacia">Sin filas todavía: tus series aparecen a medida que las cargás por WhatsApp.</p>
+            <p class="vacia">
+              Sin filas todavía: tus series aparecen a medida que las dictás en el panel de arriba.
+            </p>
           } @else {
             <table class="cuadricula">
               <thead>
@@ -398,10 +445,10 @@
         </section>
       } @else {
         <div class="tarjeta sin-sesion">
-          <h2>No hay una carga en curso</h2>
+          <h2>No tenés una carga en curso</h2>
           <p>
-            Tu planilla se abre cuando cargás por WhatsApp: mandá un mensaje (texto o nota de voz)
-            al bot con tu guía de entrenamiento y volvé acá para revisar todo en la cuadrícula.
+            Dictá tu primer ejercicio en el panel de arriba (o escribilo) y la cuadrícula se va
+            armando sola, directo en esta página.
           </p>
         </div>
       }

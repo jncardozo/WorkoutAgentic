@@ -104,6 +104,10 @@ public class CapturaSesionPipelineTests
     {
         public Task<AnalisisCaptura?> AnalizarAsync(IncomingWhatsappMessage message, CancellationToken cancellationToken) =>
             Task.FromResult(analisis);
+
+        public Task<AnalisisCaptura?> AnalizarTextoAsync(
+            string texto, string mensajeId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("El flujo del webhook no usa la entrada de texto directo.");
     }
 
     private sealed class StubServicio(CapturaRespuesta respuesta) : ISesionCapturaServicio
@@ -120,6 +124,10 @@ public class CapturaSesionPipelineTests
             Aplico = true;
             return Task.FromResult(respuesta);
         }
+
+        public Task<CapturaRespuesta> AplicarTextoAsync(
+            int alumnoId, AnalisisCaptura analisis, DateTime ahora, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("El flujo del webhook no usa la entrada de texto directo.");
 
         public Task MarcarMensajeBotAsync(int sesionId, string? mensajeBotWaId, CancellationToken cancellationToken)
         {

@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import {
   FilaParcialVista,
   PlanillaApi,
+  RespuestaCapturaTexto,
   RespuestaSesionActual,
   fallaDe,
 } from './planilla-api';
@@ -136,6 +137,19 @@ describe('PlanillaApi', () => {
     peticion.flush({ id: 9, alumnoId: 1, sesionId: 3, confirmadaUtc: '2026-10-21T16:00:00Z', filas: [] });
 
     expect(planilla?.alumnoId).toBe(1);
+  });
+
+  it('envía el dictado al endpoint de captura por texto', () => {
+    let captura: RespuestaCapturaTexto | undefined;
+    api.capturarTexto(7, 'prensa segunda serie 10 con 45').subscribe((r) => (captura = r));
+
+    const peticion = http.expectOne('/api/capturas/7/texto');
+    expect(peticion.request.method).toBe('POST');
+    expect(peticion.request.body).toEqual({ texto: 'prensa segunda serie 10 con 45' });
+    peticion.flush({ respuesta: respuesta(), mensajeAlumno: 'Serie 1 de Prensa anotada.' });
+
+    expect(captura?.mensajeAlumno).toBe('Serie 1 de Prensa anotada.');
+    expect(captura?.respuesta.alumno.id).toBe(1);
   });
 
   it('mapea un ProblemDetails a FallaApi con título y detalle', () => {

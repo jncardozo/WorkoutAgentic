@@ -18,6 +18,15 @@ internal interface ISesionCapturaServicio
         DateTime ahora,
         CancellationToken cancellationToken);
 
+    // Entrada de texto directo desde la PWA (ADR-0009): el alumno ya viene
+    // resuelto por id (el borde valida 404). Mismo núcleo de estado que el
+    // flujo de WhatsApp, sin auditoría de audio.
+    Task<CapturaRespuesta> AplicarTextoAsync(
+        int alumnoId,
+        AnalisisCaptura analisis,
+        DateTime ahora,
+        CancellationToken cancellationToken);
+
     // Referencia el mensaje del bot (id de WhatsApp) dentro de la aclaración viva.
     Task MarcarMensajeBotAsync(int sesionId, string? mensajeBotWaId, CancellationToken cancellationToken);
 }

@@ -10,4 +10,11 @@ namespace WorkoutAgentic.Api.Features.Nlu;
 public interface IMensajesNlu
 {
     Task<AnalisisCaptura?> AnalizarAsync(IncomingWhatsappMessage message, CancellationToken cancellationToken);
+
+    // Entrada de texto directo (PWA/dictado, ADR-0009): el mismo núcleo de
+    // etapas 1→3 sin transporte de WhatsApp. Devuelve null si una etapa falla.
+    Task<AnalisisCaptura?> AnalizarTextoAsync(
+        string texto,
+        string mensajeId,
+        CancellationToken cancellationToken);
 }

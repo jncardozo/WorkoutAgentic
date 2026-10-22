@@ -47,6 +47,12 @@ export interface RespuestaSesionActual {
   sesion: SesionActualVista | null;
 }
 
+/** Captura por texto (ADR-0009): sesión refrescada + respuesta del bot para el banner. */
+export interface RespuestaCapturaTexto {
+  respuesta: RespuestaSesionActual;
+  mensajeAlumno: string;
+}
+
 export interface EjercicioCatalogoVista {
   id: number;
   nombreCanonico: string;
@@ -138,9 +144,18 @@ export function fallaDe(error: unknown): FallaApi {
 export class PlanillaApi {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/planillas';
+  private readonly baseUrlCaptura = '/api/capturas';
 
   sesionActual(alumnoId: number): Observable<RespuestaSesionActual> {
     return this.http.get<RespuestaSesionActual>(`${this.baseUrl}/sesion-actual/${alumnoId}`);
+  }
+
+  /** Dictado (texto crudo) del alumno: mismo pipeline NLU, sin WhatsApp (ADR-0009). */
+  capturarTexto(alumnoId: number, texto: string): Observable<RespuestaCapturaTexto> {
+    return this.http.post<RespuestaCapturaTexto>(
+      `${this.baseUrlCaptura}/${alumnoId}/texto`,
+      { texto },
+    );
   }
 
   catalogo(): Observable<EjercicioCatalogoVista[]> {

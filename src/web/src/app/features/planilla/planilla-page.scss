@@ -29,6 +29,63 @@
   margin-bottom: 6px;
 }
 
+/* ─── Panel de dictado (captura por texto, ADR-0009) ────────────────────────── */
+
+.panel-captura {
+  margin-bottom: 18px;
+}
+
+.cabecera-captura {
+  margin-bottom: 10px;
+}
+
+.cabecera-captura h2 {
+  margin: 0;
+}
+
+.cabecera-captura .meta {
+  margin-top: 2px;
+}
+
+.captura {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.entrada-captura {
+  flex: 1;
+  min-height: 56px;
+  resize: vertical;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  color: var(--texto);
+  padding: 9px 11px;
+  font-family: var(--tipografia-texto);
+  font-size: 14px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.entrada-captura:focus {
+  border-color: color-mix(in srgb, var(--acento) 55%, var(--borde));
+}
+
+.entrada-captura:disabled {
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  .captura {
+    flex-direction: column;
+  }
+
+  .captura .btn {
+    align-self: flex-end;
+  }
+}
+
 /* ─── Cuadrícula ─────────────────────────────────────────────────────────────── */
 
 .cabecera-cuadricula {

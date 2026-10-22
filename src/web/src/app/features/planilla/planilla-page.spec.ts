@@ -9,6 +9,7 @@ import {
   FilaParcialVista,
   PlanillaApi,
   PlanillaConfirmadaVista,
+  RespuestaCapturaTexto,
   RespuestaSesionActual,
   SesionActualVista,
 } from '../../core/planilla-api';
@@ -88,11 +89,17 @@ const PLANILLA_CONFIRMADA: PlanillaConfirmadaVista = {
 interface StubPlanilla {
   sesionActual: ReturnType<typeof vi.fn>;
   catalogo: ReturnType<typeof vi.fn>;
+  capturarTexto: ReturnType<typeof vi.fn>;
   agregarFila: ReturnType<typeof vi.fn>;
   editarFila: ReturnType<typeof vi.fn>;
   eliminarFila: ReturnType<typeof vi.fn>;
   confirmar: ReturnType<typeof vi.fn>;
 }
+
+const RESPUESTA_CAPTURA: RespuestaCapturaTexto = {
+  respuesta: respuesta(sesion()),
+  mensajeAlumno: 'Serie 1 de Press banca anotada: 8 reps con 45 kg. "terminé" cuando cierres.',
+};
 
 function stubPlanilla(
   respuestaInicial: RespuestaSesionActual,
@@ -101,6 +108,7 @@ function stubPlanilla(
   return {
     sesionActual: vi.fn(() => of(respuestaInicial)),
     catalogo: vi.fn(() => of(CATALOGO)),
+    capturarTexto: vi.fn(() => of(RESPUESTA_CAPTURA)),
     agregarFila: vi.fn(() => of(respuestaInicial)),
     editarFila: vi.fn(() => of(respuestaInicial)),
     eliminarFila: vi.fn(() => of(respuestaInicial)),
@@ -142,11 +150,40 @@ function escribir(fixture: ComponentFixture<PlanillaPage>, selector: string, val
 }
 
 describe('PlanillaPage', () => {
-  it('sin sesión muestra el aviso de cargar por WhatsApp y no cuadrícula', async () => {
+  it('sin sesión muestra el aviso de dictar el primer ejercicio y no cuadrícula', async () => {
     const fixture = await montar(stubPlanilla(respuesta(null)));
 
-    expect(texto(fixture)).toContain('No hay una carga en curso');
+    expect(texto(fixture)).toContain('No tenés una carga en curso');
     expect(fixture.nativeElement.querySelector('table.cuadricula')).toBeNull();
+  });
+
+  it('dictar envía el texto y repinta la cuadrícula con la respuesta del bot', async () => {
+    const stub = stubPlanilla(respuesta(null), {
+      capturarTexto: vi.fn(() => of(RESPUESTA_CAPTURA)),
+    });
+    const fixture = await montar(stub);
+
+    escribir(fixture, 'textarea.entrada-captura', 'prensa 8 con 45');
+    boton(fixture, 'Enviar').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(stub.capturarTexto).toHaveBeenCalledWith(1, 'prensa 8 con 45');
+    const cuerpo = texto(fixture);
+    expect(cuerpo).toContain('Serie 1 de Press banca anotada');
+    expect(fixture.nativeElement.querySelector('table.cuadricula')).not.toBeNull();
+  });
+
+  it('enviar sin texto no llama al API y explica qué falta', async () => {
+    const stub = stubPlanilla(respuesta(null));
+    const fixture = await montar(stub);
+
+    boton(fixture, 'Enviar').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(stub.capturarTexto).not.toHaveBeenCalled();
+    expect(texto(fixture)).toContain('Sin texto');
   });
 
   it('en curso muestra las filas con sus valores', async () => {
@@ -178,7 +215,7 @@ describe('PlanillaPage', () => {
     );
     const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
 
-    expect(texto(fixture)).toContain('El bot está esperando');
+    expect(texto(fixture)).toContain('Te falta responder un detalle');
     expect(botones.some((b) => (b.textContent ?? '').includes('Editar'))).toBe(false);
     expect(botones.some((b) => (b.textContent ?? '').includes('Confirmar'))).toBe(false);
   });

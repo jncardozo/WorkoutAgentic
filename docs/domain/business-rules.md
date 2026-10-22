@@ -5,10 +5,16 @@
 > Las reglas del generador de rutinas (progresión, deload) quedan al final como
 > **Fase 2** — fuera del alcance del MVP de captura por voz.
 
-## 1. Flujo de captura (por WhatsApp)
+## 1. Flujo de captura (por texto en la PWA — ADR-0009)
 
-- El alumno puede iniciar carga con texto o nota de voz en español. Ambos entran al
-  mismo pipeline (voz → transcripción → texto). Los mensajes es-419/"gym español"
+> **Pivot:** la captura activa es por texto/dictado en la PWA
+> (`POST /api/capturas/{alumnoId}/texto`); el canal WhatsApp quedó
+> deshabilitado. Las reglas de interpretación y de aclaración NO cambian: el
+> texto crudo entra al mismo pipeline. Las referencias a WhatsApp de esta
+> sección describen el flujo histórico del chat (canal deshabilitado).
+
+- El alumno puede iniciar carga dictando o escribiendo en español. Todo entra al
+  mismo pipeline con texto crudo. Los mensajes es-419/"gym español"
   coloquiales son válidos ("cargá", "anoté", "hice").
 - Regla madre: **no inventar**. Si falta peso, serie, reps o el ejercicio no matchea
   el catálogo con confianza, el bot pregunta. Nunca guarda con `null` implícito que

@@ -1,5 +1,6 @@
 using WorkoutAgentic.Api.Data;
 using WorkoutAgentic.Api.Features.CapturaSesion;
+using WorkoutAgentic.Api.Features.CapturaTexto;
 using WorkoutAgentic.Api.Features.Nlu;
 using WorkoutAgentic.Api.Features.PlanillaApi;
 using WorkoutAgentic.Api.Features.WhatsappMedia;
@@ -34,7 +35,14 @@ if (!app.Environment.IsDevelopment())
 }
 
 // Los endpoints reales entran por vertical slices.
-app.MapWhatsappWebhook();
+// ADR-0009 (pivot PWA): el webhook de WhatsApp queda deshabilitado — la
+// bandera NO está en producción. El código y su suite se conservan: solo los
+// tests de integración del webhook encienden la bandera.
+if (app.Configuration["Whatsapp:WebhookHabilitado"] is "true")
+{
+    app.MapWhatsappWebhook();
+}
+app.MapCapturaTexto();
 app.MapPlanillaApi();
 app.MapGet("/", () => "WorkoutAgentic API");
 

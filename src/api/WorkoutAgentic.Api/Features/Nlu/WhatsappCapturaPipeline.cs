@@ -17,12 +17,9 @@ internal sealed class WhatsappCapturaPipeline(
     IWhatsappCatalogoEjercicios catalogo,
     ILogger<WhatsappCapturaPipeline> logger) : IMensajesNlu
 {
-    public async Task<AnalisisCaptura?> AnalizarAsync(
+    public Task<AnalisisCaptura?> AnalizarAsync(
         IncomingWhatsappMessage message, CancellationToken cancellationToken)
     {
-        string texto;
-        TranscripcionAudio? transcripcion = null;
-
         switch (message.Kind)
         {
             case WhatsappMessageKind.Text:
@@ -30,48 +27,76 @@ internal sealed class WhatsappCapturaPipeline(
                 {
                     logger.LogWarning(
                         "Mensaje de texto sin cuerpo: id={Id} from={From}.", message.MessageId, message.From);
-                    return null;
+                    return Task.FromResult<AnalisisCaptura?>(null);
                 }
 
-                texto = message.TextBody.Trim();
-                break;
+                return AnalizarTextoAsync(message.TextBody.Trim(), message.MessageId, cancellationToken);
 
             case WhatsappMessageKind.Audio:
-                if (string.IsNullOrWhiteSpace(message.AudioMediaId))
-                {
-                    logger.LogWarning(
-                        "Nota de voz sin media id: id={Id} from={From}.", message.MessageId, message.From);
-                    return null;
-                }
-
-                var archivo = await audioDownloader.DescargarAsync(message.AudioMediaId, cancellationToken);
-                if (!archivo.Exito || archivo.Bytes is not { Length: > 0 } bytes)
-                {
-                    logger.LogWarning(
-                        "Descarga del audio falló: id={Id} media={Media} título={Titulo}.",
-                        message.MessageId, message.AudioMediaId, archivo.ErrorTitulo);
-                    return null; // el reenvío por WhatsApp viene con la máquina de estados.
-                }
-
-                transcripcion = await speechToText.TranscribirAsync(
-                    bytes, archivo.MimeType ?? "audio/ogg", cancellationToken);
-                if (!transcripcion.Exito || string.IsNullOrWhiteSpace(transcripcion.Texto))
-                {
-                    logger.LogWarning(
-                        "Transcripción falló: id={Id} título={Titulo}.",
-                        message.MessageId, transcripcion.ErrorTitulo);
-                    return null;
-                }
-
-                texto = transcripcion.Texto.Trim();
-                break;
+                return AnalizarAudioAsync(message, cancellationToken);
 
             default:
                 logger.LogInformation(
                     "Mensaje omitido por el pipeline (kind={Kind}): id={Id}.", message.Kind, message.MessageId);
-                return null;
+                return Task.FromResult<AnalisisCaptura?>(null);
+        }
+    }
+
+    public async Task<AnalisisCaptura?> AnalizarTextoAsync(
+        string texto, string mensajeId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            logger.LogWarning("Texto vacío en la entrada de análisis: msg={Msg}.", mensajeId);
+            return null;
         }
 
+        return await NucleoAsync(
+            WhatsappMessageKind.Text, texto.Trim(), transcripcion: null, mensajeId, cancellationToken);
+    }
+
+    private async Task<AnalisisCaptura?> AnalizarAudioAsync(
+        IncomingWhatsappMessage message, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(message.AudioMediaId))
+        {
+            logger.LogWarning(
+                "Nota de voz sin media id: id={Id} from={From}.", message.MessageId, message.From);
+            return null;
+        }
+
+        var archivo = await audioDownloader.DescargarAsync(message.AudioMediaId, cancellationToken);
+        if (!archivo.Exito || archivo.Bytes is not { Length: > 0 } bytes)
+        {
+            logger.LogWarning(
+                "Descarga del audio falló: id={Id} media={Media} título={Titulo}.",
+                message.MessageId, message.AudioMediaId, archivo.ErrorTitulo);
+            return null; // el reenvío por WhatsApp viene con la máquina de estados.
+        }
+
+        var transcripcion = await speechToText.TranscribirAsync(
+            bytes, archivo.MimeType ?? "audio/ogg", cancellationToken);
+        if (!transcripcion.Exito || string.IsNullOrWhiteSpace(transcripcion.Texto))
+        {
+            logger.LogWarning(
+                "Transcripción falló: id={Id} título={Titulo}.",
+                message.MessageId, transcripcion.ErrorTitulo);
+            return null;
+        }
+
+        return await NucleoAsync(
+            WhatsappMessageKind.Audio, transcripcion.Texto.Trim(), transcripcion, message.MessageId, cancellationToken);
+    }
+
+    // Etapas 2 y 3 compartidas por texto y audio: una sola llamada al LLM
+    // (misma instancia scoped) + resolver determinístico si hay ejercicio crudo.
+    private async Task<AnalisisCaptura?> NucleoAsync(
+        WhatsappMessageKind tipoMensaje,
+        string texto,
+        TranscripcionAudio? transcripcion,
+        string mensajeId,
+        CancellationToken cancellationToken)
+    {
         // Etapas 2 y 3: una sola llamada al LLM (misma instancia scoped).
         var clasificacion = await classifier.ClasificarAsync(texto, cancellationToken);
         var entidades = await extractor.ExtraerAsync(texto, cancellationToken);
@@ -85,7 +110,7 @@ internal sealed class WhatsappCapturaPipeline(
         }
 
         var analisis = new AnalisisCaptura(
-            message.Kind,
+            tipoMensaje,
             texto,
             transcripcion,
             clasificacion,
@@ -100,7 +125,7 @@ internal sealed class WhatsappCapturaPipeline(
             "serie={Serie} cantidadSeries={CantidadSeries} reps={Reps} peso={Peso} unidad={Unidad} " +
             "tiempoSeg={TiempoSeg} descansoSeg={DescansoSeg} aclarar={CampoAclarar} " +
             "sugerencias=[{Sugerencias}]",
-            message.MessageId,
+            mensajeId,
             analisis.MensajeKind,
             analisis.TextoProcesado,
             analisis.Clasificacion.Intento,

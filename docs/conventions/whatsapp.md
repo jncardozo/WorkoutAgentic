@@ -1,5 +1,12 @@
 # Convenciones WhatsApp Cloud API
 
+> **DEPRECADAS (ADR-0009, 2026-10-21):** el canal de WhatsApp quedó
+> deshabilitado por el pivot a captura por texto en la PWA. Estas convenciones
+> se conservan como referencia del código que sigue compilando (webhook,
+> firma, envíos, media) y para el caso de revivir el canal con la bandera
+> `Whatsapp:WebhookHabilitado`. La captura activa hoy es voice-tracker por
+> texto: `POST /api/capturas/{alumnoId}/texto` (ADR-0009).
+
 > Fuente de verdad para toda la mensajería. Skills relacionadas: `whatsapp-integration`,
 > `nlu-espanol`.
 

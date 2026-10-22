@@ -44,6 +44,11 @@ public class WhatsappWebhookIntegrationTests : IDisposable
 
             builder.ConfigureTestServices(services =>
                 services.AddSingleton<IWhatsappMessageQueue>(_queue));
+
+            // El webhook quedó deshabilitado en producción por el pivot (ADR-0009).
+            // Esta suite enciende la bandera para seguir ejercitando firma,
+            // handshake y cola del código que se conservó compilando.
+            builder.UseSetting("Whatsapp:WebhookHabilitado", "true");
         });
     }
 
