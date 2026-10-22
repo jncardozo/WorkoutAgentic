@@ -30,7 +30,7 @@ function filaParcial(sobre: Partial<FilaParcialVista> = {}): FilaParcialVista {
 
 function respuesta(): RespuestaSesionActual {
   return {
-    alumno: { id: 1, telefonoWa: '+5491100000000' },
+    alumno: { id: 1, nombre: 'Lucía Elliott', telefonoWa: '+5491100000000' },
     sesion: {
       id: 3,
       estado: 'EnCurso',

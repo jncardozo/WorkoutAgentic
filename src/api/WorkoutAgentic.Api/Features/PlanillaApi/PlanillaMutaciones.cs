@@ -43,7 +43,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
     public async Task<ResultadoMutacion<RespuestaSesionActual>> AgregarFilaAsync(
         int alumnoId, ComandoNuevaFila comando, CancellationToken cancellationToken)
     {
-        var (sesion, telefonoWa, falla) = await SesionEditableAsync(alumnoId, cancellationToken);
+        var (sesion, cuenta, falla) = await SesionEditableAsync(alumnoId, cancellationToken);
         if (falla is not null || sesion is null)
         {
             return ResultadoMutacion<RespuestaSesionActual>.ConFalla(
@@ -100,7 +100,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         await db.SaveChangesAsync(cancellationToken);
 
         return ResultadoMutacion<RespuestaSesionActual>.ConVista(
-            VistaPlanilla.Armar(alumnoId, telefonoWa, sesion));
+            VistaPlanilla.Armar(alumnoId, cuenta.Nombre, cuenta.TelefonoWa, sesion));
     }
 
     // ─── Editar fila ──────────────────────────────────────────────────────────
@@ -174,8 +174,9 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         fila.PendienteAclaracion = false;
 
         await db.SaveChangesAsync(cancellationToken);
+        var cuenta = sesion.Alumno!; // cargada en el include de la fila
         return ResultadoMutacion<RespuestaSesionActual>.ConVista(
-            VistaPlanilla.Armar(sesion.AlumnoId, sesion.Alumno!.TelefonoWa, sesion));
+            VistaPlanilla.Armar(cuenta.Id, cuenta.Nombre, cuenta.TelefonoWa, sesion));
     }
 
     // ─── Eliminar fila ────────────────────────────────────────────────────────
@@ -193,9 +194,9 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         var sesion = fila.Sesion!;
         db.RegistrosParciales.Remove(fila);
         await db.SaveChangesAsync(cancellationToken);
-
+        var cuenta = sesion.Alumno!; // cargada en el include de la fila
         return ResultadoMutacion<RespuestaSesionActual>.ConVista(
-            VistaPlanilla.Armar(sesion.AlumnoId, sesion.Alumno!.TelefonoWa, sesion));
+            VistaPlanilla.Armar(cuenta.Id, cuenta.Nombre, cuenta.TelefonoWa, sesion));
     }
 
     // ─── Confirmación (snapshot write-once, reglas §2) ────────────────────────
@@ -292,27 +293,31 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
 
     // ─── Carga y validaciones compartidas ─────────────────────────────────────
 
-    private async Task<(SesionCaptura? Sesion, string TelefonoWa, PlanillaFalla? Falla)> SesionEditableAsync(
+    private async Task<(SesionCaptura? Sesion, AlumnoVista Cuenta, PlanillaFalla? Falla)> SesionEditableAsync(
         int alumnoId, CancellationToken cancellationToken)
     {
         var alumno = await db.Alumnos
             .AsNoTracking()
-            .Select(a => new { a.Id, a.TelefonoWa })
-            .FirstOrDefaultAsync(a => a.Id == alumnoId, cancellationToken);
+            .Where(a => a.Id == alumnoId)
+            .Select(a => new AlumnoVista(a.Id, a.Nombre, a.TelefonoWa))
+            .FirstOrDefaultAsync(cancellationToken);
         if (alumno is null)
         {
-            return (null, string.Empty, PlanillaFalla.AlumnoInexistente());
+            return (null, CuentaVacia(), PlanillaFalla.AlumnoInexistente());
         }
 
         var sesion = await SesionHablanteConTrackingAsync(alumnoId, cancellationToken);
         if (sesion is null)
         {
-            return (null, alumno.TelefonoWa, PlanillaFalla.SesionInexistente());
+            return (null, alumno, PlanillaFalla.SesionInexistente());
         }
 
         var falla = FallaDeEstado(sesion.Estado);
-        return (falla is null ? sesion : null, alumno.TelefonoWa, falla);
+        return (falla is null ? sesion : null, alumno, falla);
     }
+
+    // Cuenta encabezada vacía para la deconstrucción del borde de fallo.
+    private static AlumnoVista CuentaVacia() => new(0, string.Empty, null);
 
     private async Task<(RegistroParcial? Fila, PlanillaFalla? Falla)> FilaDeSesionEditableAsync(
         int filaId, CancellationToken cancellationToken)

@@ -25,7 +25,7 @@ internal sealed class PlanillaConsulta(CapturasDbContext db) : IPlanillaConsulta
         var alumno = await db.Alumnos
             .AsNoTracking()
             .Where(a => a.Id == alumnoId)
-            .Select(a => new AlumnoVista(a.Id, a.TelefonoWa))
+            .Select(a => new AlumnoVista(a.Id, a.Nombre, a.TelefonoWa))
             .SingleOrDefaultAsync(cancellationToken);
         if (alumno is null)
         {
@@ -34,7 +34,7 @@ internal sealed class PlanillaConsulta(CapturasDbContext db) : IPlanillaConsulta
 
         var sesion = await SesionHablanteSinTrackingAsync(alumnoId, cancellationToken);
 
-        return VistaPlanilla.Armar(alumno.Id, alumno.TelefonoWa, sesion);
+        return VistaPlanilla.Armar(alumno.Id, alumno.Nombre, alumno.TelefonoWa, sesion);
     }
 
     // Catálogo para el selector de la cuadrícula (agregar/editar filas).

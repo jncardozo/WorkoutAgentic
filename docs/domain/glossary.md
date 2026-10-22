@@ -25,15 +25,15 @@
 
 | Término | Definición |
 |---|---|
-| **SesionCaptura** | Estado del diálogo con un alumno (toma WhatsApp): ejercicio activo, última serie cargada, registros parciales y estado (EN_CURSO, ESPERANDO_ACLARACION, LISTA, CONFIRMADA, EXPIRADA). |
+| **SesionCaptura** | Estado del diálogo con un alumno (hoy por dictado en la PWA, ADR-0009): ejercicio activo, última serie cargada, registros parciales y estado (EN_CURSO, ESPERANDO_ACLARACION, LISTA, CONFIRMADA, EXPIRADA). |
 | **RegistroParcial** | Fila de datos capturada y no confirmada (ejercicio, serie, reps, peso) — puede corregirse/eliminarse; nunca sale tal cual al profesor. |
-| **PlanillaConfirmada** | Snapshot inmutable de la planilla que el alumno aprobó; visible para su profesor, solo lectura. |
+| **PlanillaConfirmada** | Snapshot inmutable de la planilla que el alumno aprobó; visible para su profesor (vista solo lectura, ADR-0010). |
 | **Aclaración** | Respuesta del bot que pide el dato faltante/ambiguo (ej. "¿A qué peso tomaste esa serie?"); pausa el flujo hasta recibir respuesta. |
 | **Transcripción** | Texto en español generado por STT a partir de la nota de voz; se guarda junto al audio original. |
 | **Intent** | Intención detectada del mensaje: CARGA_EJERCICIO, CARGA_SERIE, CIERRE, AYUDA/CONSULTA, INVALIDO. |
 | **Catálogo de ejercicios** | Tabla canónica con nombre normalizado + apodos coloquiales ("sillón", "el pecho", "press en máquina") para el matcheo de entidades. |
-| **Alumno** | Cuenta con rol ALUMNO: carga por WhatsApp y confirma planillas en la SPA. |
-| **Profesor** | Cuenta con rol PROFESOR: consulta planillas confirmadas de sus alumnos (solo lectura). |
+| **Alumno** | Cuenta con rol ALUMNO que el profesor da de alta de forma explícita (ADR-0010: nombre obligatorio, WhatsApp opcional); dicta su entrenamiento en la PWA y confirma planillas. |
+| **Profesor** | Cuenta con rol PROFESOR: da de alta alumnos y consulta sus planillas confirmadas (solo lectura). |
 | **Vinculación** | Relación alumno↔profesor (asignación); define a quién ve el profesor. Inicia por invitación del profesor [SUPUESTO: ver reglas]. |
 
 ## Gestión del cliente

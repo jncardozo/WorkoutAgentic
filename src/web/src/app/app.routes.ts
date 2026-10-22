@@ -15,6 +15,12 @@ export const routes: Routes = [
     title: 'WorkoutAgentic · Planilla',
   },
   {
+    path: 'profesor',
+    loadComponent: () =>
+      import('./features/profesores/profesor-page').then((m) => m.ProfesorPage),
+    title: 'WorkoutAgentic · Profesor',
+  },
+  {
     path: '',
     pathMatch: 'full',
     redirectTo: () => {

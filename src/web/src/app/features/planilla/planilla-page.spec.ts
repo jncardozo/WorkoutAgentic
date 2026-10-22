@@ -54,7 +54,10 @@ function sesion(sobre: Partial<SesionActualVista> = {}): SesionActualVista {
 }
 
 function respuesta(sesionActual: SesionActualVista | null): RespuestaSesionActual {
-  return { alumno: { id: 1, telefonoWa: '+5491100000000' }, sesion: sesionActual };
+  return {
+    alumno: { id: 1, nombre: 'Lucía Elliott', telefonoWa: '+5491100000000' },
+    sesion: sesionActual,
+  };
 }
 
 const PLANILLA_CONFIRMADA: PlanillaConfirmadaVista = {

@@ -6,8 +6,12 @@ namespace WorkoutAgentic.Api.Features.PlanillaApi;
 // entidades del dominio viajan SOLO como proyección DTO acá, nunca crudas.
 internal static class VistaPlanilla
 {
-    public static RespuestaSesionActual Armar(int alumnoId, string telefonoWa, SesionCaptura? sesion) => new(
-        new AlumnoVista(alumnoId, telefonoWa),
+    public static RespuestaSesionActual Armar(
+        int alumnoId,
+        string alumnoNombre,
+        string? telefonoWa,
+        SesionCaptura? sesion) => new(
+        new AlumnoVista(alumnoId, alumnoNombre, telefonoWa),
         sesion is null ? null : MapearSesion(sesion));
 
     private static SesionActualVista MapearSesion(SesionCaptura sesion) => new(

@@ -1,8 +1,10 @@
 using WorkoutAgentic.Api.Data;
+using WorkoutAgentic.Api.Features.Alumnos;
 using WorkoutAgentic.Api.Features.CapturaSesion;
 using WorkoutAgentic.Api.Features.CapturaTexto;
 using WorkoutAgentic.Api.Features.Nlu;
 using WorkoutAgentic.Api.Features.PlanillaApi;
+using WorkoutAgentic.Api.Features.Profesores;
 using WorkoutAgentic.Api.Features.WhatsappMedia;
 using WorkoutAgentic.Api.Features.WhatsappSender;
 using WorkoutAgentic.Api.Features.WhatsappWebhook;
@@ -44,6 +46,8 @@ if (app.Configuration["Whatsapp:WebhookHabilitado"] is "true")
 }
 app.MapCapturaTexto();
 app.MapPlanillaApi();
+app.MapAlumnos();
+app.MapProfesores();
 app.MapGet("/", () => "WorkoutAgentic API");
 
 app.Run();

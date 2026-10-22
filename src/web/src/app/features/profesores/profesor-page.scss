@@ -1,0 +1,93 @@
+/* Vista Profesor: alta de alumnos + historial de planillas confirmadas (solo
+   lectura). Reutiliza los tokens globales y clases de cuadrícula/botones. */
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.meta {
+  color: var(--texto-2);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.encabezado-lado {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.texto-suave {
+  color: var(--texto-2);
+  font-size: 12px;
+}
+
+.cargando {
+  color: var(--texto-2);
+  font-size: 14px;
+}
+
+.panel-falla h2 {
+  margin-bottom: 6px;
+}
+
+.panel-falla p {
+  margin: 0 0 14px;
+}
+
+/* ─── Alta de alumno ────────────────────────────────────────────────────────── */
+
+.panel-alta {
+  margin-bottom: 18px;
+}
+
+.panel-alta h2 {
+  margin-bottom: 10px;
+}
+
+.alta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.entrada-alta {
+  flex: 1 1 220px;
+  min-width: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  color: var(--texto);
+  padding: 9px 11px;
+  font-family: var(--tipografia-texto, inherit);
+  font-size: 14px;
+  outline: none;
+}
+
+.entrada-alta:focus {
+  border-color: color-mix(in srgb, var(--acento) 55%, var(--borde));
+}
+
+/* ─── Listado e historial ───────────────────────────────────────────────────── */
+
+.sin-planillas h2 {
+  margin-bottom: 6px;
+}
+
+.sin-planillas p {
+  color: var(--texto-2);
+  margin: 0;
+}
+
+.panel-planilla {
+  margin-bottom: 18px;
+}
+
+.cabecera-planilla h2 {
+  margin-bottom: 2px;
+}

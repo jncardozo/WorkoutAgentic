@@ -60,11 +60,15 @@ namespace WorkoutAgentic.Api.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("ProfesorId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("TelefonoWa")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 

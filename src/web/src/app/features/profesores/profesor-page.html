@@ -1,0 +1,196 @@
+<!-- Vista Profesor (ADR-0010): alta de alumnos + planillas confirmadas en
+     SOLO LECTURA (regla de roles: nada de sesiones ni parciales acá). -->
+@if (alumnoSeleccionado(); as alumno) {
+  <header class="encabezado">
+    <div>
+      <h1>Planillas confirmadas de {{ alumno.nombre }}</h1>
+      <p class="meta">
+        @if (alumno.telefonoWa) {
+          WhatsApp {{ alumno.telefonoWa }}
+        } @else {
+          Alumno #{{ alumno.id }} · sin WhatsApp
+        }
+        · historia completa, solo lectura.
+      </p>
+    </div>
+    <div class="encabezado-lado">
+      <button type="button" class="btn" (click)="volverALista()">← Volver a la lista</button>
+      <button type="button" class="btn" (click)="seleccionar(alumno)">Actualizar</button>
+    </div>
+  </header>
+
+  @if (cargandoPlanillas()) {
+    <p class="cargando">Cargando planillas…</p>
+  } @else if (fallaPlanillas(); as falla) {
+    <div class="tarjeta panel-falla">
+      <h2>No pudimos cargar las planillas</h2>
+      <p>{{ falla }}</p>
+      <button type="button" class="btn btn-primario" (click)="seleccionar(alumno)">Reintentar</button>
+    </div>
+  } @else if (planillas().length === 0) {
+    <div class="tarjeta sin-planillas">
+      <h2>Sin planillas confirmadas</h2>
+      <p>
+        Las que {{ alumno.nombre }} confirme en su vista van a aparecer acá, congeladas y en solo
+        lectura.
+      </p>
+    </div>
+  } @else {
+    @for (planilla of planillas(); track planilla.id) {
+      <section class="tarjeta panel-planilla">
+        <div class="cabecera-planilla">
+          <h2>Planilla #{{ planilla.id }}</h2>
+          <p class="meta">
+            Confirmada el {{ planilla.confirmadaUtc | date: 'dd MMM, HH:mm' }} · sesión
+            {{ planilla.sesionId }}
+          </p>
+        </div>
+
+        <table class="cuadricula">
+          <thead>
+            <tr>
+              <th class="num">Serie</th>
+              <th>Ejercicio</th>
+              <th class="num">Reps</th>
+              <th class="num">Peso</th>
+              <th class="num">Tiempo</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (fila of planilla.filas; track fila.orden) {
+              <tr>
+                <td class="num">{{ fila.nroSerie }}</td>
+                <td>
+                  <span class="nombre-ejercicio">{{ fila.ejercicioCanonical }}</span>
+                  @if (fila.incompleta) {
+                    <span class="badge badge-aviso">incompleta</span>
+                  }
+                </td>
+                <td class="num">{{ fila.reps ?? '—' }}</td>
+                <td class="num">
+                  {{
+                    fila.unidad === 'PesoCorporal'
+                      ? 'al cuerpo'
+                      : fila.pesoKg === null
+                        ? '—'
+                        : fila.pesoKg + ' kg'
+                  }}
+                </td>
+                <td class="num">{{ fila.tiempoSeg === null ? '—' : fila.tiempoSeg + ' s' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
+  }
+} @else {
+  <header class="encabezado">
+    <div>
+      <h1>Vista Profesor</h1>
+      <p class="meta">Planillas confirmadas de tus alumnos, en solo lectura.</p>
+    </div>
+    <div class="encabezado-lado">
+      <button type="button" class="btn btn-primario" (click)="abrirAlta()" [disabled]="altaAbierta()">
+        + Dar de alta alumno
+      </button>
+    </div>
+  </header>
+
+  @if (altaAbierta()) {
+    <section class="tarjeta panel-alta">
+      <h2>Dar de alta alumno</h2>
+      <div class="alta">
+        <input
+          #campoNombre
+          type="text"
+          class="entrada-alta"
+          placeholder="Nombre y apellido"
+          aria-label="Nombre del alumno"
+          [value]="altaNombre()"
+          (input)="altaNombre.set(campoNombre.value)"
+          [disabled]="altaEnCurso()"
+        />
+        <input
+          #campoTelefono
+          type="text"
+          class="entrada-alta"
+          placeholder="WhatsApp (opcional)"
+          aria-label="WhatsApp del alumno"
+          [value]="altaTelefono()"
+          (input)="altaTelefono.set(campoTelefono.value)"
+          [disabled]="altaEnCurso()"
+        />
+        <button type="button" class="btn btn-primario" (click)="darDeAlta()" [disabled]="altaEnCurso()">
+          Guardar
+        </button>
+        <button type="button" class="btn" (click)="cerrarAlta()" [disabled]="altaEnCurso()">
+          Cancelar
+        </button>
+      </div>
+      @if (fallaAlta(); as falla) {
+        <div class="banner banner-peligro" role="alert">
+          <div>{{ falla }}</div>
+        </div>
+      }
+    </section>
+  }
+
+  @if (cargando()) {
+    <p class="cargando">Cargando alumnos…</p>
+  } @else if (fallaCarga(); as falla) {
+    <div class="tarjeta panel-falla">
+      <h2>No pudimos cargar tus alumnos</h2>
+      <p>{{ falla }}</p>
+      <button type="button" class="btn btn-primario" (click)="cargarAlumnos()">Reintentar</button>
+    </div>
+  } @else if (alumnos().length === 0) {
+    <div class="tarjeta sin-planillas">
+      <h2>Sin alumnos todavía</h2>
+      <p>Dalos de alta con «Dar de alta alumno»: después cargan con su id en la vista Alumno.</p>
+    </div>
+  } @else {
+    <section class="tarjeta">
+      <table class="cuadricula">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>WhatsApp</th>
+            <th class="num">Planillas</th>
+            <th>Última confirmada</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (alumno of alumnos(); track alumno.id) {
+            <tr>
+              <td>
+                <span class="nombre-ejercicio">{{ alumno.nombre }}</span>
+                <span class="texto-suave">· #{{ alumno.id }}</span>
+              </td>
+              <td>{{ alumno.telefonoWa ?? '—' }}</td>
+              <td class="num">{{ alumno.planillasConfirmadas }}</td>
+              <td>
+                @if (alumno.ultimaConfirmadaUtc) {
+                  {{ alumno.ultimaConfirmadaUtc | date: 'dd MMM, HH:mm' }}
+                } @else {
+                  —
+                }
+              </td>
+              <td class="num">
+                <button
+                  type="button"
+                  class="btn"
+                  (click)="seleccionar(alumno)"
+                  [disabled]="alumno.planillasConfirmadas === 0"
+                >
+                  Ver planillas
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+}

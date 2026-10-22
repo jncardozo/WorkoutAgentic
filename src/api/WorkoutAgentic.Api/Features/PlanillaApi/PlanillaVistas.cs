@@ -43,7 +43,9 @@ public sealed record RespuestaSesionActual(AlumnoVista Alumno, SesionActualVista
 
 // Encabezado mínimo de la cuenta. La identificación del alumno es provisional
 // (id por ruta) hasta AuthApi (arquitectura S6: cookie + roles por email).
-public sealed record AlumnoVista(int Id, string TelefonoWa);
+// El nombre viene del alta explícita (ADR-0010); el teléfono es opcional
+// desde el pivot (sin WhatsApp el alta no lo exige).
+public sealed record AlumnoVista(int Id, string Nombre, string? TelefonoWa);
 
 // ─── Catálogo para la cuadrícula ───────────────────────────────────────────────
 

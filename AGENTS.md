@@ -64,7 +64,8 @@ npm run build
 - **Estados separados**: registros parciales (`RegistroParcial`) ≠ planilla confirmada
   (`PlanillaConfirmada`). Nunca mezclar tablas ni permisos.
 - **Roles**: endpoints de alumno ≠ endpoints de profesor. El profesor solo puede leer
-  planillas confirmadas.
+  planillas confirmadas. El alta de alumnos es explícita (`POST /api/alumnos`,
+  ADR-0010), jamás automática.
 - **Captura**: el texto crudo entra por `POST /api/capturas/{alumnoId}/texto`
   (ver ADR-0009); aclaraciones respondidas desde la misma PWA.
 - **Webhook WhatsApp (deshabilitado)**: si se reviviera el canal, toda entrada

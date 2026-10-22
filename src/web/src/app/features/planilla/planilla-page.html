@@ -15,7 +15,7 @@
   @if (sesion(); as espacio) {
     <header class="encabezado">
       <div>
-        <h1>Planilla del alumno #{{ espacio.alumno.id }}</h1>
+        <h1>Planilla de {{ espacio.alumno.nombre || 'alumno #' + espacio.alumno.id }}</h1>
         <p class="meta">
           @if (espacio.alumno.telefonoWa) {
             WhatsApp {{ espacio.alumno.telefonoWa }}

@@ -11,11 +11,14 @@ public sealed class AlumnoConfiguration : IEntityTypeConfiguration<Alumno>
         builder.ToTable("Alumno");
         builder.HasKey(a => a.Id);
 
+        builder.Property(a => a.Nombre).HasMaxLength(120);
         builder.Property(a => a.TelefonoWa).HasMaxLength(20);
         builder.Property(a => a.Email).HasMaxLength(180);
         builder.Property(a => a.Estado).HasMaxLength(20);
 
-        // Teléfono canónico: único (identidad WhatsApp del alumno).
+        // Teléfono canónico: único cuando existe (identidad WhatsApp del
+        // alumno). Con el pivot (ADR-0010) es opcional y los NULL quedan
+        // aparte en el índice único — iguales que Email.
         builder.HasIndex(a => a.TelefonoWa).IsUnique();
 
         // Email opcional de login SPA; único cuando exista (los NULL quedan aparte).

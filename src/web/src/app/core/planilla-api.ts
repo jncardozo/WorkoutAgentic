@@ -8,7 +8,8 @@ import { Observable } from 'rxjs';
 
 export interface AlumnoVista {
   id: number;
-  telefonoWa: string;
+  nombre: string;
+  telefonoWa: string | null;
 }
 
 export interface AclaracionVista {

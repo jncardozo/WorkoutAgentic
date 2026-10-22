@@ -56,6 +56,16 @@ const CLAVE_ALUMNO = 'wa.alumnoId';
       font-size: 13px;
       margin: 10px 0 0;
     }
+
+    .acceso-profesor {
+      color: var(--texto-2);
+      font-size: 13px;
+      margin: 14px 0 0;
+    }
+
+    .acceso-profesor a {
+      color: var(--acento);
+    }
   `,
   template: `
     <section class="tarjeta">
@@ -82,9 +92,13 @@ const CLAVE_ALUMNO = 'wa.alumnoId';
       @if (error(); as mensaje) {
         <p class="error" role="alert">{{ mensaje }}</p>
       }
+      <p class="acceso-profesor">
+        ¿Sos el profesor? Abrí la <a href="/profesor">vista solo lectura</a>.
+      </p>
     </section>
   `,
 })
+
 export class AlumnoEntrada {
   private readonly router = inject(Router);
 

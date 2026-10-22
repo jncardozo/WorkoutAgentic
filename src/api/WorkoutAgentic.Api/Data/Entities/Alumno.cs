@@ -1,6 +1,7 @@
 namespace WorkoutAgentic.Api.Data.Entities;
 
-// Cuenta ALUMNO (glosario): carga por WhatsApp y confirma planillas en la SPA.
+// Cuenta ALUMNO (glosario): carga en la PWA (o por WhatsApp si el canal
+// volviera) y confirma planillas en la SPA.
 public class Alumno
 {
     public int Id { get; set; }
@@ -9,8 +10,12 @@ public class Alumno
     public int? ProfesorId { get; set; }
     public Profesor? Profesor { get; set; }
 
-    // Teléfono canónico de WhatsApp (internacional, sin +): único.
-    public string TelefonoWa { get; set; } = string.Empty;
+    // Nombre de pila para las listas del profesor (alta explícita, ADR-0010).
+    public string Nombre { get; set; } = string.Empty;
+
+    // Teléfono canónico de WhatsApp (internacional, sin +), ÚNICO cuando
+    // existe: desde el pivot es opcional (el alta explícita no lo exige).
+    public string? TelefonoWa { get; set; }
 
     // Email de login SPA (S6), si ya existe.
     public string? Email { get; set; }
