@@ -12,7 +12,10 @@ internal static class LlmCall
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static async Task<(bool Exito, GeminiGenerateResponse? Respuesta, string? Error)> EnviarAsync(
+    // StatusHttp expone el código HTTP cuando hubo respuesta del servidor:
+    // permite a los consumidores decidir reintentos transitorios sin acoplarse
+    // al string de error (null en fallos de red/timeout, sin respuesta).
+    public static async Task<(bool Exito, GeminiGenerateResponse? Respuesta, string? Error, int? StatusHttp)> EnviarAsync(
         HttpClient httpClient,
         GeminiOptions config,
         string modelo,
@@ -41,16 +44,17 @@ internal static class LlmCall
         }
         catch (HttpRequestException ex)
         {
-            return (Exito: false, Respuesta: null, Error: $"Fallo de red: {ex.Message}");
+            return (Exito: false, Respuesta: null, Error: $"Fallo de red: {ex.Message}", StatusHttp: null);
         }
         catch (OperationCanceledException)
         {
-            return (Exito: false, Respuesta: null, Error: "Timeout del proveedor");
+            return (Exito: false, Respuesta: null, Error: "Timeout del proveedor", StatusHttp: null);
         }
 
         using (response)
         {
             var cuerpo = await response.Content.ReadAsStringAsync(cancellationToken);
+            int? status = (int)response.StatusCode;
             if (!response.IsSuccessStatusCode)
             {
                 string? mensaje = null;
@@ -66,17 +70,19 @@ internal static class LlmCall
                 }
 
                 return (Exito: false, Respuesta: null,
-                    Error: mensaje ?? $"HTTP {(int)response.StatusCode}: {Recortar(cuerpo, 200)}");
+                    Error: mensaje ?? $"HTTP {(int)response.StatusCode}: {Recortar(cuerpo, 200)}",
+                    StatusHttp: status);
             }
 
             try
             {
                 var respuesta = JsonSerializer.Deserialize<GeminiGenerateResponse>(cuerpo, PayloadJsonOptions);
-                return (Exito: true, Respuesta: respuesta, Error: null);
+                return (Exito: true, Respuesta: respuesta, Error: null, StatusHttp: status);
             }
             catch (JsonException ex)
             {
-                return (Exito: false, Respuesta: null, Error: $"Respuesta de Gemini no parseable: {ex.Message}");
+                return (Exito: false, Respuesta: null,
+                    Error: $"Respuesta de Gemini no parseable: {ex.Message}", StatusHttp: status);
             }
         }
     }

@@ -147,6 +147,36 @@ public class GeminiNluTests
     }
 
     [Fact]
+    public async Task Transporte503_ReintentaUnaVez_YDaExito()
+    {
+        var llamadas = 0;
+        var handler = new RecordingHandler(_ => ++llamadas == 1
+            ? Json("{}", HttpStatusCode.ServiceUnavailable)
+            : Json(Respuesta(
+                """{"intent":"CARGA_SERIE","confianza":0.9,"repeticiones":10,"peso":40,"unidad":"kg"}""")));
+        var nlu = Crear(handler);
+
+        var clasificacion = await nlu.ClasificarAsync("hice 10 con 40", CancellationToken.None);
+
+        Assert.True(clasificacion.Exito, clasificacion.ErrorTitulo ?? "sin error");
+        Assert.Equal(IntentoCaptura.CargaSerie, clasificacion.Intento);
+        Assert.Equal(2, handler.Requests.Count); // 503 → un único reintento de transporte
+    }
+
+    [Fact]
+    public async Task Transporte503_AgotadoElReintento_FallaSinTerceraLlamada()
+    {
+        var handler = new RecordingHandler(_ => Json("{}", HttpStatusCode.ServiceUnavailable));
+        var nlu = Crear(handler);
+
+        var entidades = await nlu.ExtraerAsync("prensa", CancellationToken.None);
+
+        Assert.False(entidades.Exito);
+        Assert.Contains("503", entidades.ErrorTitulo);
+        Assert.Equal(2, handler.Requests.Count); // primer intento + reintento único, nada más
+    }
+
+    [Fact]
     public async Task SalidaVacia_FallaElPipeline()
     {
         var handler = new RecordingHandler(_ => Json(Respuesta("   ")));

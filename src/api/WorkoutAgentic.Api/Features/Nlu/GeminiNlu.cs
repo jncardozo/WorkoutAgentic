@@ -115,8 +115,7 @@ internal sealed class GeminiNlu(
                 ResponseMimeType: "application/json",
                 ResponseSchema: NluSchema.ComoJson()));
 
-        var (exito, respuesta, error) = await LlmCall.EnviarAsync(
-            httpClient, config, config.ModeloNlu, payload, cancellationToken);
+        var (exito, respuesta, error, _) = await EnviarConReintento503Async(config, payload, cancellationToken);
         if (!exito)
         {
             logger.LogWarning("NLU falló: {Error}.", error ?? "-");
@@ -156,6 +155,33 @@ internal sealed class GeminiNlu(
         {
             return (Exito: false, Datos: null, ErrorTitulo: "Salida del LLM no parseable");
         }
+    }
+
+    private const int SegundosReintento503 = 3;
+
+    // Reintento ÚNICO de transporte ante 503 (alta demanda transitoria del
+    // proveedor): el problema es de infraestructura, no del contenido, así que
+    // no viola la regla de UNA llamada lógica del LLM por mensaje — el memo
+    // sigue garantizando una sola interpretación por texto. 429 y otros
+    // códigos NO reintentan (cuota agotada: reintentar la empeora).
+    private async Task<(bool Exito, GeminiGenerateResponse? Respuesta, string? Error, int? StatusHttp)>
+        EnviarConReintento503Async(
+            GeminiOptions config, GeminiGenerateRequest payload, CancellationToken cancellationToken)
+    {
+        var primerIntento = await LlmCall.EnviarAsync(
+            httpClient, config, config.ModeloNlu, payload, cancellationToken);
+
+        if (primerIntento.Exito || primerIntento.StatusHttp != 503)
+        {
+            return primerIntento;
+        }
+
+        logger.LogWarning(
+            "503 del proveedor (alta demanda); reintentando una vez en {Segundos}s.", SegundosReintento503);
+        await Task.Delay(TimeSpan.FromSeconds(SegundosReintento503), cancellationToken);
+
+        return await LlmCall.EnviarAsync(
+            httpClient, config, config.ModeloNlu, payload, cancellationToken);
     }
 
     private static IntentoCaptura ParseIntento(string? intent) => intent switch

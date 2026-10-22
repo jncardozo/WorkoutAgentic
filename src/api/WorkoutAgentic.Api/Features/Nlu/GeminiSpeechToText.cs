@@ -55,7 +55,7 @@ internal sealed class GeminiSpeechToText(
             ],
             GenerationConfig: new GeminiGenerationConfig(Temperature: 0));
 
-        var (exito, respuesta, error) = await LlmCall.EnviarAsync(
+        var (exito, respuesta, error, _) = await LlmCall.EnviarAsync(
             httpClient, config, config.ModeloTranscripcion, payload, cancellationToken);
         if (!exito)
         {
