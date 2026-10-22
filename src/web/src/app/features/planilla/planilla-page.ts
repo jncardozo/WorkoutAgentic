@@ -23,6 +23,7 @@ import {
   RespuestaSesionActual,
   fallaDe,
 } from '../../core/planilla-api';
+import { DictadoVoz } from './dictado-voz';
 
 /** Borrador local de una fila (alta o edición); los números viajan como texto. */
 interface BorradorFila {
@@ -60,6 +61,7 @@ const INTERVALO_ENCUESTA_MS = 10_000;
 export class PlanillaPage {
   private readonly planillaApi = inject(PlanillaApi);
   private readonly router = inject(Router);
+  readonly dictado = inject(DictadoVoz);
 
   /** Viene de la ruta `alumno/:alumnoId/planilla` (input binding de rutas). */
   readonly alumnoId = input.required<number>();
@@ -215,6 +217,25 @@ export class PlanillaPage {
         this.capturaEnCurso.set(false);
       },
     });
+  }
+
+  // ─── Dictado por voz en la PWA (ADR-0011) ───────────────────────────────────
+
+  /**
+   * El micrófono del navegador alimenta el MISMO borrador de captura: el
+   * transcript final parece escrito por el alumno, que lo revisa antes de
+   * enviar. Si ya está escuchando, alterna a detener.
+   */
+  alternarDictado(): void {
+    if (this.dictado.escuchando()) {
+      this.dictado.detener();
+      return;
+    }
+
+    this.dictado.escuchar((texto) =>
+      this.borradorCaptura.update((previo) =>
+        previo.trim().length === 0 ? texto : `${previo} ${texto}`),
+    );
   }
 
   // ─── Alta de fila (POST: fila completa, ADR-0007 S3) ────────────────────────

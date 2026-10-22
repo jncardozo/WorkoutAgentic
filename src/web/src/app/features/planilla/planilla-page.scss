@@ -76,6 +76,38 @@
   opacity: 0.5;
 }
 
+.acciones-captura {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: flex-start;
+}
+
+/* Micrófono (ADR-0011): contorno acento; escuchando, relleno con pulso suave. */
+.btn-mic {
+  border-color: color-mix(in srgb, var(--acento) 45%, var(--borde));
+  color: var(--acento);
+}
+
+.btn-mic.escuchando {
+  color: var(--panel);
+  background: var(--acento);
+  animation: pulso-mic 1.2s ease-in-out infinite;
+}
+
+@keyframes pulso-mic {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--acento) 25%, transparent);
+  }
+}
+
+.parcial-dictado {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--texto-2);
+  font-style: italic;
+}
+
 @media (max-width: 640px) {
   .captura {
     flex-direction: column;

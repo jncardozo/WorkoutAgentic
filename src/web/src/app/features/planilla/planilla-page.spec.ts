@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
@@ -13,6 +14,7 @@ import {
   RespuestaSesionActual,
   SesionActualVista,
 } from '../../core/planilla-api';
+import { DictadoVoz, FABRICA_RECONOCEDOR } from './dictado-voz';
 import { PlanillaPage } from './planilla-page';
 
 const CATALOGO: EjercicioCatalogoVista[] = [
@@ -120,10 +122,23 @@ function stubPlanilla(
   };
 }
 
-async function montar(stub: StubPlanilla): Promise<ComponentFixture<PlanillaPage>> {
+/**
+ * Monta la página. `dictado` (cuando va) reemplaza el servicio real por un
+ * falso con el mismo shape; sin él, la fábrica nula deja el voto sin soporte
+ * (jsdom no tiene Web Speech API), igual que un Firefox.
+ */
+async function montar(
+  stub: StubPlanilla,
+  dictado: object | null = null,
+): Promise<ComponentFixture<PlanillaPage>> {
   TestBed.configureTestingModule({
     imports: [PlanillaPage],
-    providers: [provideRouter([]), { provide: PlanillaApi, useValue: stub }],
+    providers: [
+      provideRouter([]),
+      { provide: PlanillaApi, useValue: stub },
+      { provide: FABRICA_RECONOCEDOR, useValue: () => null },
+      ...(dictado ? [{ provide: DictadoVoz, useValue: dictado }] : []),
+    ],
   });
   const fixture = TestBed.createComponent(PlanillaPage);
   fixture.componentRef.setInput('alumnoId', 1);
@@ -293,5 +308,67 @@ describe('PlanillaPage', () => {
     fixture.detectChanges();
 
     expect(stub.confirmar).toHaveBeenCalledWith(1);
+  });
+
+  // ─── Dictado por voz (ADR-0011) ───────────────────────────────────────────────
+
+  it('el micrófono vuelca lo dictado al borrador y el envío sigue el pipeline normal', async () => {
+    const entregado: ((texto: string) => void)[] = [];
+    const dictado = {
+      soportado: true,
+      escuchando: signal(false),
+      parcial: signal(''),
+      fallo: signal<string | null>(null),
+      escuchar: vi.fn((callback: (texto: string) => void) => entregado.push(callback)),
+      detener: vi.fn(),
+    };
+    const stub = stubPlanilla(respuesta(null), {
+      capturarTexto: vi.fn(() => of(RESPUESTA_CAPTURA)),
+    });
+    const fixture = await montar(stub, dictado);
+
+    const transcript = boton(fixture, '🎙 Dictar');
+    transcript.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    entregado[0]('prensa 10 con 40'); // el navegador reconoció una frase completa
+    fixture.detectChanges();
+    const textarea = (fixture.nativeElement as HTMLElement).querySelector(
+      'textarea.entrada-captura',
+    ) as HTMLTextAreaElement;
+    expect(textarea.value).toBe('prensa 10 con 40');
+
+    boton(fixture, 'Enviar').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(stub.capturarTexto).toHaveBeenCalledWith(1, 'prensa 10 con 40');
+  });
+
+  it('dictar de nuevo mientras escucha pide detener en vez de relanzar', async () => {
+    const dictado = {
+      soportado: true,
+      escuchando: signal(true),
+      parcial: signal(''),
+      fallo: signal<string | null>(null),
+      escuchar: vi.fn(),
+      detener: vi.fn(),
+    };
+    const fixture = await montar(stubPlanilla(respuesta(null)), dictado);
+
+    boton(fixture, 'Escuchando…').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(dictado.detener).toHaveBeenCalledTimes(1);
+    expect(dictado.escuchar).not.toHaveBeenCalled();
+  });
+
+  it('un navegador sin dictado por voz enseña la ayuda del teclado y no el botón', async () => {
+    const fixture = await montar(stubPlanilla(respuesta(null))); // jsdom: sin Web Speech
+
+    expect(texto(fixture)).toContain('Tu navegador no ofrece dictado por voz');
+    const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    expect(botones.some((b) => (b.textContent ?? '').includes('🎙 Dictar'))).toBe(false);
   });
 });

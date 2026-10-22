@@ -51,15 +51,46 @@
           (input)="borradorCaptura.set($any($event.target).value)"
           (keydown.enter)="$event.preventDefault(); enviarCaptura()"
         ></textarea>
-        <button
-          type="button"
-          class="btn btn-primario"
-          (click)="enviarCaptura()"
-          [disabled]="capturaEnCurso()"
-        >
-          Enviar
-        </button>
+        <div class="acciones-captura">
+          @if (dictado.soportado) {
+            <button
+              type="button"
+              class="btn btn-mic"
+              [class.escuchando]="dictado.escuchando()"
+              (click)="alternarDictado()"
+              [attr.aria-pressed]="dictado.escuchando()"
+              [attr.aria-label]="dictado.escuchando() ? 'Detener dictado por voz' : 'Dictar por voz'"
+              [title]="dictado.escuchando() ? 'Detener el dictado' : 'Dictar por voz'"
+            >
+              {{ dictado.escuchando() ? '◼ Escuchando…' : '🎙 Dictar' }}
+            </button>
+          }
+          <button
+            type="button"
+            class="btn btn-primario"
+            (click)="enviarCaptura()"
+            [disabled]="capturaEnCurso()"
+          >
+            Enviar
+          </button>
+        </div>
       </div>
+      @if (dictado.escuchando()) {
+        <p class="parcial-dictado" aria-live="polite">
+          {{ dictado.parcial().length > 0 ? '🎙 ' + dictado.parcial() : 'Te escucho… hablá cuando quieras.' }}
+        </p>
+      }
+      @if (dictado.fallo(); as aviso) {
+        <div class="banner banner-aviso" role="alert">
+          <div>{{ aviso }}</div>
+        </div>
+      }
+      @if (!dictado.soportado) {
+        <p class="meta">
+          Tu navegador no ofrece dictado por voz: dictale con el teclado (Win+H en Windows, micrófono
+          del teclado en el móvil) o usá Chrome/Edge.
+        </p>
+      }
       @if (ultimoMensajeBot(); as mensaje) {
         <div class="banner banner-info" role="status">
           <div>{{ mensaje }}</div>
