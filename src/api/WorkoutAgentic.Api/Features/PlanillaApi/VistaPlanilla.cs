@@ -6,19 +6,38 @@ namespace WorkoutAgentic.Api.Features.PlanillaApi;
 // entidades del dominio viajan SOLO como proyección DTO acá, nunca crudas.
 internal static class VistaPlanilla
 {
+    public static PlanillaConfirmadaVista MapearPlanillaConfirmada(PlanillaConfirmada planilla) => new(
+        planilla.Id,
+        planilla.AlumnoId,
+        planilla.SesionId,
+        planilla.ConfirmadaUtc,
+        [.. planilla.Filas
+            .OrderBy(f => f.Orden)
+            .Select(f => new FilaConfirmadaVista(
+                f.Orden,
+                f.EjercicioCanonical,
+                f.NroSerie,
+                f.Reps,
+                f.PesoKg,
+                f.Unidad?.ToString(),
+                f.TiempoSeg,
+                f.Incompleta))]);
+
     public static RespuestaSesionActual Armar(
         int alumnoId,
         string alumnoNombre,
-        string? telefonoWa,
         SesionCaptura? sesion) => new(
-        new AlumnoVista(alumnoId, alumnoNombre, telefonoWa),
+        new AlumnoVista(alumnoId, alumnoNombre),
         sesion is null ? null : MapearSesion(sesion));
 
     private static SesionActualVista MapearSesion(SesionCaptura sesion) => new(
         sesion.Id,
         sesion.Estado.ToString(),
         sesion.EjercicioActivoId,
-        sesion.EjercicioActivo?.NombreCanonico,
+        sesion.Registros.OrderByDescending(r => r.Id)
+            .Select(r => r.EjercicioCanonico ?? r.Ejercicio?.NombreCanonico ?? r.EjercicioCrudo)
+            .FirstOrDefault(nombre => nombre is not null)
+            ?? sesion.EjercicioActivo?.NombreCanonico,
         sesion.OrdenSerieSiguiente,
         sesion.AclaracionPendiente is { } aclaracion
             ? new AclaracionVista(aclaracion.Campo, aclaracion.Reintento)
@@ -31,7 +50,7 @@ internal static class VistaPlanilla
     private static FilaParcialVista MapearFila(RegistroParcial fila) => new(
         fila.Id,
         fila.EjercicioId,
-        fila.Ejercicio?.NombreCanonico,
+        fila.EjercicioCanonico ?? fila.Ejercicio?.NombreCanonico,
         fila.EjercicioCrudo,
         fila.DescripcionPendiente,
         fila.NroSerie,

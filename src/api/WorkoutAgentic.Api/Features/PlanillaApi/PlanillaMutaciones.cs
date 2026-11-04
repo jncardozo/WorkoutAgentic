@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutAgentic.Api.Data;
 using WorkoutAgentic.Api.Data.Entities;
 using WorkoutAgentic.Api.Features.CapturaSesion;
-using WorkoutAgentic.Api.Features.Nlu;
 
 namespace WorkoutAgentic.Api.Features.PlanillaApi;
 
@@ -32,6 +31,9 @@ internal interface IPlanillaMutaciones
     Task<ResultadoMutacion<RespuestaSesionActual>> EliminarFilaAsync(
         int filaId, CancellationToken cancellationToken);
 
+    Task<ResultadoMutacion<RespuestaSesionActual>> EliminarTodasLasFilasAsync(
+        int alumnoId, CancellationToken cancellationToken);
+
     Task<ResultadoMutacion<PlanillaConfirmadaVista>> ConfirmarAsync(
         int alumnoId, CancellationToken cancellationToken);
 }
@@ -50,13 +52,31 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
                 falla ?? PlanillaFalla.SesionInexistente());
         }
 
-        // Con tracking: la fila nueva referencia la entidad nav, no un id suelto.
-        var ejercicio = await db.Ejercicios
-            .FirstOrDefaultAsync(e => e.Id == comando.EjercicioId, cancellationToken);
-        if (ejercicio is null)
+        var filasIncompletas = sesion.Registros
+            .Where(fila => !ReglaCompletitudSeries.EstaCompleta(fila))
+            .ToList();
+        if (filasIncompletas.Count > 0)
         {
             return ResultadoMutacion<RespuestaSesionActual>.ConFalla(
-                PlanillaFalla.EjercicioInexistente(comando.EjercicioId));
+                PlanillaFalla.SeriesPendientes(
+                    ReglaCompletitudSeries.MensajeParaCompletar(filasIncompletas)));
+        }
+
+        var nombreEjercicio = comando.EjercicioNombre?.Trim();
+        Ejercicio? ejercicio = null;
+        if (comando.EjercicioId is { } ejercicioId)
+        {
+            ejercicio = await db.Ejercicios.FirstOrDefaultAsync(e => e.Id == ejercicioId, cancellationToken);
+            if (ejercicio is null)
+            {
+                return ResultadoMutacion<RespuestaSesionActual>.ConFalla(PlanillaFalla.EjercicioInexistente(ejercicioId));
+            }
+            nombreEjercicio = ejercicio.NombreCanonico;
+        }
+        if (string.IsNullOrWhiteSpace(nombreEjercicio))
+        {
+            return ResultadoMutacion<RespuestaSesionActual>.ConFalla(
+                PlanillaFalla.DatosInvalidos("Escribí el nombre del ejercicio."));
         }
 
         var valores = ValidarCuerpoFila(
@@ -66,29 +86,20 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         {
             return ResultadoMutacion<RespuestaSesionActual>.ConFalla(valores.Falla);
         }
-
-        // Fila nueva desde la SPA: se agrega COMPLETA según su tipo de ejercicio
-        // (el bot no está en el medio para pedir lo que falta, reglas §2).
-        var faltante = SesionCapturaServicio.CampoFaltante(
-            new RegistroParcial
-            {
-                Reps = valores.Reps,
-                PesoKg = valores.PesoKg,
-                Unidad = valores.Unidad,
-                TiempoSeg = valores.TiempoSeg,
-            },
-            ComoCatalogo(ejercicio));
-        if (faltante is not null)
+        if (valores.Reps is null
+            || (valores.PesoKg is null && valores.Unidad != Unidad.PesoCorporal))
         {
             return ResultadoMutacion<RespuestaSesionActual>.ConFalla(
-                PlanillaFalla.DatosInvalidos(FraseFaltante(faltante)));
+                PlanillaFalla.DatosInvalidos(
+                    "La fila necesita repeticiones y peso (o marcar «al cuerpo») antes de guardarse."));
         }
 
         var fila = new RegistroParcial
         {
             Sesion = sesion,
             Ejercicio = ejercicio,
-            EjercicioCrudo = null,
+            EjercicioCrudo = ejercicio is null ? nombreEjercicio : null,
+            EjercicioCanonico = nombreEjercicio,
             NroSerie = comando.NroSerie,
             Reps = valores.Reps,
             PesoKg = valores.PesoKg,
@@ -100,7 +111,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         await db.SaveChangesAsync(cancellationToken);
 
         return ResultadoMutacion<RespuestaSesionActual>.ConVista(
-            VistaPlanilla.Armar(alumnoId, cuenta.Nombre, cuenta.TelefonoWa, sesion));
+            VistaPlanilla.Armar(alumnoId, cuenta.Nombre, sesion));
     }
 
     // ─── Editar fila ──────────────────────────────────────────────────────────
@@ -131,6 +142,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
             }
 
             fila.Ejercicio = ejercicio;
+            fila.EjercicioCanonico = ejercicio.NombreCanonico;
             fila.DescripcionPendiente = false;
         }
         else if (comando.EjercicioId is null)
@@ -146,7 +158,8 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
             ejercicio = null;
             fila.Ejercicio = null;
             fila.EjercicioCrudo = comando.EjercicioCrudo.Trim();
-            fila.DescripcionPendiente = true;
+            fila.EjercicioCanonico = comando.EjercicioCrudo.Trim();
+            fila.DescripcionPendiente = false;
         }
         else
         {
@@ -176,7 +189,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         await db.SaveChangesAsync(cancellationToken);
         var cuenta = sesion.Alumno!; // cargada en el include de la fila
         return ResultadoMutacion<RespuestaSesionActual>.ConVista(
-            VistaPlanilla.Armar(cuenta.Id, cuenta.Nombre, cuenta.TelefonoWa, sesion));
+            VistaPlanilla.Armar(cuenta.Id, cuenta.Nombre, sesion));
     }
 
     // ─── Eliminar fila ────────────────────────────────────────────────────────
@@ -196,17 +209,34 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         await db.SaveChangesAsync(cancellationToken);
         var cuenta = sesion.Alumno!; // cargada en el include de la fila
         return ResultadoMutacion<RespuestaSesionActual>.ConVista(
-            VistaPlanilla.Armar(cuenta.Id, cuenta.Nombre, cuenta.TelefonoWa, sesion));
+            VistaPlanilla.Armar(cuenta.Id, cuenta.Nombre, sesion));
     }
 
-    // ─── Confirmación (snapshot write-once, reglas §2) ────────────────────────
+    public async Task<ResultadoMutacion<RespuestaSesionActual>> EliminarTodasLasFilasAsync(
+        int alumnoId, CancellationToken cancellationToken)
+    {
+        var (sesion, cuenta, falla) = await SesionEditableAsync(alumnoId, cancellationToken);
+        if (falla is not null || sesion is null)
+        {
+            return ResultadoMutacion<RespuestaSesionActual>.ConFalla(
+                falla ?? PlanillaFalla.SesionInexistente());
+        }
+
+        db.RegistrosParciales.RemoveRange(sesion.Registros);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return ResultadoMutacion<RespuestaSesionActual>.ConVista(
+            VistaPlanilla.Armar(alumnoId, cuenta.Nombre, sesion));
+    }
+
+    // ─── Confirmación (snapshot write-once, reglas §2 y ADR-0017) ─────────────
 
     public async Task<ResultadoMutacion<PlanillaConfirmadaVista>> ConfirmarAsync(
         int alumnoId, CancellationToken cancellationToken)
     {
         var alumno = await db.Alumnos
             .AsNoTracking()
-            .Select(a => new { a.Id, a.TelefonoWa })
+            .Select(a => new { a.Id })
             .FirstOrDefaultAsync(a => a.Id == alumnoId, cancellationToken);
         if (alumno is null)
         {
@@ -214,7 +244,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         }
 
         var sesion = await SesionHablanteConTrackingAsync(alumnoId, cancellationToken);
-        if (sesion is null || sesion.Estado != EstadoSesionCaptura.Lista)
+        if (sesion is null || sesion.Estado is not (EstadoSesionCaptura.EnCurso or EstadoSesionCaptura.Lista))
         {
             return ResultadoMutacion<PlanillaConfirmadaVista>.ConFalla(
                 sesion is null
@@ -252,20 +282,16 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
                 Orden = orden++,
                 // Nombre congelado (texto, no FK): canónico, o el crudo en filas
                 // sin ejercicio — el snapshot muestra lo que existió, sin inventar.
-                EjercicioCanonical = parcial.Ejercicio?.NombreCanonico ?? parcial.EjercicioCrudo ?? string.Empty,
+                EjercicioCanonical = parcial.EjercicioCanonico ?? parcial.Ejercicio?.NombreCanonico ?? parcial.EjercicioCrudo ?? string.Empty,
                 NroSerie = parcial.NroSerie,
                 Reps = parcial.Reps,
                 PesoKg = parcial.PesoKg,
                 Unidad = parcial.Unidad,
                 TiempoSeg = parcial.TiempoSeg,
-                // Marca congelada que el profesor ve (reglas §2): fila sin
-                // ejercicio identificado (descripción libre) o con un dato
-                // faltante según su tipo — la información nunca se pierde en
-                // silencio.
+                // Marca congelada de integridad: fila sin
+                // ejercicio identificado (descripción libre) o sin reps/peso.
                 Incompleta = parcial.DescripcionPendiente
-                    || SesionCapturaServicio.CampoFaltante(
-                        parcial,
-                        parcial.Ejercicio is { } ejericioConDatos ? ComoCatalogo(ejericioConDatos) : null) is not null,
+                    || !ReglaCompletitudSeries.EstaCompleta(parcial),
             });
         }
 
@@ -299,7 +325,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         var alumno = await db.Alumnos
             .AsNoTracking()
             .Where(a => a.Id == alumnoId)
-            .Select(a => new AlumnoVista(a.Id, a.Nombre, a.TelefonoWa))
+            .Select(a => new AlumnoVista(a.Id, a.Nombre))
             .FirstOrDefaultAsync(cancellationToken);
         if (alumno is null)
         {
@@ -317,7 +343,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
     }
 
     // Cuenta encabezada vacía para la deconstrucción del borde de fallo.
-    private static AlumnoVista CuentaVacia() => new(0, string.Empty, null);
+    private static AlumnoVista CuentaVacia() => new(0, string.Empty);
 
     private async Task<(RegistroParcial? Fila, PlanillaFalla? Falla)> FilaDeSesionEditableAsync(
         int filaId, CancellationToken cancellationToken)
@@ -419,16 +445,7 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
             detalles.Add("El tiempo va de 1 segundo en adelante.");
         }
 
-        if (ejercicio is null)
-        {
-            // Fila de descripción libre (ADR-0004 S7): puede llevar reps o
-            // tiempo, pero el peso sin ejercicio del catálogo no se admite.
-            if (pesoFin is not null)
-            {
-                detalles.Add("El peso necesita un ejercicio del catálogo: elegí el ejercicio de la fila.");
-            }
-        }
-        else
+        if (ejercicio is not null)
         {
             if (ejercicio.UsaTiempo && pesoFin is not null)
             {
@@ -454,19 +471,10 @@ internal sealed class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaci
         return (reps, pesoFin, unidadFin, tiempoSeg, null);
     }
 
-    private static CatalogoEjercicio ComoCatalogo(Ejercicio ejercicio) => new(
-        ejercicio.Id,
-        ejercicio.NombreCanonico,
-        ejercicio.Apodos,
-        ejercicio.GrupoMuscular,
-        ejercicio.UsaPeso,
-        ejercicio.UsaTiempo);
-
     private static string FraseFaltante(string campo) => campo switch
     {
         "peso" => "La fila necesita el peso (o \"al cuerpo\" si es peso corporal).",
         "reps" => "La fila necesita las repeticiones.",
-        "tiempo" => "La fila necesita el tiempo en segundos.",
         _ => $"La fila necesita {campo}.",
     };
 }

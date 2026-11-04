@@ -1,6 +1,6 @@
 namespace WorkoutAgentic.Api.Data.Entities;
 
-// Snapshot write-once (glosario): visible para el profesor en solo lectura.
+// Snapshot write-once de la planilla confirmada por el alumno.
 // Las filas se congelan al confirmar y no se editan en el MVP.
 public class PlanillaConfirmada
 {
@@ -16,6 +16,6 @@ public class PlanillaConfirmada
 
     public DateTime ConfirmadaUtc { get; set; }
 
-    // Cuadrícula congelada: es exactamente lo que ve el profesor.
+    // Cuadrícula congelada: es exactamente lo que confirmó el alumno.
     public List<PlanillaFila> Filas { get; set; } = [];
 }

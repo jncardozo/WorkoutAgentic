@@ -1,5 +1,4 @@
 using WorkoutAgentic.Api.Data;
-using WorkoutAgentic.Api.Features.WhatsappWebhook;
 
 namespace WorkoutAgentic.Api.Features.Nlu;
 
@@ -40,7 +39,8 @@ public sealed record EntidadesNlu(
     int? TiempoSegundos,
     int? DescansoSegundos,
     string? CampoAclarar,
-    string? PreguntaAclarar);
+    string? PreguntaAclarar,
+    string? EjercicioNormalizado = null);
 
 public sealed record EntidadesExtraidas(
     bool Exito,
@@ -52,12 +52,9 @@ public sealed record EntidadesExtraidas(
     public static EntidadesExtraidas Fallo(string titulo) => new(false, null, titulo);
 }
 
-// Etapa 4: análisis completo de un mensaje, producto del pipeline
-// (auditable: transcripción + clasificación + entidades + resolución).
+// Análisis del texto reconocido en el navegador: clasificación y entidades.
 public sealed record AnalisisCaptura(
-    WhatsappMessageKind MensajeKind,
     string TextoProcesado,
-    TranscripcionAudio? Transcripcion,
     ClasificacionIntent Clasificacion,
     EntidadesNlu? Entidades,
     ResultadoResolucionEjercicio? ResolucionEjercicio);

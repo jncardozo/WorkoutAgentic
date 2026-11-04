@@ -1,6 +1,8 @@
 # ADR 0010 — Vista Profesor solo lectura + alta de alumnos explícita
 
 - **Estado:** Aceptado (2026-10-22)
+- **Vigencia:** El módulo de profesor se retiró en ADR-0018; este ADR queda como
+  historial de la iteración anterior.
 - **Contexto:** arquitectura §7 (Vista Profesor), reglas de roles de
   `business-rules.md` §4, ADR-0009 (pivot PWA: sin canal de alta automática),
   ADR-0008 (identidad provisional hasta AuthApi S6)

@@ -3,77 +3,90 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
   effect,
   inject,
   input,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Router } from '@angular/router';
 import {
   ComandoEdicionFila,
   ComandoNuevaFila,
-  EjercicioCatalogoVista,
   FallaApi,
   FilaParcialVista,
+  FormatoPlanillaExportable,
   PlanillaApi,
   PlanillaConfirmadaVista,
   RespuestaSesionActual,
+  SesionActualVista,
   fallaDe,
 } from '../../core/planilla-api';
 import { DictadoVoz } from './dictado-voz';
+import { ReportePreview, FormatoVistaPrevia } from './reporte-preview';
+import { ReporteWorkspace, ModoReporte } from './reporte-workspace';
 
 /** Borrador local de una fila (alta o edición); los números viajan como texto. */
 interface BorradorFila {
-  // null = fila de descripción libre (solo edición; el alta exige catálogo).
-  ejercicioId: number | null;
   ejercicioCrudo: string;
   serie: string;
   reps: string;
   peso: string;
   pesoAlCuerpo: boolean;
-  tiempo: string;
 }
 
 /** Campos del borrador que se editan como texto libre en la cuadrícula. */
-type CampoTextoBorrador = 'ejercicioCrudo' | 'serie' | 'reps' | 'peso' | 'tiempo';
+type CampoTextoBorrador = 'ejercicioCrudo' | 'serie' | 'reps' | 'peso';
 
 const INTERVALO_ENCUESTA_MS = 10_000;
 
 /**
  * Vista Alumno · Planilla (arquitectura §6): cuadrícula editable de parciales
- * capturados por WhatsApp + confirmación (snapshot). Reglas de edición en
- * ADR-0007: solo mientras el chat no tiene la palabra; el alta exige fila
- * completa; confirmar solo cuando la sesión está en Lista.
+ * capturados por texto y voz en la PWA (ADR-0009) + confirmación (snapshot).
+ * Reglas de edición en
+ * ADR-0007/0017: solo mientras la sesión admite edición; se puede confirmar
+ * desde EnCurso o Lista cuando no hay una aclaración pendiente.
  *
- * La identificación del alumno es provisional (ruta + localStorage) hasta
- * AuthApi: la vista queda igual, solo cambia el borde.
+ * La identificación usa el alumno de prueba configurado en la ruta raíz hasta
+ * AuthApi; mientras tanto los dispositivos de prueba comparten su historial.
  */
 @Component({
   selector: 'app-planilla-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe],
+  imports: [DatePipe, ReportePreview, ReporteWorkspace],
   templateUrl: './planilla-page.html',
   styleUrl: './planilla-page.scss',
 })
 export class PlanillaPage {
   private readonly planillaApi = inject(PlanillaApi);
-  private readonly router = inject(Router);
   readonly dictado = inject(DictadoVoz);
 
   /** Viene de la ruta `alumno/:alumnoId/planilla` (input binding de rutas). */
   readonly alumnoId = input.required<number>();
+  private readonly entradaCaptura = viewChild<ElementRef<HTMLTextAreaElement>>('entradaCaptura');
 
   readonly cargando = signal(true);
   readonly sesion = signal<RespuestaSesionActual | null>(null);
   readonly planillaConfirmada = signal<PlanillaConfirmadaVista | null>(null);
-  readonly catalogo = signal<EjercicioCatalogoVista[]>([]);
-  readonly falloCatalogo = signal(false);
+  readonly historialPlanillas = signal<PlanillaConfirmadaVista[]>([]);
+  readonly historialAbierto = signal(false);
+  readonly cargandoHistorial = signal(false);
+  readonly fallaHistorial = signal<FallaApi | null>(null);
+  readonly nuevoEntrenamiento = signal(false);
+  private readonly reporteDesdeHistorial = signal(false);
   readonly fallaCarga = signal<FallaApi | null>(null);
   readonly fallaAccion = signal<FallaApi | null>(null);
   readonly accionEnCurso = signal(false);
+  readonly exportacionEnCurso = signal(false);
+  readonly vistaPrevia = signal<FormatoVistaPrevia | null>(null);
+  readonly pantallaReportes = signal<ModoReporte | null>(null);
+  readonly correoDestino = signal('');
+  readonly formatoCorreo = signal<FormatoPlanillaExportable>('excel');
+  readonly mensajeExportacion = signal<string | null>(null);
+  readonly fallaExportacion = signal<string | null>(null);
 
   readonly filaEditandoId = signal<number | null>(null);
   readonly borradorEdicion = signal<BorradorFila | null>(null);
@@ -82,6 +95,7 @@ export class PlanillaPage {
 
   /** Borrado en dos pasos: primer click arma la confirmación. */
   readonly filaEnConfirmacion = signal<number | null>(null);
+  readonly borrarTodasEnConfirmacion = signal(false);
 
   /** Panel de dictado (ADR-0009): borrador del texto + última respuesta del bot. */
   readonly borradorCaptura = signal('');
@@ -89,8 +103,42 @@ export class PlanillaPage {
   readonly capturaEnCurso = signal(false);
   readonly fallaCaptura = signal<FallaApi | null>(null);
 
+  /** Aviso flotante estilo prototipo (cooperación en la esquina inferior derecha). */
+  readonly toast = signal<{ texto: string; malo: boolean } | null>(null);
+  private temporizadorToast: ReturnType<typeof setTimeout> | null = null;
+
   readonly sesionViva = computed(() => this.sesion()?.sesion ?? null);
   readonly filas = computed(() => this.sesionViva()?.filas ?? []);
+  readonly filasPendientesDeDatos = computed(() => {
+    return this.filas()
+      .filter((fila) => fila.reps === null || (fila.pesoKg === null && fila.unidad !== 'PesoCorporal'))
+      .sort((a, b) => a.creadoUtc.localeCompare(b.creadoUtc) || a.nroSerie - b.nroSerie);
+  });
+  readonly progresoSeries = computed(() => {
+    const total = this.filas().length;
+    const completas = total - this.filasPendientesDeDatos().length;
+    return {
+      completas,
+      total,
+      porcentaje: total === 0 ? 0 : Math.round((completas / total) * 100),
+    };
+  });
+  readonly avisoCompletitud = computed(() => {
+    const pendientes = this.filasPendientesDeDatos();
+    if (pendientes.length === 0) {
+      return null;
+    }
+
+    const detalle = pendientes.map((fila) => {
+      const faltantes: string[] = [];
+      if (fila.reps === null) faltantes.push('repeticiones');
+      if (fila.pesoKg === null && fila.unidad !== 'PesoCorporal') faltantes.push('peso');
+      const nombre = fila.ejercicioCanonico ?? fila.ejercicioCrudo ?? 'ejercicio sin nombre';
+      return `${nombre}, serie ${fila.nroSerie} (${faltantes.join(' y ')})`;
+    });
+
+    return detalle.join(' · ');
+  });
   readonly cuadriculaEditable = computed(() => {
     const estado = this.sesionViva()?.estado;
     return !this.planillaConfirmada() && (estado === 'EnCurso' || estado === 'Lista');
@@ -104,16 +152,27 @@ export class PlanillaPage {
       const id = this.alumnoId();
       untracked(() => {
         this.planillaConfirmada.set(null);
+        this.historialPlanillas.set([]);
+        this.historialAbierto.set(false);
+        this.nuevoEntrenamiento.set(false);
+        this.reporteDesdeHistorial.set(false);
         this.cerrarBorradores();
         this.borradorCaptura.set('');
         this.ultimoMensajeBot.set(null);
         this.fallaCaptura.set(null);
+        this.mensajeExportacion.set(null);
+        this.fallaExportacion.set(null);
         this.cargar(id);
         this.rearmarEncuesta(id);
       });
     });
 
-    inject(DestroyRef).onDestroy(() => this.detenerEncuesta());
+    inject(DestroyRef).onDestroy(() => {
+      this.detenerEncuesta();
+      if (this.temporizadorToast !== null) {
+        clearTimeout(this.temporizadorToast);
+      }
+    });
   }
 
   // ─── Carga y encuesta (la cuadrícula se actualiza sola, arquitectura S7) ────
@@ -136,13 +195,23 @@ export class PlanillaPage {
       },
     });
 
-    this.planillaApi.catalogo().subscribe({
-      next: (ejercicios) => {
-        this.catalogo.set(ejercicios);
-        this.falloCatalogo.set(false);
+    this.cargarHistorial(alumnoId);
+  }
+
+  private cargarHistorial(alumnoId: number): void {
+    this.cargandoHistorial.set(true);
+    this.fallaHistorial.set(null);
+    this.planillaApi.historial(alumnoId).subscribe({
+      next: (historial) => {
+        this.historialPlanillas.set(historial);
+        this.cargandoHistorial.set(false);
       },
-      error: () => this.falloCatalogo.set(true),
+      error: (error: unknown) => {
+        this.fallaHistorial.set(fallaDe(error));
+        this.cargandoHistorial.set(false);
+      },
     });
+
   }
 
   private rearmarEncuesta(alumnoId: number): void {
@@ -185,7 +254,8 @@ export class PlanillaPage {
   /**
    * Envia el texto crudo del dictado al mismo pipeline NLU del chat: la
    * respuesta repinta la cuadrícula y el banner muestra lo que respondió el bot.
-   * Dictar tras una confirmación abre una carga nueva (la congelada cede).
+   * La sesión nueva nace con el primer texto válido; la confirmada permanece
+   * como snapshot consultable en el historial.
    */
   enviarCaptura(): void {
     if (this.capturaEnCurso()) {
@@ -207,6 +277,7 @@ export class PlanillaPage {
     this.planillaApi.capturarTexto(this.alumnoId(), texto).subscribe({
       next: (respuesta) => {
         this.planillaConfirmada.set(null);
+        this.nuevoEntrenamiento.set(false);
         this.sesion.set(respuesta.respuesta);
         this.ultimoMensajeBot.set(respuesta.mensajeAlumno);
         this.borradorCaptura.set('');
@@ -246,13 +317,11 @@ export class PlanillaPage {
     this.fallaAccion.set(null);
     this.altaAbierta.set(true);
     this.borradorAlta.set({
-      ejercicioId: this.sesionViva()?.ejercicioActivoId ?? this.catalogo()[0]?.id ?? null,
       ejercicioCrudo: '',
       serie: String(this.serieSugerida()),
       reps: '',
       peso: '',
       pesoAlCuerpo: false,
-      tiempo: '',
     });
   }
 
@@ -305,8 +374,6 @@ export class PlanillaPage {
         return { ...borrador, reps: valor };
       case 'peso':
         return { ...borrador, peso: valor };
-      case 'tiempo':
-        return { ...borrador, tiempo: valor };
     }
   }
 
@@ -316,34 +383,27 @@ export class PlanillaPage {
       return;
     }
 
-    const ejercicio = this.ejercicioDelCatalogo(borrador.ejercicioId);
-    const errores = this.validarAlta(borrador, ejercicio);
-    if (ejercicio === null || errores.length > 0) {
+    const errores = this.validarAlta(borrador);
+    if (errores.length > 0) {
       return this.mostrarFallaLocal(errores);
     }
 
     const reps = parsearEnteroPositivo(borrador.reps);
     const pesoKg = borrador.pesoAlCuerpo ? null : parsearDecimalNoNegativo(borrador.peso);
-    const tiempoSeg = parsearEnteroPositivo(borrador.tiempo);
 
-    // Fila completa según el TIPO de ejercicio (misma regla que CampoFaltante).
-    const comando: ComandoNuevaFila = ejercicio.usaTiempo
-      ? {
-          alumnoId: this.alumnoId(), ejercicioId: ejercicio.id, nroSerie: Number(borrador.serie),
-          reps: null, pesoKg: null, unidad: 'Tiempo', tiempoSeg,
-        }
-      : ejercicio.usaPeso
-        ? {
-            alumnoId: this.alumnoId(), ejercicioId: ejercicio.id, nroSerie: Number(borrador.serie),
-            reps,
-            pesoKg,
-            unidad: borrador.pesoAlCuerpo ? 'PesoCorporal' : 'Kg',
-            tiempoSeg: null,
-          }
-        : {
-            alumnoId: this.alumnoId(), ejercicioId: ejercicio.id, nroSerie: Number(borrador.serie),
-            reps, pesoKg: null, unidad: null, tiempoSeg: null,
-          };
+    // Fila completa según el TIPO de ejercicio (misma regla que CampoFaltante,
+    // ADR-0014): el ejercicio por tiempo ya no exige dato; peso kg, o «al
+    // cuerpo» con su unidad; el tiempo no se captura (campo retirado del MVP).
+    const comando: ComandoNuevaFila = {
+      alumnoId: this.alumnoId(),
+      ejercicioId: null,
+      ejercicioNombre: borrador.ejercicioCrudo.trim(),
+      nroSerie: Number(borrador.serie),
+      reps,
+      pesoKg,
+      unidad: borrador.pesoAlCuerpo ? 'PesoCorporal' : pesoKg !== null ? 'Kg' : null,
+      tiempoSeg: null,
+    };
 
     this.ejecutar(
       this.planillaApi.agregarFila(comando),
@@ -351,37 +411,28 @@ export class PlanillaPage {
         this.sesion.set(respuesta);
         this.cerrarAlta();
       },
+      'Fila agregada a la cuadrícula.',
     );
   }
 
-  private validarAlta(borrador: BorradorFila, ejercicio: EjercicioCatalogoVista | null): string[] {
+  private validarAlta(borrador: BorradorFila): string[] {
     const errores: string[] = [];
 
-    if (ejercicio === null) {
-      errores.push('Elegí el ejercicio de la fila.');
+    if (borrador.ejercicioCrudo.trim().length === 0) {
+      errores.push('Escribí el nombre del ejercicio.');
     }
 
     if (leerEntero(borrador.serie) === null) {
       errores.push('El número de serie va de 1 en adelante.');
     }
 
-    if (ejercicio === null) {
-      return errores;
-    }
-
-    if (ejercicio.usaTiempo) {
-      if (leerEntero(borrador.tiempo) === null) {
-        errores.push('La fila necesita el tiempo en segundos.');
-      }
-      return errores;
-    }
-
     if (leerEntero(borrador.reps) === null) {
-      errores.push('La fila necesita las repeticiones.');
+      errores.push('La fila necesita las repeticiones antes de guardarse.');
     }
-    if (ejercicio.usaPeso && !borrador.pesoAlCuerpo && parsearDecimalNoNegativo(borrador.peso) === null) {
-      errores.push('La fila necesita el peso (o marcá «al cuerpo»).');
+    if (!borrador.pesoAlCuerpo && parsearDecimalNoNegativo(borrador.peso) === null) {
+      errores.push('La fila necesita el peso o marcar «al cuerpo».');
     }
+
     return errores;
   }
 
@@ -391,17 +442,16 @@ export class PlanillaPage {
     this.altaAbierta.set(false);
     this.borradorAlta.set(null);
     this.filaEnConfirmacion.set(null);
+    this.borrarTodasEnConfirmacion.set(false);
     this.fallaAccion.set(null);
     const pesoAlCuerpo = fila.unidad === 'PesoCorporal';
     this.filaEditandoId.set(fila.id);
     this.borradorEdicion.set({
-      ejercicioId: fila.ejercicioId,
-      ejercicioCrudo: fila.ejercicioCrudo ?? '',
+      ejercicioCrudo: fila.ejercicioCanonico ?? fila.ejercicioCrudo ?? '',
       serie: String(fila.nroSerie),
       reps: fila.reps === null ? '' : String(fila.reps),
       peso: pesoAlCuerpo ? '' : fila.pesoKg === null ? '' : String(fila.pesoKg),
       pesoAlCuerpo,
-      tiempo: fila.tiempoSeg === null ? '' : String(fila.tiempoSeg),
     });
   }
 
@@ -422,33 +472,27 @@ export class PlanillaPage {
       return this.mostrarFallaLocal(errores);
     }
 
-    const sinEjercicio = borrador.ejercicioId === null;
-    const ejercicio = sinEjercicio ? null : this.ejercicioDelCatalogo(borrador.ejercicioId);
-    const pesoKg = sinEjercicio || borrador.pesoAlCuerpo
+    const pesoKg = borrador.pesoAlCuerpo
       ? null
       : parsearDecimalNoNegativo(borrador.peso);
-    const tiempoSeg = parsearEnteroPositivo(borrador.tiempo);
 
     // Peso en kg siempre (ADR-0004 S6: planilla 100 % en kg); «al cuerpo» lleva
-    // su unidad; peso vacío limpia el campo; el tiempo etiqueta Unidad.Tiempo.
-    const unidad = sinEjercicio
-      ? null
-      : borrador.pesoAlCuerpo
+    // su unidad; peso vacío limpia el campo. El tiempo ya no se captura
+    // (ADR-0014): se envía siempre null.
+    const unidad = borrador.pesoAlCuerpo
         ? 'PesoCorporal'
         : pesoKg !== null
           ? 'Kg'
-          : tiempoSeg !== null
-            ? 'Tiempo'
-            : null;
+          : null;
 
     const comando: ComandoEdicionFila = {
-      ejercicioId: sinEjercicio ? null : (ejercicio?.id ?? null),
-      ejercicioCrudo: sinEjercicio ? (borrador.ejercicioCrudo.trim() || null) : null,
+      ejercicioId: null,
+      ejercicioCrudo: borrador.ejercicioCrudo.trim(),
       nroSerie: Number(borrador.serie),
       reps: leerEntero(borrador.reps),
       pesoKg,
       unidad,
-      tiempoSeg,
+      tiempoSeg: null,
     };
 
     this.ejecutar(
@@ -457,16 +501,15 @@ export class PlanillaPage {
         this.sesion.set(respuesta);
         this.cancelarEdicion();
       },
+      'Cambios guardados en la fila.',
     );
   }
 
   private validarEdicion(borrador: BorradorFila): string[] {
     const errores: string[] = [];
 
-    if (borrador.ejercicioId === null && borrador.ejercicioCrudo.trim().length === 0) {
-      errores.push('Elegí un ejercicio del catálogo o escribí la descripción de la fila.');
-    } else if (borrador.ejercicioId !== null && this.ejercicioDelCatalogo(borrador.ejercicioId) === null) {
-      errores.push('El ejercicio elegido ya no está en el catálogo.');
+    if (borrador.ejercicioCrudo.trim().length === 0) {
+      errores.push('Escribí el nombre del ejercicio.');
     }
 
     if (leerEntero(borrador.serie) === null) {
@@ -475,10 +518,6 @@ export class PlanillaPage {
 
     if (borrador.reps.length > 0 && leerEntero(borrador.reps) === null) {
       errores.push('Las repeticiones van de 1 en adelante.');
-    }
-
-    if (borrador.tiempo.length > 0 && leerEntero(borrador.tiempo) === null) {
-      errores.push('El tiempo va de 1 segundo en adelante.');
     }
 
     if (!borrador.pesoAlCuerpo
@@ -507,6 +546,28 @@ export class PlanillaPage {
         this.sesion.set(respuesta);
         this.filaEnConfirmacion.set(null);
       },
+      'Fila eliminada de la sesión.',
+    );
+  }
+
+  pedirBorradoTotal(): void {
+    this.borrarTodasEnConfirmacion.set(true);
+  }
+
+  cancelarBorradoTotal(): void {
+    this.borrarTodasEnConfirmacion.set(false);
+  }
+
+  eliminarTodasLasFilas(): void {
+    this.ejecutar(
+      this.planillaApi.eliminarTodasLasFilas(this.alumnoId()),
+      (respuesta) => {
+        this.sesion.set(respuesta);
+        this.borrarTodasEnConfirmacion.set(false);
+        this.filaEnConfirmacion.set(null);
+        this.cerrarBorradores();
+      },
+      'Se eliminaron todos los registros de la cuadrícula.',
     );
   }
 
@@ -518,17 +579,147 @@ export class PlanillaPage {
       this.planillaApi.confirmar(alumnoId),
       (planilla) => {
         this.planillaConfirmada.set(planilla);
+        this.nuevoEntrenamiento.set(false);
+        this.reporteDesdeHistorial.set(false);
+        this.historialAbierto.set(false);
+        this.historialPlanillas.update((historial) => [
+          planilla,
+          ...historial.filter((existente) => existente.id !== planilla.id),
+        ].sort((a, b) => Date.parse(b.confirmadaUtc) - Date.parse(a.confirmadaUtc)));
+        this.pantallaReportes.set('seleccion');
+        this.vistaPrevia.set(null);
         // La sesión confirmada deja de ser hablante: la cuadrícula queda vacía.
         this.sesion.update((respuesta) => (respuesta ? { ...respuesta, sesion: null } : respuesta));
       },
+      'Planilla confirmada y congelada.',
     );
   }
 
-  irAEntrada(): void {
-    this.router.navigate(['/entrada']);
+  descargarPlanilla(formato: FormatoPlanillaExportable): void {
+    const planilla = this.planillaConfirmada();
+    if (!planilla || this.exportacionEnCurso()) {
+      return;
+    }
+
+    this.exportacionEnCurso.set(true);
+    this.mensajeExportacion.set(null);
+    this.fallaExportacion.set(null);
+    this.planillaApi.descargarPlanilla(planilla.id, this.alumnoId(), formato).subscribe({
+      next: (archivo) => {
+        const url = URL.createObjectURL(archivo);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `planilla-${planilla.id}.${formato === 'excel' ? 'xlsx' : 'pdf'}`;
+        enlace.click();
+        URL.revokeObjectURL(url);
+        this.mensajeExportacion.set(`Descargaste la planilla en formato ${formato.toUpperCase()}.`);
+        this.exportacionEnCurso.set(false);
+      },
+      error: (error: unknown) => {
+        this.fallaExportacion.set(fallaDe(error).detalle ?? fallaDe(error).titulo);
+        this.exportacionEnCurso.set(false);
+      },
+    });
+  }
+
+  abrirPrevisualizacion(formato: FormatoVistaPrevia): void {
+    if (this.planillaConfirmada() && this.pantallaReportes() !== 'seleccion') {
+      this.pantallaReportes.set(formato);
+      this.vistaPrevia.set(formato);
+    }
+  }
+
+  cerrarPrevisualizacion(): void {
+    this.vistaPrevia.set(null);
+  }
+
+  cerrarReportes(): void {
+    const volverAlHistorial = this.reporteDesdeHistorial();
+    this.reporteDesdeHistorial.set(false);
+    if (volverAlHistorial) {
+      this.planillaConfirmada.set(null);
+      this.historialAbierto.set(true);
+    }
+    this.vistaPrevia.set(null);
+    this.pantallaReportes.set(null);
+  }
+
+  iniciarNuevoEntrenamiento(): void {
+    this.planillaConfirmada.set(null);
+    this.pantallaReportes.set(null);
+    this.vistaPrevia.set(null);
+    this.reporteDesdeHistorial.set(false);
+    this.historialAbierto.set(false);
+    this.nuevoEntrenamiento.set(true);
+    this.borradorCaptura.set('');
+    this.ultimoMensajeBot.set(null);
+    this.fallaCaptura.set(null);
+    this.fallaAccion.set(null);
+    this.mensajeExportacion.set(null);
+    this.fallaExportacion.set(null);
+    this.entradaCaptura()?.nativeElement.focus();
+  }
+
+  alternarHistorial(): void {
+    this.historialAbierto.update((abierto) => !abierto);
+    if (this.historialAbierto() && this.fallaHistorial()) {
+      this.cargarHistorial(this.alumnoId());
+    }
+  }
+
+  verPlanillaHistorial(planilla: PlanillaConfirmadaVista): void {
+    this.planillaConfirmada.set(planilla);
+    this.reporteDesdeHistorial.set(true);
+    this.historialAbierto.set(false);
+    this.pantallaReportes.set('seleccion');
+    this.vistaPrevia.set(null);
+  }
+
+  enviarPlanillaPorCorreo(): void {
+    const planilla = this.planillaConfirmada();
+    const correo = this.correoDestino().trim();
+    if (!planilla || this.exportacionEnCurso()) {
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+      this.fallaExportacion.set('Escribí una dirección de correo válida.');
+      this.mensajeExportacion.set(null);
+      return;
+    }
+
+    this.exportacionEnCurso.set(true);
+    this.mensajeExportacion.set(null);
+    this.fallaExportacion.set(null);
+    this.planillaApi.enviarPlanillaPorCorreo(planilla.id, {
+      alumnoId: this.alumnoId(),
+      correo,
+      formato: this.formatoCorreo(),
+    }).subscribe({
+      next: (respuesta) => {
+        this.mensajeExportacion.set(respuesta.mensaje);
+        this.exportacionEnCurso.set(false);
+      },
+      error: (error: unknown) => {
+        this.fallaExportacion.set(fallaDe(error).detalle ?? fallaDe(error).titulo);
+        this.exportacionEnCurso.set(false);
+      },
+    });
   }
 
   // ─── Ayudas de presentación ────────────────────────────────────────────────
+
+  /**
+   * Ejercicio del «lote vivo»: la última fila creada manda (así lo resuelve el
+   * backend con la regla de datos de serie). Canónico si pudo resolverlo con
+   * el catálogo; si no, el texto crudo que dictó el alumno.
+   */
+  cargandoActual(viva: SesionActualVista): string | null {
+    const ultima = [...viva.filas].sort((a, b) => b.creadoUtc.localeCompare(a.creadoUtc))[0];
+    if (!ultima) {
+      return null;
+    }
+    return ultima.ejercicioCanonico ?? ultima.ejercicioCrudo ?? null;
+  }
 
   etiquetaEjercicio(fila: FilaParcialVista): string {
     return fila.ejercicioCanonico ?? fila.ejercicioCrudo ?? 'sin ejercicio';
@@ -538,11 +729,12 @@ export class PlanillaPage {
     if (fila.unidad === 'PesoCorporal') {
       return 'al cuerpo';
     }
-    return fila.pesoKg === null ? '—' : `${fila.pesoKg} kg`;
+    return fila.pesoKg === null ? '—' : this.formatoKg(fila.pesoKg);
   }
 
-  tiempoTexto(fila: FilaParcialVista): string {
-    return fila.tiempoSeg === null ? '—' : `${fila.tiempoSeg} s`;
+  /** Peso del snapshot confirmado, con una decimal como el prototipo («14.0 kg»). */
+  formatoKg(pesoKg: number): string {
+    return `${pesoKg.toFixed(1)} kg`;
   }
 
   /** Chip del encabezado según el estado de la sesión hablante. */
@@ -554,21 +746,15 @@ export class PlanillaPage {
       case 'Lista':
         return { clase: 'badge-ok', texto: 'Lista para confirmar' };
       case 'EsperandoAclaracion':
-        return { clase: 'badge-aviso', texto: 'Falta un dato' };
+        return { clase: 'badge-aviso', texto: 'Pendiente del bot' };
       case 'Expirada':
         return { clase: 'badge-aviso', texto: 'Pausada' };
       default:
+        if (this.nuevoEntrenamiento()) {
+          return { clase: 'badge-ok', texto: 'Nueva planilla' };
+        }
         return { clase: '', texto: 'Sin sesión' };
     }
-  }
-
-  ejercicioDelCatalogo(id: number | null): EjercicioCatalogoVista | null {
-    return id === null ? null : (this.catalogo().find((e) => e.id === id) ?? null);
-  }
-
-  /** Id del borrador como texto para el `<option>` del selector (global String no existe). */
-  idEjercicioTexto(id: number | null): string {
-    return id === null ? '' : String(id);
   }
 
   // ─── Ejecución común de comandos ────────────────────────────────────────────
@@ -576,19 +762,33 @@ export class PlanillaPage {
   private ejecutar<T extends RespuestaSesionActual | PlanillaConfirmadaVista>(
     peticion: Observable<T>,
     alTerminar: (respuesta: T) => void,
+    toastExito?: string,
   ): void {
     this.accionEnCurso.set(true);
     this.fallaAccion.set(null);
     peticion.subscribe({
       next: (respuesta) => {
         alTerminar(respuesta);
+        if (toastExito) {
+          this.mostrarToast(toastExito);
+        }
         this.accionEnCurso.set(false);
       },
       error: (error: unknown) => {
         this.fallaAccion.set(fallaDe(error));
         this.accionEnCurso.set(false);
+        this.mostrarToast('No se pudo aplicar el cambio.', true);
       },
     });
+  }
+
+  /** Muestra el toast del prototipo 3.2 s (esquina inferior derecha). */
+  private mostrarToast(texto: string, malo = false): void {
+    if (this.temporizadorToast !== null) {
+      clearTimeout(this.temporizadorToast);
+    }
+    this.toast.set({ texto, malo });
+    this.temporizadorToast = setTimeout(() => this.toast.set(null), 3200);
   }
 
   private mostrarFallaLocal(errores: string[]): void {
@@ -600,45 +800,18 @@ export class PlanillaPage {
     });
   }
 
-  /** Al cambiar el ejercicio del borrador se limpian los campos que su tipo no lleva. */
-  cambiarEjercicioBorrador(tipo: 'alta' | 'edicion', valor: string): void {
-    const id = valor.length === 0 ? null : Number(valor);
-    const ejercicio = this.ejercicioDelCatalogo(id);
-
-    const anclar = (borrador: BorradorFila | null): BorradorFila | null => {
-      if (!borrador) {
-        return borrador;
-      }
-      const base: BorradorFila = {
-        ...borrador,
-        ejercicioId: id,
-        peso: ejercicio?.usaTiempo || id === null ? '' : borrador.peso,
-        pesoAlCuerpo:
-          id === null ? false : ejercicio?.usaTiempo ? false : borrador.pesoAlCuerpo,
-        reps: ejercicio?.usaTiempo ? '' : borrador.reps,
-        tiempo: !id || !ejercicio?.usaTiempo ? '' : borrador.tiempo,
-      };
-      return base;
-    };
-
-    if (tipo === 'alta') {
-      this.borradorAlta.update(anclar);
-    } else {
-      this.borradorEdicion.update(anclar);
-    }
-  }
-
   private cerrarBorradores(): void {
     this.filaEditandoId.set(null);
     this.borradorEdicion.set(null);
     this.altaAbierta.set(false);
     this.borradorAlta.set(null);
     this.filaEnConfirmacion.set(null);
+    this.borrarTodasEnConfirmacion.set(false);
     this.fallaAccion.set(null);
   }
 }
 
-/** Entero estricto ≥ 1 (para serie, reps y tiempo). */
+/** Entero estricto ≥ 1 (para serie y reps). */
 function leerEntero(valor: string): number | null {
   const limpio = valor.trim();
   if (!/^\d+$/.test(limpio)) {

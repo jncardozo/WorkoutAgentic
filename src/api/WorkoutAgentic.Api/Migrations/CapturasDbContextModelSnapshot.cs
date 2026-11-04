@@ -34,9 +34,6 @@ namespace WorkoutAgentic.Api.Migrations
                     b.Property<DateTime>("ExpiraUtc")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("MensajeBotWaId")
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("Reintento")
                         .HasColumnType("INTEGER");
 
@@ -65,21 +62,9 @@ namespace WorkoutAgentic.Api.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("ProfesorId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("TelefonoWa")
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.HasIndex("ProfesorId");
-
-                    b.HasIndex("TelefonoWa")
                         .IsUnique();
 
                     b.ToTable("Alumno", (string)null);
@@ -117,41 +102,6 @@ namespace WorkoutAgentic.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Ejercicio", (string)null);
-                });
-
-            modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Invitacion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("AlumnoId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("ExpiraUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ProfesorId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("UsadaUtc")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AlumnoId");
-
-                    b.HasIndex("Codigo")
-                        .IsUnique();
-
-                    b.HasIndex("ProfesorId");
-
-                    b.ToTable("Invitacion", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.PlanillaConfirmada", b =>
@@ -216,35 +166,6 @@ namespace WorkoutAgentic.Api.Migrations
                     b.ToTable("PlanillaFila", (string)null);
                 });
 
-            modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Profesor", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(180)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Rol")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.ToTable("Profesor", (string)null);
-                });
-
             modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.RegistroParcial", b =>
                 {
                     b.Property<int>("Id")
@@ -256,6 +177,10 @@ namespace WorkoutAgentic.Api.Migrations
 
                     b.Property<bool>("DescripcionPendiente")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("EjercicioCanonico")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("EjercicioCrudo")
                         .HasColumnType("TEXT");
@@ -331,44 +256,6 @@ namespace WorkoutAgentic.Api.Migrations
                     b.ToTable("SesionCaptura", (string)null);
                 });
 
-            modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Transcripcion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("DuracionSeg")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("MediaId")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Proveedor")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("RecibidoUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("SesionId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("TextoCrudo")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MediaId");
-
-                    b.HasIndex("SesionId");
-
-                    b.ToTable("Transcripcion", (string)null);
-                });
-
             modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.AclaracionPendiente", b =>
                 {
                     b.HasOne("WorkoutAgentic.Api.Data.Entities.SesionCaptura", "Sesion")
@@ -378,34 +265,6 @@ namespace WorkoutAgentic.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Sesion");
-                });
-
-            modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Alumno", b =>
-                {
-                    b.HasOne("WorkoutAgentic.Api.Data.Entities.Profesor", "Profesor")
-                        .WithMany("Alumnos")
-                        .HasForeignKey("ProfesorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Profesor");
-                });
-
-            modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Invitacion", b =>
-                {
-                    b.HasOne("WorkoutAgentic.Api.Data.Entities.Alumno", "Alumno")
-                        .WithMany()
-                        .HasForeignKey("AlumnoId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WorkoutAgentic.Api.Data.Entities.Profesor", "Profesor")
-                        .WithMany("Invitaciones")
-                        .HasForeignKey("ProfesorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Alumno");
-
-                    b.Navigation("Profesor");
                 });
 
             modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.PlanillaConfirmada", b =>
@@ -474,17 +333,6 @@ namespace WorkoutAgentic.Api.Migrations
                     b.Navigation("EjercicioActivo");
                 });
 
-            modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Transcripcion", b =>
-                {
-                    b.HasOne("WorkoutAgentic.Api.Data.Entities.SesionCaptura", "Sesion")
-                        .WithMany("Transcripciones")
-                        .HasForeignKey("SesionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Sesion");
-                });
-
             modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Alumno", b =>
                 {
                     b.Navigation("PlanillasConfirmadas");
@@ -504,13 +352,6 @@ namespace WorkoutAgentic.Api.Migrations
                     b.Navigation("Filas");
                 });
 
-            modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.Profesor", b =>
-                {
-                    b.Navigation("Alumnos");
-
-                    b.Navigation("Invitaciones");
-                });
-
             modelBuilder.Entity("WorkoutAgentic.Api.Data.Entities.SesionCaptura", b =>
                 {
                     b.Navigation("AclaracionPendiente");
@@ -518,8 +359,6 @@ namespace WorkoutAgentic.Api.Migrations
                     b.Navigation("PlanillaConfirmada");
 
                     b.Navigation("Registros");
-
-                    b.Navigation("Transcripciones");
                 });
 #pragma warning restore 612, 618
         }

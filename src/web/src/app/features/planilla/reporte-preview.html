@@ -1,0 +1,161 @@
+<section class="reporte-preview" [class.excel]="formato() === 'excel'" aria-label="Previsualización del reporte">
+  <header class="barra-superior">
+    <button class="marca" type="button" (click)="cerrar.emit()" aria-label="Volver a la planilla">
+      <span class="marca-icono" aria-hidden="true">▣</span>
+      <span>WORKOUT<span>AGENTIC</span></span>
+      <small>PREVIEW</small>
+    </button>
+
+    <nav class="selector-vista" aria-label="Formato del reporte">
+      <button type="button" [class.activo]="formato() === 'pdf'" (click)="cambiarFormato.emit('pdf')">Reporte PDF</button>
+      <button type="button" [class.activo]="formato() === 'excel'" (click)="cambiarFormato.emit('excel')">Planilla Excel</button>
+    </nav>
+
+    <div class="acciones-globales">
+      <button class="boton-lima" type="button" (click)="descargar.emit(formato())">
+        <span aria-hidden="true">↓</span> Descargar
+      </button>
+      <button class="boton-icono" type="button" aria-label="Cerrar previsualización" (click)="cerrar.emit()">×</button>
+    </div>
+  </header>
+
+  <div class="barra-contexto">
+    <div class="estado-documento">
+      <span class="punto-estado" aria-hidden="true"></span>
+      <span>{{ formato() === 'pdf' ? 'VISTA PREVIA DE IMPRESIÓN' : 'VISTA PREVIA DE LA PLANILLA' }}</span>
+      <span class="separador">·</span>
+      <span>{{ formato() === 'pdf' ? 'A4 · VERTICAL' : 'LIBRO XLSX · HOJA REPORTE' }}</span>
+    </div>
+    <div class="acciones-documento">
+      <button type="button" class="boton-secundario" (click)="imprimir()">
+        <span aria-hidden="true">⎙</span> Imprimir
+      </button>
+      <button type="button" class="boton-lima" (click)="descargar.emit(formato())">
+        <span aria-hidden="true">↓</span> Descargar {{ formato() === 'pdf' ? 'PDF' : 'XLSX' }}
+      </button>
+    </div>
+  </div>
+
+  @if (formato() === 'pdf') {
+    <main class="area-documento">
+      <article class="hoja-pdf" aria-label="Reporte PDF en formato A4">
+        <header class="cabecera-papel">
+          <div class="marca-papel">
+            <span class="marca-papel-icono" aria-hidden="true">▣</span>
+            <div>
+              <strong>WORKOUT<span>AGENTIC</span></strong>
+              <small>REPORTE DE ENTRENAMIENTO</small>
+            </div>
+          </div>
+          <span class="etiqueta-confirmada"><span aria-hidden="true">✓</span> PLANILLA CONFIRMADA</span>
+        </header>
+
+        <section class="titulo-reporte">
+          <div>
+            <p class="sobrelinea">REGISTRO DE ENTRENAMIENTO</p>
+            <h1>Reporte de entrenamiento</h1>
+          </div>
+          <span class="folio">N.º {{ planilla().id }}</span>
+        </section>
+
+        <dl class="metadatos">
+          <div><dt>Fecha de confirmación</dt><dd>{{ fechaConfirmacion() }}</dd></div>
+          <div><dt>Series registradas</dt><dd>{{ filas().length }}</dd></div>
+          <div><dt>Ejercicios</dt><dd>{{ ejercicios() }}</dd></div>
+        </dl>
+
+        <section class="resumen" aria-label="Resumen de la sesión">
+          <div class="metrica"><span>Volumen calculable</span><strong>{{ numero(volumen()) }} <small>kg·reps</small></strong><p>Solo cargas y repeticiones disponibles</p></div>
+          <div class="metrica"><span>Series registradas</span><strong>{{ filas().length }}</strong><p>Filas del snapshot confirmado</p></div>
+          <div class="metrica"><span>Carga máxima</span><strong>{{ cargaMaxima() === null ? 'Sin datos' : numero(cargaMaxima()) }} @if (cargaMaxima() !== null) { <small>kg</small> }</strong><p>Entre las cargas numéricas registradas</p></div>
+        </section>
+
+        <section class="detalle-pdf" aria-labelledby="titulo-detalle-pdf">
+          <div class="titulo-seccion">
+            <div><span class="indice-seccion">01</span><h2 id="titulo-detalle-pdf">Detalle de la sesión</h2></div>
+            <span>{{ filas().length }} {{ filas().length === 1 ? 'SERIE' : 'SERIES' }}</span>
+          </div>
+          <div class="tabla-scroll">
+            <table>
+              <thead><tr><th>Ejercicio</th><th>Serie</th><th>Reps.</th><th>Carga</th><th>Volumen</th><th>Estado</th></tr></thead>
+              <tbody>
+                @for (fila of filas(); track fila.orden) {
+                  <tr>
+                    <td class="nombre-ejercicio">{{ fila.ejercicioCanonical }}</td>
+                    <td>{{ fila.nroSerie }}</td>
+                    <td>{{ fila.reps ?? '—' }}</td>
+                    <td>{{ pesoTexto(fila) }}</td>
+                    <td>{{ tonelaje(fila) }}</td>
+                    <td><span class="estado-fila" [class.incompleta]="fila.incompleta">{{ fila.incompleta ? 'Incompleta' : 'Registrada' }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        @if (filasConCarga().length) {
+          <section class="progresion" aria-label="Progresión de cargas">
+            <div class="titulo-seccion"><div><span class="indice-seccion">02</span><h2>Cargas por serie</h2></div><span>KG</span></div>
+            <div class="barras-carga">
+              @for (fila of filasConCarga(); track fila.orden) {
+                <div class="barra-carga">
+                  <div class="barra-valor"><span>{{ numero(fila.pesoKg) }} kg</span><span>S{{ fila.nroSerie }}</span></div>
+                  <div class="riel"><span [style.width]="anchoBarra(fila)"></span></div>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        <footer class="pie-papel">
+          <span>Documento generado desde una planilla confirmada</span>
+          <span>WorkoutAgentic · {{ nombreArchivo('pdf') }}</span>
+        </footer>
+      </article>
+    </main>
+  } @else {
+    <main class="area-documento area-excel">
+      <section class="archivo-excel" aria-label="Vista previa de la planilla Excel">
+        <header class="cabecera-archivo">
+          <div class="icono-excel" aria-hidden="true">▦</div>
+          <div class="datos-archivo">
+            <h1>{{ nombreArchivo('excel') }}</h1>
+            <p><span class="punto-estado" aria-hidden="true"></span> Libro OpenXML · Vista de la hoja «Reporte»</p>
+          </div>
+          <span class="insignia-hoja">HOJA 1</span>
+          <button class="boton-lima" type="button" (click)="descargar.emit('excel')"><span aria-hidden="true">↓</span> Descargar .XLSX</button>
+        </header>
+
+        <div class="libro-excel">
+          <div class="barra-formulas"><span class="celda-activa">A1</span><span class="fx">fx</span><span>WORKOUTAGENTIC  |  REPORTE DE ENTRENAMIENTO</span></div>
+          <div class="tabla-scroll">
+            <table class="tabla-excel">
+              <thead>
+                <tr><th>Ejercicio</th><th>Serie</th><th>Repeticiones</th><th>Peso (kg)</th><th>Unidad</th><th>Volumen (kg × reps)</th><th>Estado</th><th>Progresión</th></tr>
+              </thead>
+              <tbody>
+                @for (fila of filas(); track fila.orden; let indice = $index) {
+                  <tr>
+                    <td>{{ fila.ejercicioCanonical }}</td>
+                    <td>{{ fila.nroSerie }}</td>
+                    <td>{{ fila.reps ?? '—' }}</td>
+                    <td>{{ fila.pesoKg === null ? '—' : numero(fila.pesoKg) }}</td>
+                    <td>{{ fila.unidad ?? '—' }}</td>
+                    <td>{{ tonelaje(fila) }}</td>
+                    <td>{{ fila.incompleta ? 'Incompleta' : 'Registrada' }}</td>
+                    <td><span class="barra-celda"><span [style.width]="anchoBarra(fila)"></span></span></td>
+                  </tr>
+                }
+                <tr class="fila-total"><td>TOTAL CALCULABLE</td><td></td><td></td><td></td><td></td><td>{{ numero(volumen()) }} kg·reps</td><td>{{ filas().length }} series</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <footer class="pestanas-hoja"><span class="pestana-activa">▤ &nbsp;Reporte</span><span class="estado-libro">{{ fechaConfirmacion() }} · {{ filas().length }} filas</span></footer>
+        </div>
+
+        <p class="nota-excel">La vista previa usa los mismos datos confirmados que el archivo descargable. Las celdas sin información se muestran como «—».</p>
+      </section>
+    </main>
+  }
+</section>

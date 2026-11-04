@@ -177,6 +177,48 @@ public class GeminiNluTests
     }
 
     [Fact]
+    public async Task Cuota429_AnunciaVentanaCorta_EsperaYReintentaUnaVez_YDaExito()
+    {
+        // Cuota POR MINUTO: el proveedor anuncia cuánto esperar (RetryInfo) y
+        // la ventana se libera → el mensaje válido del alumno no se pierde.
+        var llamadas = 0;
+        var handler = new RecordingHandler(_ => ++llamadas == 1
+            ? Json(
+                """
+                {"error":{"code":429,"message":"RESOURCE_EXHAUSTED","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"1s"}]}}
+                """,
+                HttpStatusCode.TooManyRequests)
+            : Json(Respuesta(
+                """{"intent":"CARGA_SERIE","confianza":0.9,"serie":1,"repeticiones":12,"peso":80,"unidad":"kg"}""")));
+        var nlu = Crear(handler);
+
+        var clasificacion = await nlu.ClasificarAsync(
+            "primera serie 12 repeticiones con 80 kg", CancellationToken.None);
+
+        Assert.True(clasificacion.Exito, clasificacion.ErrorTitulo ?? "sin error");
+        Assert.Equal(IntentoCaptura.CargaSerie, clasificacion.Intento);
+        Assert.Equal(2, handler.Requests.Count); // 429 con ventana corta → un único reintento
+    }
+
+    [Fact]
+    public async Task Cuota429_AnunciaVentanaLarga_NoReintenta()
+    {
+        // Cuota DIARIA agotada (ventana larga): esperar más de un minuto
+        // bloquearía la captura sin esperanza de éxito — una sola llamada y el
+        // flujo responde «no pude leer».
+        var handler = new RecordingHandler(_ => Json(
+            """{"error":{"code":429,"message":"RESOURCE_EXHAUSTED","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"86400s"}]}}""",
+            HttpStatusCode.TooManyRequests));
+        var nlu = Crear(handler);
+
+        var entidades = await nlu.ExtraerAsync("primera serie 12 con 80", CancellationToken.None);
+
+        Assert.False(entidades.Exito);
+        Assert.Contains("429", entidades.ErrorTitulo);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
     public async Task SalidaVacia_FallaElPipeline()
     {
         var handler = new RecordingHandler(_ => Json(Respuesta("   ")));

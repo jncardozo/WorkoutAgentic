@@ -6,16 +6,16 @@ namespace WorkoutAgentic.Api.Features.PlanillaApi;
 
 // Lectura para la SPA (convención: AsNoTracking + proyección a DTO) del estado
 // de la captura: sesión hablante del alumno + su cuadrícula de parciales.
-// Nada muta acá — el diálogo de carga vive por WhatsApp (ADR-0004); este slice
-// solo expone lo persistido para que el alumno lo revise y confirme.
+// Nada muta acá: expone el estado para que el alumno lo revise y confirme.
 internal interface IPlanillaConsulta
 {
     // null = alumno inexistente (404 en el borde); Sesion = null sin sesión
     // hablante (sin sesiones o todas confirmadas).
     Task<RespuestaSesionActual?> SesionActualAsync(int alumnoId, CancellationToken cancellationToken);
 
-    // Catálogo para el selector de la cuadrícula (agregar/editar filas).
-    Task<List<EjercicioCatalogoVista>> CatalogoAsync(CancellationToken cancellationToken);
+    // null = alumno inexistente; lista vacía = todavía no confirmó planillas.
+    Task<List<PlanillaConfirmadaVista>?> HistorialAsync(int alumnoId, CancellationToken cancellationToken);
+
 }
 
 internal sealed class PlanillaConsulta(CapturasDbContext db) : IPlanillaConsulta
@@ -25,7 +25,7 @@ internal sealed class PlanillaConsulta(CapturasDbContext db) : IPlanillaConsulta
         var alumno = await db.Alumnos
             .AsNoTracking()
             .Where(a => a.Id == alumnoId)
-            .Select(a => new AlumnoVista(a.Id, a.Nombre, a.TelefonoWa))
+            .Select(a => new AlumnoVista(a.Id, a.Nombre))
             .SingleOrDefaultAsync(cancellationToken);
         if (alumno is null)
         {
@@ -34,16 +34,31 @@ internal sealed class PlanillaConsulta(CapturasDbContext db) : IPlanillaConsulta
 
         var sesion = await SesionHablanteSinTrackingAsync(alumnoId, cancellationToken);
 
-        return VistaPlanilla.Armar(alumno.Id, alumno.Nombre, alumno.TelefonoWa, sesion);
+        return VistaPlanilla.Armar(alumno.Id, alumno.Nombre, sesion);
     }
 
-    // Catálogo para el selector de la cuadrícula (agregar/editar filas).
-    public async Task<List<EjercicioCatalogoVista>> CatalogoAsync(CancellationToken cancellationToken) =>
-        await db.Ejercicios
+    public async Task<List<PlanillaConfirmadaVista>?> HistorialAsync(
+        int alumnoId,
+        CancellationToken cancellationToken)
+    {
+        var existeAlumno = await db.Alumnos
             .AsNoTracking()
-            .OrderBy(e => e.Id)
-            .Select(e => new EjercicioCatalogoVista(e.Id, e.NombreCanonico, e.GrupoMuscular, e.UsaPeso, e.UsaTiempo))
+            .AnyAsync(a => a.Id == alumnoId, cancellationToken);
+        if (!existeAlumno)
+        {
+            return null;
+        }
+
+        var planillas = await db.PlanillasConfirmadas
+            .AsNoTracking()
+            .Include(p => p.Filas)
+            .Where(p => p.AlumnoId == alumnoId)
+            .OrderByDescending(p => p.ConfirmadaUtc)
+            .ThenByDescending(p => p.Id)
             .ToListAsync(cancellationToken);
+
+        return [.. planillas.Select(VistaPlanilla.MapearPlanillaConfirmada)];
+    }
 
     // Sesión hablante con el grafo completo que necesita la vista (ADR-0004 S1:
     // la última del alumno con estado distinto de Confirmada).

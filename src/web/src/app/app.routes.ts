@@ -1,32 +1,21 @@
 import type { Routes } from '@angular/router';
 
-// Identidad provisional (hasta AuthApi, arquitectura S6): el alumno entra por
-// una pantalla de entrada que guarda su id en localStorage y navega explícito.
-// Con la cookie auth esto se apaga: la ruta resuelve el alumno logueado.
+// Identidad de prueba temporal. El login futuro resolverá este id desde la
+// identidad autenticada; por ahora todos los dispositivos usan el alumno #1.
+const ALUMNO_ID_DE_PRUEBA = 1;
+
 export const routes: Routes = [
-  {
-    path: 'entrada',
-    loadComponent: () => import('./features/planilla/alumno-entrada').then((m) => m.AlumnoEntrada),
-    title: 'WorkoutAgentic · ¿Quién carga?',
-  },
   {
     path: 'alumno/:alumnoId/planilla',
     loadComponent: () => import('./features/planilla/planilla-page').then((m) => m.PlanillaPage),
     title: 'WorkoutAgentic · Planilla',
   },
   {
-    path: 'profesor',
-    loadComponent: () =>
-      import('./features/profesores/profesor-page').then((m) => m.ProfesorPage),
-    title: 'WorkoutAgentic · Profesor',
-  },
-  {
     path: '',
     pathMatch: 'full',
-    redirectTo: () => {
-      const alumnoGuardado = localStorage.getItem('wa.alumnoId');
-      return alumnoGuardado ? `/alumno/${alumnoGuardado}/planilla` : '/entrada';
-    },
+    loadComponent: () => import('./features/planilla/planilla-page').then((m) => m.PlanillaPage),
+    title: 'WorkoutAgentic · Planilla',
+    data: { alumnoId: ALUMNO_ID_DE_PRUEBA },
   },
-  { path: '**', redirectTo: 'entrada' },
+  { path: '**', redirectTo: '' },
 ];

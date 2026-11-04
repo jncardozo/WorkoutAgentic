@@ -15,7 +15,6 @@ namespace WorkoutAgentic.Api.Tests.Features.PlanillaApi;
 // catálogo queda sembrado por el host (Plancha = UsaTiempo).
 public class PlanillaApiMutacionesTests : IDisposable
 {
-    private const string TelefonoSeed = "5215512345678";
     private const string NombrePrensa = "Prensa (prueba)";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -75,7 +74,7 @@ public class PlanillaApiMutacionesTests : IDisposable
     [Fact]
     public async Task AgregarFila_WithNoSession_Returns409Problem()
     {
-        await SeedAsync(db => db.Alumnos.Add(new Alumno { TelefonoWa = TelefonoSeed }));
+        await SeedAsync(db => db.Alumnos.Add(new Alumno { Nombre = "Alumno de prueba" }));
         var alumnoId = await IdDelAlumnoAsync();
 
         var response = await PostAsync("/api/planillas/filas",
@@ -97,7 +96,7 @@ public class PlanillaApiMutacionesTests : IDisposable
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("Aclaración en curso por WhatsApp", problem.GetProperty("title").GetString());
+        Assert.Equal("Aclaración en curso", problem.GetProperty("title").GetString());
         // Nada se agregó: la cuadrícula queda congelada mientras el bot espera.
         Assert.Equal(1, await ContarFilasDeHablanteAsync(alumnoId));
     }
@@ -217,7 +216,7 @@ public class PlanillaApiMutacionesTests : IDisposable
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("Aclaración en curso por WhatsApp", problem.GetProperty("title").GetString());
+        Assert.Equal("Aclaración en curso", problem.GetProperty("title").GetString());
     }
 
     [Fact]
@@ -423,7 +422,7 @@ public class PlanillaApiMutacionesTests : IDisposable
     }
 
     private async Task<int> IdDelAlumnoAsync() => await ConDbAsync(async db =>
-        (await db.Alumnos.AsNoTracking().SingleAsync(a => a.TelefonoWa == TelefonoSeed)).Id);
+        (await db.Alumnos.AsNoTracking().SingleAsync(a => a.Nombre == "Alumno de prueba")).Id);
 
     private async Task<RespuestaSesionActual> DeserializarSesionAsync(HttpResponseMessage response) =>
         JsonSerializer.Deserialize<RespuestaSesionActual>(
@@ -509,7 +508,7 @@ public class PlanillaApiMutacionesTests : IDisposable
                 };
             }
 
-            db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [sesion] });
+            db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [sesion] });
         });
 
         // La prensa solo existe en la BD si alguna fila la referenció (nav) o
@@ -549,7 +548,7 @@ public class PlanillaApiMutacionesTests : IDisposable
                 });
             }
 
-            db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [sesion] });
+            db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [sesion] });
         });
 
         var planchaId = await ConDbAsync(async db =>

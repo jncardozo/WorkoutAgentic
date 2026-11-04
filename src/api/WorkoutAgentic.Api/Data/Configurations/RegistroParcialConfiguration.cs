@@ -18,6 +18,8 @@ public sealed class RegistroParcialConfiguration : IEntityTypeConfiguration<Regi
                 v => v == null ? null : Enum.Parse<Unidad>(v))
             .HasMaxLength(20);
 
+        builder.Property(r => r.EjercicioCanonico).HasMaxLength(120);
+
         builder.HasOne(r => r.Sesion)
             .WithMany(s => s.Registros)
             .HasForeignKey(r => r.SesionId)

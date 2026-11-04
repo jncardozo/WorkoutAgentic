@@ -9,7 +9,6 @@ import { Observable } from 'rxjs';
 export interface AlumnoVista {
   id: number;
   nombre: string;
-  telefonoWa: string | null;
 }
 
 export interface AclaracionVista {
@@ -54,17 +53,10 @@ export interface RespuestaCapturaTexto {
   mensajeAlumno: string;
 }
 
-export interface EjercicioCatalogoVista {
-  id: number;
-  nombreCanonico: string;
-  grupoMuscular: string;
-  usaPeso: boolean;
-  usaTiempo: boolean;
-}
-
 export interface ComandoNuevaFila {
   alumnoId: number;
-  ejercicioId: number;
+  ejercicioId: number | null;
+  ejercicioNombre: string;
   nroSerie: number;
   reps: number | null;
   pesoKg: number | null;
@@ -104,6 +96,12 @@ export interface PlanillaConfirmadaVista {
   sesionId: number;
   confirmadaUtc: string;
   filas: FilaConfirmadaVista[];
+}
+
+export type FormatoPlanillaExportable = 'excel' | 'pdf';
+
+export interface RespuestaEnviarPlanillaCorreo {
+  mensaje: string;
 }
 
 // ─── Fallas HTTP (ProblemDetails del borde) ──────────────────────────────────
@@ -151,16 +149,16 @@ export class PlanillaApi {
     return this.http.get<RespuestaSesionActual>(`${this.baseUrl}/sesion-actual/${alumnoId}`);
   }
 
-  /** Dictado (texto crudo) del alumno: mismo pipeline NLU, sin WhatsApp (ADR-0009). */
+  historial(alumnoId: number): Observable<PlanillaConfirmadaVista[]> {
+    return this.http.get<PlanillaConfirmadaVista[]>(`${this.baseUrl}/historial/${alumnoId}`);
+  }
+
+  /** Texto escrito o reconocido por voz en el navegador. */
   capturarTexto(alumnoId: number, texto: string): Observable<RespuestaCapturaTexto> {
     return this.http.post<RespuestaCapturaTexto>(
       `${this.baseUrlCaptura}/${alumnoId}/texto`,
       { texto },
     );
-  }
-
-  catalogo(): Observable<EjercicioCatalogoVista[]> {
-    return this.http.get<EjercicioCatalogoVista[]>(`${this.baseUrl}/catalogo-de-ejercicios`);
   }
 
   agregarFila(comando: ComandoNuevaFila): Observable<RespuestaSesionActual> {
@@ -175,8 +173,33 @@ export class PlanillaApi {
     return this.http.delete<RespuestaSesionActual>(`${this.baseUrl}/filas/${filaId}`);
   }
 
+  eliminarTodasLasFilas(alumnoId: number): Observable<RespuestaSesionActual> {
+    return this.http.delete<RespuestaSesionActual>(`${this.baseUrl}/sesion-actual/${alumnoId}/filas`);
+  }
+
   confirmar(alumnoId: number): Observable<PlanillaConfirmadaVista> {
     const comando: ComandoConfirmar = { alumnoId };
     return this.http.post<PlanillaConfirmadaVista>(`${this.baseUrl}/confirmar`, comando);
+  }
+
+  descargarPlanilla(
+    planillaId: number,
+    alumnoId: number,
+    formato: FormatoPlanillaExportable,
+  ): Observable<Blob> {
+    return this.http.get(
+      `${this.baseUrl}/confirmadas/${planillaId}/${formato}?alumnoId=${alumnoId}`,
+      { responseType: 'blob' },
+    );
+  }
+
+  enviarPlanillaPorCorreo(
+    planillaId: number,
+    comando: { alumnoId: number; correo: string; formato: FormatoPlanillaExportable },
+  ): Observable<RespuestaEnviarPlanillaCorreo> {
+    return this.http.post<RespuestaEnviarPlanillaCorreo>(
+      `${this.baseUrl}/confirmadas/${planillaId}/correo`,
+      comando,
+    );
   }
 }

@@ -1,25 +1,52 @@
-/* ─── Tokens del diseño (dark, arquitectura §6) ─────────────────────────────── */
+/* ─── Tokens del diseño: prototipo Stitch (docs/design/prototipo-stitch.html) ───
+   Paleta 1 a 1 del prototipo: fondo #080c10, tarjetas #0f141c, bordes
+   #1e2633, acento lima #a3e635, verde esmeralda para estados «ok».            */
 
 :root {
-  --bg: #0a0c11;
-  --panel: #12161f;
-  --panel-2: #171d29;
-  --borde: #232a39;
-  --borde-suave: #1b2130;
+  --bg: #080c10;
 
-  --texto: #e9edf4;
-  --texto-2: #9aa5b8;
-  --texto-3: #667083;
+  --panel: #0f141c;        /* tarjetas */
+  --panel-2: #161d29;      /* botones secundarios */
+  --panel-2-hover: #1e2738;
+  --panel-2-activo: #131924;
+  --panel-cabeza: #121822; /* encabezado de tabla */
+  --panel-inset: #0a0d13;  /* textarea, fondo de tabla */
+  --panel-bajo: #090d14;   /* barra de confirmación */
+  --panel-ok: #0e1d15;     /* banner de sesión cerrada */
 
-  --acento: #a3e635;        /* lima: acción primaria */
-  --acento-texto: #10160a;
-  --violeta: #8b93ff;
-  --aviso: #ffce67;
-  --peligro: #ff6b6b;
-  --ok: #4ade80;
+  --borde: #1e2633;
+  --borde-fuerte: #2a3649;
 
-  --tipografia-titulo: 'Space Grotesk', system-ui, sans-serif;
-  --tipografia-texto: 'Geist', system-ui, sans-serif;
+  --texto: #e2e8f0;
+  --texto-2: #94a3b8;
+  --texto-3: #64748b;
+  --texto-fuerte: #ffffff;
+  --texto-invertido: #020617; /* texto sobre lima (slate-950) */
+
+  --acento: #a3e635;         /* lima-400: acción primaria */
+  --acento-suave: #bef264;   /* lima-300: hover */
+  --acento-fondo: #84cc16;   /* lima-500: active */
+  --brillo-acento: 0 0 12px rgba(163, 230, 53, 0.3);
+
+  --ok: #34d399;             /* esmeralda-400 */
+  --ok-suave: #6ee7b7;       /* esmeralda-300 */
+  --ok-texto: #a7f3d0;       /* esmeralda-200 */
+  --ok-invertido: #022c22;   /* esmeralda-950: texto sobre gradiente confirmar */
+  --brillo-ok: 0 0 15px rgba(34, 197, 94, 0.25);
+
+  --aviso: #fcd34d;
+  --aviso-fondo: #fbbf24;
+  --peligro: #fb7185;        /* rosa-400 */
+  --peligro-suave: #fda4af;  /* rosa-300 */
+  --violeta: #c4b5fd;
+
+  /* chips cuadrados de la cuadrícula (serie, badges «sin ejercicio»…) */
+  --chip-fondo: #1e293b;
+  --chip-borde: #334155;
+  --chip-texto: #cbd5e1;
+
+  --tipografia-titulo: 'Inter', system-ui, sans-serif;
+  --tipografia-texto: 'Inter', system-ui, sans-serif;
   --tipografia-numeros: 'JetBrains Mono', ui-monospace, monospace;
 }
 
@@ -34,49 +61,115 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(1100px 420px at 85% -10%, rgba(139, 147, 255, 0.08), transparent 60%),
-    radial-gradient(900px 380px at -10% 0%, rgba(163, 230, 53, 0.05), transparent 55%),
-    var(--bg);
+  background: var(--bg);
   color: var(--texto);
   font-family: var(--tipografia-texto);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--acento-fondo);
+  color: #000;
+}
+
+@media print {
+  body:has(app-reporte-preview) app-root > .cabeza {
+    display: none !important;
+  }
+
+  body:has(app-reporte-preview) app-root > .contenido {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Scrollbar mínima del prototipo */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232d3f;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
 
 h1,
 h2,
 h3 {
   font-family: var(--tipografia-titulo);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   margin: 0;
+  color: var(--texto-fuerte);
 }
 
-/* ─── Piezas comunes: tarjetas, botones, campos, badges ─────────────────────── */
+.icono {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.icono-16 {
+  width: 16px;
+  height: 16px;
+}
+
+.icono-18 {
+  width: 18px;
+  height: 18px;
+}
+
+/* ─── Piezas comunes: tarjetas, botones, campos, badges, banners ────────────── */
 
 .tarjeta {
+  position: relative;
   background: var(--panel);
   border: 1px solid var(--borde);
-  border-radius: 14px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 20px 25px -5px rgba(2, 6, 23, 0.4), 0 8px 10px -6px rgba(2, 6, 23, 0.4);
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-family: var(--tipografia-texto);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid var(--borde);
   background: var(--panel-2);
   color: var(--texto);
-  padding: 9px 16px;
+  padding: 6px 14px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.4);
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--texto-3);
+  background: var(--panel-2-hover);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--panel-2-activo);
 }
 
 .btn:disabled {
@@ -87,37 +180,173 @@ h3 {
 .btn-primario {
   background: var(--acento);
   border-color: var(--acento);
-  color: var(--acento-texto);
+  color: var(--texto-invertido);
   font-weight: 600;
+  box-shadow: var(--brillo-acento);
 }
 
 .btn-primario:hover:not(:disabled) {
-  background: #b5ef55;
-  border-color: #b5ef55;
+  background: var(--acento-suave);
+  border-color: var(--acento-suave);
 }
 
-.btn-peligro {
-  color: var(--peligro);
-  border-color: color-mix(in srgb, var(--peligro) 45%, var(--borde));
+.btn-primario:active:not(:disabled) {
+  background: var(--acento-fondo);
+  border-color: var(--acento-fondo);
 }
 
 .btn-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
-  color: var(--texto-2);
-  padding: 6px 8px;
-  font-size: 13px;
+  color: var(--texto-3);
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: var(--tipografia-texto);
   cursor: pointer;
+  transition: color 0.15s ease;
 }
 
-.btn-enlace:hover {
+.btn-enlace:hover:not(:disabled) {
   color: var(--texto);
 }
 
-button:not(.btn):not(.btn-primario):not(.btn-peligro):not(.btn-enlace) {
-  border: 1px solid transparent;
-  background: var(--panel-2);
-  color: var(--texto);
+.btn-enlace:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-eliminar {
+  color: var(--peligro);
+}
+
+.btn-eliminar:hover:not(:disabled) {
+  color: var(--peligro-suave);
+}
+
+/* Botón de acción principal del prototipo (lima con brillo) */
+.btn-enviar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  background: var(--acento);
+  color: var(--texto-invertido);
+  font-family: var(--tipografia-texto);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 20px;
+  transition: background 0.15s ease;
+  box-shadow: var(--brillo-acento);
+}
+
+.btn-enviar:hover:not(:disabled) {
+  background: var(--acento-suave);
+}
+
+.btn-enviar:active:not(:disabled) {
+  background: var(--acento-fondo);
+}
+
+.btn-enviar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-agregar {
+  padding: 6px 14px;
+}
+
+.btn-agregar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-chico {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ─── Encabezado de página (compartido por las vistas) ─────────────────────── */
+
+.encabezado-planilla {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+@media (min-width: 768px) {
+  .encabezado-planilla {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.encabezado-planilla h1 {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--texto-fuerte);
+}
+
+.meta-planilla {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texto-2);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.meta-planilla svg {
+  width: 16px;
+  height: 16px;
+  color: var(--texto-3);
+}
+
+.separador {
+  color: var(--texto-3);
+}
+
+.alumno-nota {
+  color: var(--acento);
+  font-weight: 500;
+}
+
+.encabezado-lado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Paneles de falla y alta compartidos */
+.panel-falla h2 {
+  margin-bottom: 6px;
+}
+
+.panel-falla .btn-enviar,
+.panel-falla .btn-primario {
+  margin-top: 14px;
+}
+
+.panel-alta {
+  border-top: 1px solid color-mix(in srgb, var(--borde) 60%, transparent);
+  margin-bottom: 28px;
+}
+
+.panel-alta h2 {
+  font-size: 18px;
+  margin-bottom: 16px;
 }
 
 .campo {
@@ -141,17 +370,19 @@ button:not(.btn):not(.btn-primario):not(.btn-peligro):not(.btn-enlace) {
   font-family: inherit;
   font-size: 14px;
   color: var(--texto);
-  background: var(--panel-2);
+  background: var(--panel-inset);
   border: 1px solid var(--borde);
-  border-radius: 9px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
   width: 100%;
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .campo input:focus,
-.campo select:focus {
-  border-color: color-mix(in srgb, var(--acento) 55%, var(--borde));
+.campo select:focus,
+.campo textarea:focus {
+  border-color: var(--acento-fondo);
 }
 
 .campo input:disabled,
@@ -159,75 +390,282 @@ button:not(.btn):not(.btn-primario):not(.btn-peligro):not(.btn-enlace) {
   opacity: 0.4;
 }
 
+/* ─── Badges (píldora de estado) y chips (fichas de la cuadrícula) ──────────── */
+
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--borde);
   background: var(--panel-2);
   color: var(--texto-2);
   white-space: nowrap;
 }
 
-.badge-aviso {
-  color: var(--aviso);
-  border-color: color-mix(in srgb, var(--aviso) 40%, var(--borde));
-  background: color-mix(in srgb, var(--aviso) 9%, transparent);
+.badge-ok {
+  color: var(--ok-suave);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(6, 40, 30, 0.6);
 }
 
-.badge-ok {
-  color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 40%, var(--borde));
-  background: color-mix(in srgb, var(--ok) 9%, transparent);
+.badge-aviso {
+  color: #fcd34d;
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(42, 32, 6, 0.55);
 }
 
 .badge-violeta {
-  color: var(--violeta);
-  border-color: color-mix(in srgb, var(--violeta) 40%, var(--borde));
-  background: color-mix(in srgb, var(--violeta) 9%, transparent);
+  color: #d8b4fe;
+  border-color: rgba(192, 132, 252, 0.4);
+  background: rgba(34, 22, 46, 0.6);
 }
 
+/* punto animado dentro de la píldora (estado vivo) */
+.pulso {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ok);
+  animation: pulso-suave 2s infinite ease-in-out;
+}
+
+.badge-violeta .pulso {
+  background: #d8b4fe;
+}
+
+.badge-aviso .pulso {
+  background: #fcd34d;
+}
+
+@keyframes pulso-suave {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(0.92);
+  }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--chip-borde);
+  background: var(--chip-fondo);
+  color: var(--chip-texto);
+  white-space: nowrap;
+}
+
+.chip-aviso {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.08);
+  color: #fcd34d;
+}
+
+.chip-violeta {
+  border-color: rgba(192, 132, 252, 0.4);
+  background: rgba(192, 132, 252, 0.08);
+  color: #d8b4fe;
+}
+
+/* ─── Banners de estado ─────────────────────────────────────────────────────── */
+
 .banner {
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--borde);
-  padding: 13px 16px;
-  font-size: 14px;
+  padding: 14px;
+  font-size: 12px;
   display: flex;
   gap: 10px;
-  align-items: baseline;
+  align-items: flex-start;
+}
+
+.banner .icono {
+  margin-top: 2px;
 }
 
 .banner-aviso {
-  border-color: color-mix(in srgb, var(--aviso) 35%, var(--borde));
-  background: color-mix(in srgb, var(--aviso) 8%, transparent);
-  color: color-mix(in srgb, var(--aviso) 85%, var(--texto));
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.06);
+  color: #fcd34d;
 }
 
 .banner-peligro {
-  border-color: color-mix(in srgb, var(--peligro) 35%, var(--borde));
-  background: color-mix(in srgb, var(--peligro) 8%, transparent);
-  color: color-mix(in srgb, var(--peligro) 80%, var(--texto));
+  border-color: rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.06);
+  color: var(--peligro-suave);
 }
 
 .banner-ok {
-  border-color: color-mix(in srgb, var(--ok) 35%, var(--borde));
-  background: color-mix(in srgb, var(--ok) 7%, transparent);
-  color: color-mix(in srgb, var(--ok) 75%, var(--texto));
+  border-color: rgba(34, 197, 94, 0.35);
+  background: var(--panel-ok);
+  color: rgba(110, 231, 183, 0.95);
+}
+
+.banner-ok strong {
+  color: var(--ok-texto);
+  font-weight: 600;
+}
+
+.banner-aviso strong {
+  color: #fde68a;
+  font-weight: 600;
+}
+
+.banner-peligro strong {
+  color: #fecdd3;
+  font-weight: 600;
 }
 
 .banner-info {
-  background: color-mix(in srgb, var(--violeta) 7%, transparent);
-  border-color: color-mix(in srgb, var(--violeta) 25%, var(--borde));
-  color: color-mix(in srgb, var(--violeta) 70%, var(--texto));
+  border-color: rgba(139, 92, 246, 0.3);
+  background: rgba(139, 92, 246, 0.07);
+  color: var(--violeta);
 }
 
 .cargando {
   color: var(--texto-2);
+  font-size: 14px;
   padding: 40px 0;
   text-align: center;
+}
+
+.texto-suave {
+  color: var(--texto-2);
+  font-size: 12px;
+}
+
+/* ─── Cuadrícula (tabla del prototipo) ──────────────────────────────────────── */
+
+.envoltorio-tabla {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--borde) 90%, transparent);
+  background: var(--panel-inset);
+}
+
+.cuadricula {
+  width: 100%;
+  text-align: left;
+  font-size: 12px;
+  white-space: nowrap;
+  border-collapse: collapse;
+}
+
+.cuadricula thead {
+  font-family: var(--tipografia-texto);
+}
+
+.cuadricula thead tr {
+  background: var(--panel-cabeza);
+  color: var(--texto-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.cuadricula th {
+  padding: 12px 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.cuadricula th:first-child {
+  padding-left: 16px;
+}
+
+.cuadricula tbody {
+  font-family: var(--tipografia-numeros);
+  color: var(--texto);
+}
+
+.cuadricula tbody tr {
+  transition: background 0.15s ease;
+  animation: fila-aparece 0.35s ease-out;
+}
+
+.cuadricula tbody tr:hover {
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.cuadricula tbody tr + tr {
+  border-top: 1px solid color-mix(in srgb, var(--borde) 60%, transparent);
+}
+
+.cuadricula td {
+  padding: 12px 12px;
+  vertical-align: middle;
+}
+
+.cuadricula td:first-child {
+  padding-left: 16px;
+}
+
+.cuadricula .num {
+  text-align: center;
+}
+
+.cuadricula .col-acciones {
+  text-align: right;
+}
+
+.reps {
+  font-weight: 600;
+  color: var(--ok);
+}
+
+.valor {
+  color: #f1f5f9;
+}
+
+.ejercicio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--tipografia-texto);
+  font-weight: 500;
+  color: var(--texto-fuerte);
+}
+
+.punto-ejercicio {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--acento);
+  flex-shrink: 0;
+}
+
+.sr-solo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes fila-aparece {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

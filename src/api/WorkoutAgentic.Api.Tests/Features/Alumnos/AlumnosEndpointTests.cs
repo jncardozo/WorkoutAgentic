@@ -12,7 +12,7 @@ using WorkoutAgentic.Api.Features.PlanillaApi;
 namespace WorkoutAgentic.Api.Tests.Features.Alumnos;
 
 // Tests del alta de alumnos (ADR-0010): WebApplicationFactory + BD efímera.
-// Nada de WhatsApp/Gemini: el alta es dominio puro sobre SQLite.
+// El alta del alumno se valida sobre SQLite.
 public class AlumnosEndpointTests : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -52,19 +52,17 @@ public class AlumnosEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Alta_WithNombreYTelefono_Returns201AndPersists()
+    public async Task Alta_ConNombre_Returns201AndPersists()
     {
         var response = await Client().PostAsJsonAsync(
             "/api/alumnos",
-            new { nombre = "Lucía Fernández", telefonoWa = "+54 9 11 5555-1234" },
+            new { nombre = "Lucía Fernández" },
             JsonOptions);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var alta = await response.Content.ReadFromJsonAsync<AlumnoVista>(JsonOptions);
         Assert.NotNull(alta);
         Assert.Equal("Lucía Fernández", alta!.Nombre);
-        // Canonizado como el canal: solo dígitos.
-        Assert.Equal("5491155551234", alta.TelefonoWa);
 
         var alumnoDb = await ConDbAsync(async db =>
             await db.Alumnos.AsNoTracking().SingleOrDefaultAsync(a => a.Nombre == "Lucía Fernández"));
@@ -73,7 +71,7 @@ public class AlumnosEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Alta_WithoutTelefono_PermitesVariosAlumnos()
+    public async Task Alta_PermiteVariosAlumnos()
     {
         var primera = await Client().PostAsJsonAsync("/api/alumnos", new { nombre = "A" }, JsonOptions);
         var segunda = await Client().PostAsJsonAsync("/api/alumnos", new { nombre = "B" }, JsonOptions);
@@ -82,9 +80,6 @@ public class AlumnosEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Created, segunda.StatusCode);
         var alumnos = await ConDbAsync(async db => await db.Alumnos.AsNoTracking().CountAsync());
         Assert.Equal(2, alumnos);
-        // Ambos viven: sin teléfono NO chocan contra el índice único.
-        Assert.Equal(0, await ConDbAsync(async db =>
-            await db.Alumnos.AsNoTracking().CountAsync(a => a.TelefonoWa != null && a.TelefonoWa != "")));
     }
 
     [Fact]
@@ -95,20 +90,6 @@ public class AlumnosEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         Assert.Equal("Nombre requerido", problem.GetProperty("title").GetString());
-    }
-
-    [Fact]
-    public async Task Alta_WithInvalidTelefono_Returns400Problem()
-    {
-        var response = await Client().PostAsJsonAsync(
-            "/api/alumnos",
-            new { nombre = "Nadia", telefonoWa = "abc-12" },
-            JsonOptions);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        Assert.Equal("Teléfono inválido", problem.GetProperty("title").GetString());
-        Assert.Equal(0, await ConDbAsync(async db => await db.Alumnos.CountAsync()));
     }
 
     // ─── Ayudas ────────────────────────────────────────────────────────────────

@@ -16,7 +16,6 @@ namespace WorkoutAgentic.Api.Tests.Features.PlanillaApi;
 public class PlanillaApiIntegrationTests : IDisposable
 {
     // Teléfono del alumno del seed (cada test tiene su propia BD efímera).
-    private const string TelefonoSeed = "5215512345678";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -72,7 +71,7 @@ public class PlanillaApiIntegrationTests : IDisposable
     [Fact]
     public async Task SesionActual_WithAlumnoWithoutSessions_Returns200WithNullSession()
     {
-        await SeedAsync(db => db.Alumnos.Add(new Alumno { TelefonoWa = TelefonoSeed }));
+        await SeedAsync(db => db.Alumnos.Add(new Alumno { Nombre = "Alumno de prueba" }));
         var alumnoId = await AlumnoIdSeedAsync();
 
         var response = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
@@ -81,7 +80,6 @@ public class PlanillaApiIntegrationTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Null(body.Sesion);
         Assert.Equal(alumnoId, body.Alumno.Id);
-        Assert.Equal(TelefonoSeed, body.Alumno.TelefonoWa);
     }
 
     [Fact]
@@ -94,7 +92,7 @@ public class PlanillaApiIntegrationTests : IDisposable
                 UltimaActividadUtc = DateTime.UtcNow,
                 Estado = EstadoSesionCaptura.Confirmada,
             };
-            db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [sesion] });
+            db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [sesion] });
         });
         var alumnoId = await AlumnoIdSeedAsync();
 
@@ -120,7 +118,7 @@ public class PlanillaApiIntegrationTests : IDisposable
                 Estado = EstadoSesionCaptura.EnCurso,
                 UltimaActividadUtc = DateTime.UtcNow.AddDays(-1),
             };
-            db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [confirmada, enCurso] });
+            db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [confirmada, enCurso] });
         });
         var alumnoId = await AlumnoIdSeedAsync();
         var sesionEsperada = await ConDbAsync(async db =>
@@ -194,7 +192,7 @@ public class PlanillaApiIntegrationTests : IDisposable
                 Unidad = Unidad.Tiempo,
                 CreadoUtc = DateTime.UtcNow.AddMinutes(-3),
             });
-            db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [sesion] });
+            db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [sesion] });
         });
         var alumnoId = await AlumnoIdSeedAsync();
         var (idPrensa, idPlancha) = await ConDbAsync(async db =>
@@ -265,7 +263,7 @@ public class PlanillaApiIntegrationTests : IDisposable
                 CreadoUtc = DateTime.UtcNow.AddHours(-3),
                 PendienteAclaracion = true,
             });
-            db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [sesion] });
+            db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [sesion] });
         });
         var alumnoId = await AlumnoIdSeedAsync();
         var filaId = await ConDbAsync(async db =>
@@ -313,7 +311,7 @@ public class PlanillaApiIntegrationTests : IDisposable
                 Reintento = 1,
                 ExpiraUtc = DateTime.UtcNow.AddHours(2),
             };
-            db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [sesion] });
+            db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [sesion] });
         });
         var alumnoId = await AlumnoIdSeedAsync();
 
@@ -349,7 +347,7 @@ public class PlanillaApiIntegrationTests : IDisposable
     }
 
     private async Task<int> AlumnoIdSeedAsync() => await ConDbAsync(async db =>
-        (await db.Alumnos.AsNoTracking().SingleAsync(a => a.TelefonoWa == TelefonoSeed)).Id);
+        (await db.Alumnos.AsNoTracking().SingleAsync(a => a.Nombre == "Alumno de prueba")).Id);
 
     private static RespuestaSesionActual Deserialize(string json) =>
         JsonSerializer.Deserialize<RespuestaSesionActual>(json, JsonOptions)

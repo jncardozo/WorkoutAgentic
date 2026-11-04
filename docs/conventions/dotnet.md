@@ -42,7 +42,6 @@ Toda la lógica de captura respeta esta separación mínima: cada etapa es una i
 con implementación intercambiable y errores tipificados:
 
 ```
-ISpeechToText        (audio → texto, español)
 IIntentClassifier    (texto → CARGA_EJERCICIO | CARGA_SERIE | CIERRE | AYUDA | INVALIDO)
 IEntityExtractor     (texto → Ejercicio | Serie | Repeticiones | Peso | Unidad, normalizados)
 SesionCapturaService (estado del diálogo: ejercicio activo, serie siguiente, parciales)
@@ -50,11 +49,11 @@ SesionCapturaService (estado del diálogo: ejercicio activo, serie siguiente, pa
 
 - Errores de pipeline → tipos de resultado de dominio (no excepciones cruzando capas).
   Ambigüedad/dato faltante → resultado `AclaracionRequerida`, nunca valor inferido.
-- El webhook solo orquesta: firma, ruteo por tipo (`text`/`audio`) y encolado.
-  Toda la lógica UTF-8 de negocio vive fuera de la clase del endpoint.
-- Concurrency del alumno: mensajes por WhatsApp pueden llegar casi simultáneamente;
-  `SesionCaptura` debe soportar respuestas ordenadas (RowVersion o similar, ver ADR BD).
-- Config de proveedores (STT/NLU) por DI con abstracción: poder cambiar vendor sin
+- El endpoint de captura valida la petición y orquesta el pipeline de texto; la
+  lógica de dominio vive en `SesionCapturaServicio`.
+- Concurrency del alumno: capturas casi simultáneas deben ordenarse en
+  `SesionCaptura` (RowVersion o similar, ver ADR BD).
+- Config del proveedor NLU por DI con abstracción: poder cambiar vendor sin
   tocar el pipeline.
 
 ## Seguridad
@@ -62,4 +61,3 @@ SesionCapturaService (estado del diálogo: ejercicio activo, serie siguiente, pa
 
 - Secretos: `dotnet user-secrets` en desarrollo. `appsettings.json` solo valores no sensibles.
 - CORS: orígenes explícitos de `src/web`, nunca `AllowAnyOrigin` con credenciales.
-- Toda ruta del webhook de WhatsApp: firma validada (ver `whatsapp.md`).

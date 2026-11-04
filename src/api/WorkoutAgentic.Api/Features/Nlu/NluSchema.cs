@@ -18,6 +18,7 @@ internal static class NluSchema
         },
         "confianza": { "type": "number" },
         "ejercicio": { "type": "string", "nullable": true },
+        "ejercicio_normalizado": { "type": "string", "nullable": true },
         "serie": { "type": "integer", "nullable": true },
         "cantidad_series": { "type": "integer", "nullable": true },
         "repeticiones": { "type": "integer", "nullable": true },

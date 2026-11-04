@@ -57,7 +57,7 @@ function sesion(sobre: Partial<SesionActualVista> = {}): SesionActualVista {
 
 function respuesta(sesionActual: SesionActualVista | null): RespuestaSesionActual {
   return {
-    alumno: { id: 1, nombre: 'Lucía Elliott', telefonoWa: '+5491100000000' },
+    alumno: { id: 1, nombre: 'Lucía Elliott' },
     sesion: sesionActual,
   };
 }
@@ -93,6 +93,7 @@ const PLANILLA_CONFIRMADA: PlanillaConfirmadaVista = {
 
 interface StubPlanilla {
   sesionActual: ReturnType<typeof vi.fn>;
+  historial: ReturnType<typeof vi.fn>;
   catalogo: ReturnType<typeof vi.fn>;
   capturarTexto: ReturnType<typeof vi.fn>;
   agregarFila: ReturnType<typeof vi.fn>;
@@ -112,6 +113,7 @@ function stubPlanilla(
 ): StubPlanilla {
   return {
     sesionActual: vi.fn(() => of(respuestaInicial)),
+    historial: vi.fn(() => of([])),
     catalogo: vi.fn(() => of(CATALOGO)),
     capturarTexto: vi.fn(() => of(RESPUESTA_CAPTURA)),
     agregarFila: vi.fn(() => of(respuestaInicial)),
@@ -207,6 +209,8 @@ describe('PlanillaPage', () => {
   it('en curso muestra las filas con sus valores', async () => {
     const filas = [
       fila({ id: 5, nroSerie: 1, reps: 8, pesoKg: 45 }),
+      // El tiempo dejó de ser dato de la cuadrícula (ADR-0014): una fila por
+      // tiempo solo muestra ejercicio/serie/reps.
       fila({
         id: 6,
         nroSerie: 2,
@@ -223,17 +227,25 @@ describe('PlanillaPage', () => {
     expect(fixture.nativeElement.querySelectorAll('table.cuadricula tbody tr').length).toBe(2);
     const cuerpo = texto(fixture);
     expect(cuerpo).toContain('Press banca');
-    expect(cuerpo).toContain('45 kg');
-    expect(cuerpo).toContain('45 s');
+    expect(cuerpo).toContain('45.0 kg');
+    expect(cuerpo).not.toContain('Tiempo');
+    expect(cuerpo).not.toContain('45 s');
   });
 
-  it('con aclaración viva congela la cuadrícula y explica el campo pedido', async () => {
+  it('con aclaración viva congela la cuadrícula sin banner de pendientes', async () => {
     const fixture = await montar(
-      stubPlanilla(respuesta(sesion({ estado: 'EsperandoAclaracion', aclaracion: { campo: 'peso', reintento: 1 } }))),
+      stubPlanilla(respuesta(sesion({
+        estado: 'EsperandoAclaracion',
+        aclaracion: { campo: 'ejercicio', reintento: 0 },
+        filas: [fila({ pendienteAclaracion: true })],
+      }))),
     );
     const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
 
-    expect(texto(fixture)).toContain('Te falta responder un detalle');
+    // La pregunta del bot vive en el panel de dictado y las filas marcan su
+    // chip: no hay banner duplicado de "te falta responder" (ADR-0014).
+    expect(texto(fixture)).not.toContain('Te falta responder');
+    expect(texto(fixture)).toContain('pendiente del bot');
     expect(botones.some((b) => (b.textContent ?? '').includes('Editar'))).toBe(false);
     expect(botones.some((b) => (b.textContent ?? '').includes('Confirmar'))).toBe(false);
   });
@@ -327,7 +339,7 @@ describe('PlanillaPage', () => {
     });
     const fixture = await montar(stub, dictado);
 
-    const transcript = boton(fixture, '🎙 Dictar');
+    const transcript = boton(fixture, 'Dictar');
     transcript.click();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -369,6 +381,6 @@ describe('PlanillaPage', () => {
 
     expect(texto(fixture)).toContain('Tu navegador no ofrece dictado por voz');
     const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
-    expect(botones.some((b) => (b.textContent ?? '').includes('🎙 Dictar'))).toBe(false);
+    expect(botones.some((b) => (b.textContent ?? '').includes('Dictar'))).toBe(false);
   });
 });

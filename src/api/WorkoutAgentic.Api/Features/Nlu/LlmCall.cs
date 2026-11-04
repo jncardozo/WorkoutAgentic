@@ -3,8 +3,8 @@ using System.Text.Json;
 
 namespace WorkoutAgentic.Api.Features.Nlu;
 
-// Llamada compartida de los dos adaptadores de Gemini (STT y NLU): un solo
-// shape de HTTP, errores binneados a string para los tipos de resultado.
+// Llamada compartida de los adaptadores de Gemini para NLU: forma común de
+// HTTP y errores normalizados para los tipos de resultado.
 internal static class LlmCall
 {
     private static readonly JsonSerializerOptions PayloadJsonOptions = new(JsonSerializerDefaults.Web)
@@ -15,7 +15,10 @@ internal static class LlmCall
     // StatusHttp expone el código HTTP cuando hubo respuesta del servidor:
     // permite a los consumidores decidir reintentos transitorios sin acoplarse
     // al string de error (null en fallos de red/timeout, sin respuesta).
-    public static async Task<(bool Exito, GeminiGenerateResponse? Respuesta, string? Error, int? StatusHttp)> EnviarAsync(
+    // ReintentoTrasSegundos: solo en errores del servidor que anuncian
+    // RetryInfo (cuota 429): la espera que el proveedor pide antes de
+    // reintentar; null cuando no hay detalle parseable.
+    public static async Task<(bool Exito, GeminiGenerateResponse? Respuesta, string? Error, int? StatusHttp, int? ReintentoTrasSegundos)> EnviarAsync(
         HttpClient httpClient,
         GeminiOptions config,
         string modelo,
@@ -44,11 +47,11 @@ internal static class LlmCall
         }
         catch (HttpRequestException ex)
         {
-            return (Exito: false, Respuesta: null, Error: $"Fallo de red: {ex.Message}", StatusHttp: null);
+            return (Exito: false, Respuesta: null, Error: $"Fallo de red: {ex.Message}", StatusHttp: null, ReintentoTrasSegundos: null);
         }
         catch (OperationCanceledException)
         {
-            return (Exito: false, Respuesta: null, Error: "Timeout del proveedor", StatusHttp: null);
+            return (Exito: false, Respuesta: null, Error: "Timeout del proveedor", StatusHttp: null, ReintentoTrasSegundos: null);
         }
 
         using (response)
@@ -57,34 +60,55 @@ internal static class LlmCall
             int? status = (int)response.StatusCode;
             if (!response.IsSuccessStatusCode)
             {
-                string? mensaje = null;
                 try
                 {
-                    mensaje = JsonSerializer.Deserialize<GeminiErrorResponse>(cuerpo, PayloadJsonOptions)?.Error is { } e
+                    var error = JsonSerializer.Deserialize<GeminiErrorResponse>(cuerpo, PayloadJsonOptions)?.Error;
+                    var mensaje = error is { } e
                         ? $"{e.Code} {e.Status}: {e.Message}"
                         : null;
+                    return (Exito: false, Respuesta: null,
+                        Error: mensaje ?? $"HTTP {(int)response.StatusCode}: {Recortar(cuerpo, 200)}",
+                        StatusHttp: status,
+                        ReintentoTrasSegundos: SegundosDeRetry(error?.Details));
                 }
                 catch (JsonException)
                 {
                     // Sin detalle parseable: se reporta el status HTTP.
+                    return (Exito: false, Respuesta: null,
+                        Error: $"HTTP {(int)response.StatusCode}: {Recortar(cuerpo, 200)}",
+                        StatusHttp: status, ReintentoTrasSegundos: null);
                 }
-
-                return (Exito: false, Respuesta: null,
-                    Error: mensaje ?? $"HTTP {(int)response.StatusCode}: {Recortar(cuerpo, 200)}",
-                    StatusHttp: status);
             }
 
             try
             {
                 var respuesta = JsonSerializer.Deserialize<GeminiGenerateResponse>(cuerpo, PayloadJsonOptions);
-                return (Exito: true, Respuesta: respuesta, Error: null, StatusHttp: status);
+                return (Exito: true, Respuesta: respuesta, Error: null, StatusHttp: status, ReintentoTrasSegundos: null);
             }
             catch (JsonException ex)
             {
                 return (Exito: false, Respuesta: null,
-                    Error: $"Respuesta de Gemini no parseable: {ex.Message}", StatusHttp: status);
+                    Error: $"Respuesta de Gemini no parseable: {ex.Message}", StatusHttp: status, ReintentoTrasSegundos: null);
             }
         }
+    }
+
+    // "retryDelay": "34s" del RetryInfo (cuota 429) → 34. Formatos no
+    // numéricos o vacíos devuelven null (no se adivina).
+    private static int? SegundosDeRetry(IReadOnlyList<GeminiErrorDetail>? detalles)
+    {
+        var crudo = detalles?
+            .FirstOrDefault(d => d.Tipo?.EndsWith("/google.rpc.RetryInfo", StringComparison.OrdinalIgnoreCase) == true)
+            ?.RetryDelay?.Trim();
+        if (string.IsNullOrWhiteSpace(crudo))
+        {
+            return null;
+        }
+
+        var numero = crudo.EndsWith("s", StringComparison.OrdinalIgnoreCase)
+            ? crudo[..^1]
+            : crudo;
+        return int.TryParse(numero, out var segundos) && segundos > 0 ? segundos : null;
     }
 
     private static string Recortar(string texto, int maximo) =>

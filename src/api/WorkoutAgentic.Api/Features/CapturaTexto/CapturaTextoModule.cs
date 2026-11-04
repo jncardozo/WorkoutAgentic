@@ -9,13 +9,12 @@ namespace WorkoutAgentic.Api.Features.CapturaTexto;
 // Comando del borde (identificadores en inglés, UI en español).
 public sealed record ComandoTextoCaptura(string Texto);
 
-// La captura por texto devuelve el MISMO contrato que la SPA ya consume
-// (sesión refrescada) + el mensaje del bot para el banner de la PWA.
+// La captura por texto devuelve el contrato de sesión refrescada y su respuesta.
 public sealed record RespuestaCapturaTextoVista(RespuestaSesionActual Respuesta, string MensajeAlumno);
 
 // Slice captura por texto (ADR-0009): el alumno dicta (teclado del celular) o
 // escribe; la PWA envía el texto crudo y reutiliza el pipeline NLU → sesión →
-// respuesta del bot SIN transporte de WhatsApp.
+// respuesta para mostrar en la SPA.
 internal static class CapturaTextoModule
 {
     public static IEndpointRouteBuilder MapCapturaTexto(this IEndpointRouteBuilder endpoints)
@@ -56,7 +55,7 @@ internal static class CapturaTextoModule
                 title: "Alumno inexistente");
         }
 
-        var analisis = await mensajesNlu.AnalizarTextoAsync(texto, $"spa-{alumnoId}", cancellationToken);
+        var analisis = await mensajesNlu.AnalizarTextoAsync(texto, cancellationToken);
         if (analisis is null)
         {
             // Una etapa del análisis falló (sin dato inventado): estado 503,

@@ -11,6 +11,7 @@ internal sealed record AnalisisNluJson(
     [property: JsonPropertyName("intent")] string? Intent,
     [property: JsonPropertyName("confianza")] double? Confianza,
     [property: JsonPropertyName("ejercicio")] string? Ejercicio,
+    [property: JsonPropertyName("ejercicio_normalizado")] string? EjercicioNormalizado,
     [property: JsonPropertyName("serie")] int? Serie,
     [property: JsonPropertyName("cantidad_series")] int? CantidadSeries,
     [property: JsonPropertyName("repeticiones")] int? Repeticiones,
@@ -34,26 +35,42 @@ internal sealed class GeminiNlu(
     ILogger<GeminiNlu> logger) : IIntentClassifier, IEntityExtractor
 {
     private const string Prompt =
-        "Sos el intérprete de un bot que carga entrenamientos por WhatsApp en español " +
+        "Sos el intérprete del dictado de entrenamientos del alumno en la app, en español " +
         "rioplatense. Tu única tarea es clasificar el mensaje y extraer entidades. " +
-        "REGLA MÁS IMPORTANTE: nunca inventes datos. Si un valor falta o es ambiguo " +
-        "por más de un criterio (\"y pico\", \"cincuenta y pico\", \"unos 40\"), poné null " +
-        "en ese campo y completá aclarar.campo con qué preguntar: ejercicio | serie | " +
-        "reps | peso | tiempo | unidad | valor_exacto (este último solo cuando el " +
-        "alumno lo dijo de forma vaga).\n" +
-        "Intents: CARGA_EJERCICIO nombra/actualiza un ejercicio (con o sin datos de serie; " +
-        "si vienen datos de serie en el mismo mensaje sigue siendo CARGA_EJERCICIO). " +
-        "CARGA_SERIE es datos de una serie SIN ejercicio nuevo (el activo de la sesión lo " +
-        "provee). CIERRE son \"terminé\", \"listo\", \"ya está\", \"eso es todo\", \"no cargo más\". " +
+        "REGLA MÁS IMPORTANTE: nunca inventes datos; si un valor no está claro, poné null. " +
+        "La carga del alumno va en DOS pasos sobre la misma cuadrícula.\n" +
+        "No existe un catálogo cerrado de ejercicios. Reconocé el movimiento por su significado; " +
+        "distintas formas equivalentes deben producir el mismo ejercicio_normalizado, por ejemplo " +
+        "'press de banca con mancuernas' y 'banco plano con mancuernas' → 'Press de banca con mancuernas'. " +
+        "No agregues implementos ni variantes que el alumno no haya dicho. Si no podés determinar " +
+        "la variante con seguridad, usar aclarar.campo='ejercicio' y una pregunta abierta, sin opciones de catálogo.\n" +
+        "PASO 1 · armar filas: en un mismo mensaje nombra PRIMERO el EJERCICIO y después la " +
+        "CANTIDAD de series (\"press de banca 4 series\"), o el ejercicio con una serie puntual " +
+        "(\"sillón, tercera serie\") → intent CARGA_EJERCICIO. Acá ejercicio SIEMPRE como texto " +
+        "crudo tal como lo dijo en ejercicio, y en ejercicio_normalizado devolvé un nombre estándar " +
+        "en español (p. ej. 'sillón' → 'Extensión de rodilla en máquina'); serie es el ordinal explícito 1..n " +
+        "(\"primera\"→1), cantidad_series es el número de series dicho (\"4 series\"→4); " +
+        "repeticiones, peso, unidad, tiempo_segundos y descanso_segundos SIEMPRE en null en este paso.\n" +
+        "PASO 2 · cargar el dato de UNA serie ya armada, SIN nombrar ejercicio: NÚMERO de serie " +
+        "(ordinal) + repeticiones y/o peso (\"primera serie 12 repeticiones con 20 kilos\", " +
+        "\"segunda serie con 30\", \"tercera serie 10 al cuerpo\") → intent CARGA_SERIE. Acá " +
+        "serie es el ordinal OBLIGATORIO (\"primera\"→1, \"segunda\"→2), extraé repeticiones " +
+        "(\"12 repeticiones\"→12) y/o peso como número exacto (\"20 kilos\"→20, \"22 y " +
+        "medio\"→22.5, \"40 en libras\" o \"40 libras\"→40 con unidad \"lb\"); unidad null si solo " +
+        "dijo kilos o nada (el sistema asume kg), unidad \"peso_corporal\" si dijo \"al cuerpo\" " +
+        "(con peso null). Ejercicios por tiempo: \"30 segundos\"→ tiempo_segundos solo si el " +
+        "mensaje es claramente un dato de una serie; si no, null.\n" +
+        "SIEMPRE: ejercicio null en el paso 2 (aunque el alumno hable de \"la serie del " +
+        "prensa\", nunca lo extraigas ahí); si nombra ejercicio JUNTO a series, es PASO 1 y los " +
+        "datos de serie van en null aunque los mencione (\"prensa 3 series de 10 con 20\" → solo " +
+        "ejercicio + cantidad_series). Si en el paso 2 falta el ordinal (\"12 con 20\" sin " +
+        "número de serie), igual extraé lo que haya con serie en null: el sistema responde con " +
+        "la regla. No inventes ejercicios, series ni valores ausentes.\n" +
+        "CIERRE son \"terminé\", \"listo\", \"ya está\", \"eso es todo\", \"no cargo más\". " +
         "AYUDA son consultas o comentarios que no cargan datos. INVALIDO saludos, spam u " +
         "otros temas ajenos al gym.\n" +
-        "Campos: ejercicio SIEMPRE texto crudo tal como lo dijo (\"sillón\", no el nombre " +
-        "canónico). serie es el ordinal explícito 1..n (\"primera\"→1). cantidad_series es " +
-        "el multiplicador de \"3x12\"→3. peso en kg: \"45\", \"45 kilos\", \"45 y medio\"→45.5; " +
-        "solo si dice otra unidad (\"en libras\") usar unidad. \"al cuerpo\"→unidad " +
-        "peso_corporal y peso null. Tiempos: \"1 minuto de plancha\"→unidad tiempo y " +
-        "tiempo_segundos 60. descanso_segundos solo si lo menciona. La confianza " +
-        "(0..1) refleja qué tan seguro estás del intent.";
+        "Usá aclarar solo para ambigüedad real del movimiento; nunca inventes ni enumeres opciones. " +
+        "La confianza (0..1) refleja qué tan seguro estás del intent.";
 
     private (string Texto, bool Exito, AnalisisNluJson? Datos, string? ErrorTitulo)? _memo;
 
@@ -115,7 +132,7 @@ internal sealed class GeminiNlu(
                 ResponseMimeType: "application/json",
                 ResponseSchema: NluSchema.ComoJson()));
 
-        var (exito, respuesta, error, _) = await EnviarConReintento503Async(config, payload, cancellationToken);
+        var (exito, respuesta, error, _) = await EnviarConReintentoTransitorioAsync(config, payload, cancellationToken);
         if (!exito)
         {
             logger.LogWarning("NLU falló: {Error}.", error ?? "-");
@@ -158,30 +175,55 @@ internal sealed class GeminiNlu(
     }
 
     private const int SegundosReintento503 = 3;
+    private const int CapSegundosReintento429 = 60;
 
-    // Reintento ÚNICO de transporte ante 503 (alta demanda transitoria del
-    // proveedor): el problema es de infraestructura, no del contenido, así que
-    // no viola la regla de UNA llamada lógica del LLM por mensaje — el memo
-    // sigue garantizando una sola interpretación por texto. 429 y otros
-    // códigos NO reintentan (cuota agotada: reintentar la empeora).
+    // Reintento ÚNICO de transporte ante fallos transitorios del proveedor:
+    // el problema es de infraestructura, no del contenido, así que no viola la
+    // regla de UNA llamada lógica del LLM por mensaje — el memo sigue
+    // garantizando una sola interpretación por texto.
+    // · 503 (alta demanda): espera fija de 3 s.
+    // · 429 (cuota): SOLO si el propio proveedor anuncia RetryInfo con una
+    //   ventana corta (≤60 s — típicamente el límite POR MINUTO del free tier,
+    //   que se libera en el lapso que él mismo informa). Sin detalle o ventana
+    //   larga (cuota diaria) NO reintenta: quemaría la cuota restante y
+    //   demoraría sin esperanza de éxito.
     private async Task<(bool Exito, GeminiGenerateResponse? Respuesta, string? Error, int? StatusHttp)>
-        EnviarConReintento503Async(
+        EnviarConReintentoTransitorioAsync(
             GeminiOptions config, GeminiGenerateRequest payload, CancellationToken cancellationToken)
     {
         var primerIntento = await LlmCall.EnviarAsync(
             httpClient, config, config.ModeloNlu, payload, cancellationToken);
 
-        if (primerIntento.Exito || primerIntento.StatusHttp != 503)
+        if (primerIntento.Exito)
         {
-            return primerIntento;
+            return (primerIntento.Exito, primerIntento.Respuesta, primerIntento.Error, primerIntento.StatusHttp);
+        }
+
+        if (primerIntento.StatusHttp == 429 && primerIntento.ReintentoTrasSegundos is { } espera429
+            && espera429 <= CapSegundosReintento429)
+        {
+            logger.LogWarning(
+                "429 de cuota (RESOURCE_EXHAUSTED); el proveedor pide esperar {Espera}s — reintentando una vez.",
+                espera429);
+            await Task.Delay(TimeSpan.FromSeconds(espera429), cancellationToken);
+
+            var reenvio = await LlmCall.EnviarAsync(
+                httpClient, config, config.ModeloNlu, payload, cancellationToken);
+            return (reenvio.Exito, reenvio.Respuesta, reenvio.Error, reenvio.StatusHttp);
+        }
+
+        if (primerIntento.StatusHttp != 503)
+        {
+            return (primerIntento.Exito, primerIntento.Respuesta, primerIntento.Error, primerIntento.StatusHttp);
         }
 
         logger.LogWarning(
             "503 del proveedor (alta demanda); reintentando una vez en {Segundos}s.", SegundosReintento503);
         await Task.Delay(TimeSpan.FromSeconds(SegundosReintento503), cancellationToken);
 
-        return await LlmCall.EnviarAsync(
+        var intento503 = await LlmCall.EnviarAsync(
             httpClient, config, config.ModeloNlu, payload, cancellationToken);
+        return (intento503.Exito, intento503.Respuesta, intento503.Error, intento503.StatusHttp);
     }
 
     private static IntentoCaptura ParseIntento(string? intent) => intent switch
@@ -212,7 +254,8 @@ internal sealed class GeminiNlu(
         TiempoSegundos: datos.TiempoSegundos,
         DescansoSegundos: datos.DescansoSegundos,
         CampoAclarar: TrimVacio(datos.Aclarar?.Campo),
-        PreguntaAclarar: TrimVacio(datos.Aclarar?.Pregunta));
+        PreguntaAclarar: TrimVacio(datos.Aclarar?.Pregunta),
+        EjercicioNormalizado: TrimVacio(datos.EjercicioNormalizado));
 
     private static string? TrimVacio(string? texto) =>
         string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();

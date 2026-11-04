@@ -3,7 +3,7 @@ namespace WorkoutAgentic.Api.Features.PlanillaApi;
 // Vista de una fila de la cuadrícula (Alumno · Planilla, arquitectura §6),
 // proyectada desde RegistroParcial. Los faltantes reales van como null (regla
 // madre: nunca inventar) y PendienteAclaracion marca las filas afectadas por
-// una aclaración — viva (se responde por WhatsApp) o abandonada tras los
+// una aclaración — viva (se responde desde la SPA) o abandonada tras los
 // 2 reintentos (ADR-0004 S4): en ambos casos son filas incompletas a mirar.
 public sealed record FilaParcialVista(
     int Id,
@@ -19,8 +19,7 @@ public sealed record FilaParcialVista(
     bool PendienteAclaracion,
     DateTime CreadoUtc);
 
-// Pregunta viva del chat: la SPA solo la muestra (campo + reintento); la
-// respuesta SIEMPRE llega por WhatsApp, nunca por la SPA.
+// Pregunta viva de captura, respondida desde la misma SPA.
 public sealed record AclaracionVista(string Campo, int Reintento);
 
 // Sesión hablante del alumno: la última con estado distinto de Confirmada
@@ -44,31 +43,21 @@ public sealed record RespuestaSesionActual(AlumnoVista Alumno, SesionActualVista
 // Encabezado mínimo de la cuenta. La identificación del alumno es provisional
 // (id por ruta) hasta AuthApi (arquitectura S6: cookie + roles por email).
 // El nombre viene del alta explícita (ADR-0010); el teléfono es opcional
-// desde el pivot (sin WhatsApp el alta no lo exige).
-public sealed record AlumnoVista(int Id, string Nombre, string? TelefonoWa);
-
-// ─── Catálogo para la cuadrícula ───────────────────────────────────────────────
-
-// Proyección del catálogo para el selector de la SPA (agregar/editar fila).
-public sealed record EjercicioCatalogoVista(
-    int Id,
-    string NombreCanonico,
-    string GrupoMuscular,
-    bool UsaPeso,
-    bool UsaTiempo);
+// hasta que se incorpore autenticación.
+public sealed record AlumnoVista(int Id, string Nombre);
 
 // ─── Comandos del CRUD de parciales (antes de confirmar) ──────────────────────
 
-// POST /api/planillas/filas: fila NUEVA desde la cuadrícula; se exige fila
-// completa según el tipo de ejercicio (el bot no está en el medio).
+// POST /api/planillas/filas: fila desde la cuadrícula, con nombre libre.
 public sealed record ComandoNuevaFila(
     int AlumnoId,
-    int EjercicioId,
+    int? EjercicioId,
     int NroSerie,
     int? Reps,
     decimal? PesoKg,
     string? Unidad,
-    int? TiempoSeg);
+    int? TiempoSeg,
+    string? EjercicioNombre = null);
 
 // PUT /api/planillas/filas/{filaId}: reemplazo completo de los campos. Con
 // EjercicioId = null la fila queda como descripción libre (EjercicioCrudo).
@@ -94,8 +83,7 @@ public sealed record PlanillaConfirmadaVista(
     DateTime ConfirmadaUtc,
     List<FilaConfirmadaVista> Filas);
 
-// Fila congelada tal como el profesor la va a ver (EjercicioCanonical es el
-// nombre canónico, o el texto crudo en filas sin ejercicio).
+// Fila congelada de la planilla confirmada.
 public sealed record FilaConfirmadaVista(
     int Orden,
     string EjercicioCanonical,

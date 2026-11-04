@@ -1,0 +1,153 @@
+<section class="workspace-reportes" aria-label="Reportes de la planilla confirmada">
+  <header class="barra-principal">
+    <button class="marca" type="button" (click)="cerrar.emit()" aria-label="Volver a la planilla">
+      <span class="marca-icono" aria-hidden="true">▣</span>
+      <span>WORKOUT<span>AGENTIC</span></span>
+      <small>REPORTES</small>
+    </button>
+
+    @if (modo() !== 'seleccion') {
+      <nav class="nav-reportes" aria-label="Formato de reporte">
+        <button type="button" [class.activo]="modo() === 'pdf'" (click)="seleccionar.emit('pdf')">Reporte PDF</button>
+        <button type="button" [class.activo]="modo() === 'excel'" (click)="seleccionar.emit('excel')">Planilla Excel</button>
+      </nav>
+    } @else {
+      <span class="estado-nav"><span class="punto-ok"></span> PLANILLA CONFIRMADA</span>
+    }
+
+    <div class="acciones-top">
+      @if (modo() !== 'seleccion') {
+        <button type="button" class="boton-lima" (click)="descargar.emit(modo() === 'excel' ? 'excel' : 'pdf')">↓ Descargar</button>
+      }
+      <button type="button" class="boton-usuario" aria-label="Volver a la planilla" (click)="cerrar.emit()">×</button>
+    </div>
+  </header>
+
+  @if (modo() === 'seleccion') {
+    <main class="selector-reportes">
+      <p class="sobrelinea"><span class="punto-ok"></span> PLANILLA CONFIRMADA</p>
+      <h1>¿Qué reporte querés consultar?</h1>
+      <p class="intro-selector">Elegí un formato para ver sus datos, imprimirlo o descargarlo.</p>
+
+      <div class="opciones-reporte">
+        <article class="opcion-reporte">
+          <div class="icono-opcion pdf-icono" aria-hidden="true">PDF</div>
+          <div class="texto-opcion">
+            <h2>Reporte PDF</h2>
+            <p>Documento listo para imprimir en hoja A4.</p>
+          </div>
+          <span class="tipo-opcion">{{ filas().length }} {{ filas().length === 1 ? 'serie' : 'series' }}</span>
+          <button type="button" class="boton-lima" (click)="seleccionar.emit('pdf')">Ver reporte PDF <span aria-hidden="true">→</span></button>
+        </article>
+
+        <article class="opcion-reporte">
+          <div class="icono-opcion excel-icono" aria-hidden="true">▦</div>
+          <div class="texto-opcion">
+            <h2>Reporte Excel</h2>
+            <p>Planilla de datos para abrir o guardar como XLSX.</p>
+          </div>
+          <span class="tipo-opcion">{{ filas().length }} {{ filas().length === 1 ? 'serie' : 'series' }}</span>
+          <button type="button" class="boton-lima" (click)="seleccionar.emit('excel')">Ver planilla Excel <span aria-hidden="true">→</span></button>
+        </article>
+      </div>
+      <button class="volver-planilla" type="button" (click)="cerrar.emit()">Volver a la planilla</button>
+    </main>
+  } @else if (modo() === 'pdf') {
+    <div class="barra-documento">
+      <div class="estado-documento"><span class="punto-ok"></span><span>VISTA PREVIA</span><span class="separador">·</span><span>A4 ESTÁNDAR</span></div>
+      <div class="acciones-documento">
+        <button type="button" class="boton-secundario" (click)="imprimir.emit('pdf')">⎙ Imprimir</button>
+        <button type="button" class="boton-lima" (click)="descargar.emit('pdf')">↓ Descargar PDF</button>
+      </div>
+    </div>
+
+    <main class="documento-pdf">
+      <header class="encabezado-reporte">
+        <div>
+          <p class="sobrelinea">REPORTE DE SESIÓN</p>
+          <h1>Planilla de entrenamiento</h1>
+          <p class="fecha-confirmada"><span class="punto-ok"></span> Confirmada: {{ fechaConfirmacion() }}</p>
+        </div>
+        <div class="folio-reporte"><span aria-hidden="true">↗</span><div><small>PLANILLA</small><strong>#{{ planilla().id }}</strong></div></div>
+      </header>
+
+      <section class="tarjetas-resumen" aria-label="Resumen de entrenamiento">
+        <article class="tarjeta-metrica"><span>VOLUMEN TOTAL</span><strong>{{ numero(volumen()) }}<small>kg·reps</small></strong><p>Solo cargas y repeticiones registradas</p></article>
+        <article class="tarjeta-metrica"><span>SERIES REGISTRADAS</span><strong>{{ filas().length }}<small>series</small></strong><p>{{ ejercicios() }} {{ ejercicios() === 1 ? 'ejercicio' : 'ejercicios' }}</p></article>
+        <article class="tarjeta-metrica"><span>INTENSIDAD PICO</span><strong>{{ cargaMaxima() === null ? 'Sin datos' : numero(cargaMaxima()) }}@if (cargaMaxima() !== null) { <small>kg</small> }</strong><p>Carga máxima registrada</p></article>
+      </section>
+
+      <section class="seccion-detalle" aria-labelledby="titulo-detalle">
+        <header class="encabezado-seccion"><h2 id="titulo-detalle">Detalle de la sesión</h2><span>{{ ejercicios() }} EJERCICIOS · {{ filas().length }} SERIES</span></header>
+        @for (grupo of grupos(); track grupo.nombre; let indice = $index) {
+          <article class="grupo-ejercicio">
+            <header><span class="numero-grupo">{{ (indice + 1).toString().padStart(2, '0') }}</span><strong>{{ grupo.nombre }}</strong><small>{{ grupo.filas.length }} {{ grupo.filas.length === 1 ? 'serie registrada' : 'series registradas' }}</small></header>
+            <div class="filas-ejercicio">
+              @for (fila of grupo.filas; track fila.orden) {
+                <div class="fila-ejercicio">
+                  <span class="serie-label">Serie {{ fila.nroSerie }}</span>
+                  <span>{{ fila.reps === null ? '—' : fila.reps + ' reps' }}</span>
+                  <strong>{{ pesoTexto(fila) }}</strong>
+                  @if (fila.incompleta) { <span class="badge-incompleta">INCOMPLETA</span> }
+                </div>
+              }
+            </div>
+          </article>
+        }
+      </section>
+
+      @if (filasConCarga().length) {
+        <section class="grafico-reporte" aria-label="Progresión de carga por serie">
+          <header class="encabezado-seccion"><div><h2>Progresión de carga serie a serie</h2><p>Cargas numéricas registradas en la planilla</p></div><span>KG</span></header>
+          <div class="grafico-columnas">
+            @for (fila of filasConCarga(); track fila.orden; let indice = $index) {
+              <div class="columna-grafico" [class.alternada]="indice % 2 === 1">
+                <strong>{{ numero(fila.pesoKg) }} kg</strong>
+                <span class="barra-grafico"><i [style.height]="anchoBarra(fila)"></i></span>
+                <small>S{{ fila.nroSerie }}</small>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </main>
+  } @else {
+    <div class="archivo-excel-barra">
+      <div class="excel-icono">▦</div>
+      <div><h1>{{ nombreArchivo('excel') }}</h1><p><span class="punto-ok"></span> Vista de planilla · Formato OpenXML estándar</p></div>
+      <span class="etiqueta-hoja">HOJA 1</span>
+      <div class="acciones-archivo"><button type="button" class="boton-lima" (click)="descargar.emit('excel')">↓ Descargar .XLSX</button><button type="button" class="boton-secundario" (click)="imprimir.emit('excel')">⎙ Imprimir</button></div>
+    </div>
+
+    <main class="vista-excel">
+      <section class="tarjetas-resumen resumen-excel" aria-label="Resumen de la planilla">
+        <article class="tarjeta-metrica"><span>VOLUMEN TOTAL</span><strong>{{ numero(volumen()) }}<small>kg·reps</small></strong><p>Suma de datos calculables</p></article>
+        <article class="tarjeta-metrica"><span>SERIES REGISTRADAS</span><strong>{{ filas().length }}<small>series</small></strong><p>Filas del snapshot</p></article>
+        <article class="tarjeta-metrica"><span>INTENSIDAD PICO</span><strong>{{ cargaMaxima() === null ? 'Sin datos' : numero(cargaMaxima()) }}@if (cargaMaxima() !== null) { <small>kg</small> }</strong><p>Carga máxima registrada</p></article>
+      </section>
+
+      @if (filasConCarga().length) {
+        <section class="grafico-excel" aria-label="Curva de intensidad por serie">
+          <header class="encabezado-seccion"><div><h2>Curva de intensidad por serie (carga absoluta)</h2><p>Valores numéricos disponibles en la planilla</p></div><span>KG</span></header>
+          <div class="grafico-columnas">
+            @for (fila of filasConCarga(); track fila.orden; let indice = $index) {
+              <div class="columna-grafico" [class.alternada]="indice % 2 === 1"><strong>{{ numero(fila.pesoKg) }}</strong><span class="barra-grafico"><i [style.height]="anchoBarra(fila)"></i></span><small>S{{ fila.nroSerie }}</small></div>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="hoja-excel" aria-label="Hoja de datos del reporte Excel">
+        <div class="barra-hoja"><strong>PLANILLA DE ENTRENAMIENTO</strong><span>{{ filas().length }} FILAS REGISTRADAS</span></div>
+        <div class="tabla-scroll"><table><thead><tr><th>#</th><th>Ejercicio</th><th>Serie</th><th>Reps</th><th>Peso (kg)</th><th>Volumen</th><th>Progresión</th></tr></thead>
+          <tbody>
+            @for (fila of filas(); track fila.orden; let indice = $index) {
+              <tr><td>{{ indice + 1 }}</td><td><span class="punto-tabla"></span>{{ fila.ejercicioCanonical }}</td><td>{{ fila.nroSerie }}</td><td>{{ fila.reps ?? '—' }}</td><td>{{ pesoTexto(fila) }}</td><td>{{ volumenFila(fila) }}</td><td><span class="barra-celda"><i [style.width]="anchoBarra(fila)"></i></span></td></tr>
+            }
+          </tbody>
+        </table></div>
+        <footer class="pie-hoja"><span>Confirmada {{ fechaConfirmacion() }}</span><span>Planilla #{{ planilla().id }}</span></footer>
+      </section>
+    </main>
+  }
+</section>

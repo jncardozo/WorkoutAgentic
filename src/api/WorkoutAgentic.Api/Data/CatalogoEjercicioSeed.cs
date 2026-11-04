@@ -4,7 +4,7 @@ namespace WorkoutAgentic.Api.Data;
 
 // Catálogo MÍNIMO del MVP: cubre los fixtures del spec NLU (docs/domain/
 // nlu-captura.md §6) y da base al CatalogResolver. Es seed, no dogma: el
-// profesor edita/expande el catálogo en fases siguientes; este archivo no
+// la aplicación edita/expande el catálogo en fases siguientes; este archivo no
 // re-siembra sobre una tabla ya poblada (DbInitializer verifica).
 public static class CatalogoEjercicioSeed
 {

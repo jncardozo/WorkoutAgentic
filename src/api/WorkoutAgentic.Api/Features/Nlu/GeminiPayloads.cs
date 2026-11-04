@@ -42,4 +42,11 @@ internal sealed record GeminiErrorResponse(
 internal sealed record GeminiErrorDto(
     [property: JsonPropertyName("code")] int? Code,
     [property: JsonPropertyName("message")] string? Message,
-    [property: JsonPropertyName("status")] string? Status);
+    [property: JsonPropertyName("status")] string? Status,
+    [property: JsonPropertyName("details")] IReadOnlyList<GeminiErrorDetail>? Details);
+
+// Detalle google.rpc del error (interesa el RetryInfo de la cuota 429:
+// anuncia cuántos segundos esperar antes de un reintento transitorio).
+internal sealed record GeminiErrorDetail(
+    [property: JsonPropertyName("@type")] string? Tipo,
+    [property: JsonPropertyName("retryDelay")] string? RetryDelay);

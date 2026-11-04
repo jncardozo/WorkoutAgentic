@@ -1,12 +1,9 @@
-using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WorkoutAgentic.Api.Data;
 using WorkoutAgentic.Api.Data.Entities;
 using WorkoutAgentic.Api.Features.Nlu;
-using WorkoutAgentic.Api.Features.Whatsapp;
-using WorkoutAgentic.Api.Features.WhatsappWebhook;
 
 namespace WorkoutAgentic.Api.Features.CapturaSesion;
 
@@ -14,9 +11,16 @@ namespace WorkoutAgentic.Api.Features.CapturaSesion;
 // sobre el estado persistido de SesionCaptura y produce la respuesta del bot.
 // Reglas de dominio en docs/domain/business-rules.md; decisiones del slice en
 // ADR-0004. Regla madre: si falta o es ambiguo → aclaración, jamás inventado.
+//
+// Regla del dictado (ADR-0013 + ADR-0014): el alumno carga en DOS pasos.
+// PASO 1 "EJERCICIO + SERIES" (ej.: "press de banca 4 series", o "sillón,
+// segunda serie" puntual) crea filas con ejercicio y número de serie SOLAMENTE.
+// PASO 2 "NRO DE SERIE + REPS y/o PESO" (ej.: "primera serie 12 repeticiones
+// con 20 kilos", sin nombrar ejercicio) llena la fila de ese ordinal del
+// EJERCICIO ACTIVO de la sesión. Lo dictado fuera de cualquiera de las dos
+// reglas responde la guía y NO toca el estado: nunca se inventa un dato.
 internal sealed class SesionCapturaServicio(
     CapturasDbContext db,
-    IWhatsappCatalogoEjercicios catalogo,
     ILogger<SesionCapturaServicio> logger) : ISesionCapturaServicio
 {
     // [SUPUESTO ADR-0004]: pausa automática tras 2 h sin actividad.
@@ -28,8 +32,14 @@ internal sealed class SesionCapturaServicio(
     // Una libra avoirdupois = 0,45359237 kg exactos (conversión determinística).
     private const decimal LibrasPorKilo = 0.45359237m;
 
-    // Sesiones que atienden mensajes: Confirmada no; Lista responde la
-    // invitación a confirmar en la app, sin abrir carga nueva.
+    // Tope de series por dictado (ADR-0013): un lote mayorsale solo puede
+    // ser un ruido de voz; fuera del tope se responde la guía, sin crear
+    // filas ni interpretar el número. [SUPUESTO: 30 cubre cualquier sesión.]
+    internal const int MaxSeriesLote = 30;
+
+    // Sesiones que atienden mensajes: Confirmada no; Lista admite cargas
+    // nuevas y "seguir" (reabren, ADR-0012) y el resto del diálogo pide
+    // confirmar en la SPA.
     private static readonly EstadoSesionCaptura[] EstadosOperables =
     [
         EstadoSesionCaptura.EnCurso,
@@ -37,17 +47,6 @@ internal sealed class SesionCapturaServicio(
         EstadoSesionCaptura.Expirada,
         EstadoSesionCaptura.Lista,
     ];
-
-    public async Task<CapturaRespuesta> AplicarAsync(
-        IncomingWhatsappMessage mensaje,
-        AnalisisCaptura analisis,
-        DateTime ahora,
-        CancellationToken cancellationToken)
-    {
-        var telefono = WhatsappPhone.Canonizar(mensaje.From);
-        var alumno = await AlumnoPorTelefonoAsync(telefono, cancellationToken);
-        return await NucleoAsync(alumno, mensaje, analisis, ahora, cancellationToken);
-    }
 
     public async Task<CapturaRespuesta> AplicarTextoAsync(
         int alumnoId,
@@ -58,15 +57,12 @@ internal sealed class SesionCapturaServicio(
         var alumno = await db.Alumnos.SingleOrDefaultAsync(a => a.Id == alumnoId, cancellationToken)
                      ?? throw new InvalidOperationException(
                          $"Alumno {alumnoId} inexistente: el borde valida 404 antes de aplicar.");
-        return await NucleoAsync(alumno, mensaje: null, analisis, ahora, cancellationToken);
+        return await NucleoAsync(alumno, analisis, ahora, cancellationToken);
     }
 
-    // Núcleo de identificado de sesión + resolución de aclaraciones + intent
-    // (compartido por WhatsApp y la PWA; ADR-0009). El mensaje es único
-    // si viene de WhatsApp y aporta la auditoría de audio.
+    // Núcleo de identificado de sesión + resolución de aclaraciones + intent.
     private async Task<CapturaRespuesta> NucleoAsync(
         Alumno alumno,
-        IncomingWhatsappMessage? mensaje,
         AnalisisCaptura analisis,
         DateTime ahora,
         CancellationToken cancellationToken)
@@ -83,14 +79,50 @@ internal sealed class SesionCapturaServicio(
             };
             db.SesionesCaptura.Add(sesion);
             await db.SaveChangesAsync(cancellationToken); // la cabecera hace falta con Id antes de las filas
-            logger.LogInformation(
-                "Sesión de captura nueva para el alumno {Alumno} (origen {Origen}).",
-                alumno.Id, mensaje is null ? "PWA" : "WhatsApp");
+            logger.LogInformation("Sesión de captura nueva para el alumno {Alumno}.", alumno.Id);
         }
         else if (sesion.Estado == EstadoSesionCaptura.Lista)
         {
-            // CIERRE ya hecho: la planilla espera confirmación en la SPA.
-            return new(TextosBot.PlanillaYaLista, sesion.Id, AclaracionCreada: false);
+            // Carga cerrada que espera confirmación en la SPA. "seguir" la
+            // REABRE (ADR-0012), y un dictado que cumple la regla (ejercicio +
+            // series, ADR-0013) la reabre y el flujo sigue abajo; el resto del
+            // diálogo (guía, ayuda, cortesía) pide confirmar sin tocar estado.
+            if (ParseadorAclaraciones.EsSeguir(analisis.TextoProcesado))
+            {
+                sesion.Estado = sesion.AclaracionPendiente is null
+                    ? EstadoSesionCaptura.EnCurso
+                    : EstadoSesionCaptura.EsperandoAclaracion;
+                sesion.UltimaActividadUtc = ahora;
+                sesion.RowVersion++;
+                await db.SaveChangesAsync(cancellationToken);
+                logger.LogInformation(
+                    "Sesión {Id} reabierta por el alumno (estaba Lista).", sesion.Id);
+                return new(
+                    sesion.AclaracionPendiente is null
+                        ? TextosBot.Seguimos
+                        : TextosBot.SeguimosConPendiente,
+                    sesion.Id,
+                    AclaracionCreada: false);
+            }
+
+            if (!EsCapturaBase(analisis))
+            {
+                // Dictado de carga fuera de la regla → el bot enseña la regla
+                // (sin abrir la planilla); ayuda, cortesía e inválidos solo
+                // recuerdan el paso por la SPA. El análisis fallido no decide
+                // por el alumno (ADR-0012/0013).
+                return new(
+                    EsIntentoDeCarga(analisis) ? TextosBot.FueraDeRegla : TextosBot.PlanillaYaLista,
+                    sesion.Id,
+                    AclaracionCreada: false);
+            }
+
+            // Dictado en regla sobre una carga cerrada: reabre y el flujo
+            // sigue abajo (el próximo cierre vuelve a dejarla en Lista).
+            sesion.Estado = EstadoSesionCaptura.EnCurso;
+            logger.LogInformation(
+                "Sesión {Id} reabierta por una captura de carga del alumno {Alumno}.",
+                sesion.Id, alumno.Id);
         }
         else if (sesion.Estado == EstadoSesionCaptura.Expirada || ahora - sesion.UltimaActividadUtc > InactividadMaxima)
         {
@@ -121,12 +153,10 @@ internal sealed class SesionCapturaServicio(
         sesion.UltimaActividadUtc = ahora;
         sesion.RowVersion++; // columna simple, no token EF: el worker serializa (ADR-0004)
 
-        RegistrarTranscripcion(sesion, mensaje, analisis, ahora);
-
         CapturaRespuesta respuesta;
         if (sesion.AclaracionPendiente is { } aclaracion)
         {
-            respuesta = await ResolverPendienteOIntentarAsync(sesion, aclaracion, analisis, ahora, cancellationToken);
+            respuesta = await ResolverPendienteOIntentarAsync(sesion, aclaracion, analisis, cancellationToken);
         }
         else
         {
@@ -137,40 +167,51 @@ internal sealed class SesionCapturaServicio(
         return respuesta;
     }
 
-    public async Task MarcarMensajeBotAsync(int sesionId, string? mensajeBotWaId, CancellationToken cancellationToken)
+    // ¿El mensaje es un intento de carga (llámetese ejercicio o series)? Solo
+    // sirve para elegir la respuesta en la sesión Lista; la creación de filas
+    // exige además la regla completa (EsCapturaBase).
+    private static bool EsIntentoDeCarga(AnalisisCaptura analisis) =>
+        analisis.Clasificacion is { Exito: true, Intento: IntentoCaptura.CargaEjercicio or IntentoCaptura.CargaSerie };
+
+    // ¿El dictado carga el DATO de una serie ya creada (regla 2, ADR-0014)?
+    // "NRO DE SERIE + REPS y/o PESO" SIN nombrar ejercicio: la fila es la de
+    // ese ordinal del EJERCICIO ACTIVO (el alumno ya la armó en el paso 1,
+    // ADR-0013). Exige ordinal y al menos un dato hablado: un ordinal suelto
+    // o un mensaje con ejercicio nombrado pertenecen a la regla base.
+    private static bool EsCargaDatosSerie(AnalisisCaptura analisis)
     {
-        if (mensajeBotWaId is null)
+        if (!EsIntentoDeCarga(analisis)
+            || analisis.Entidades is not { } entidades
+            || entidades.EjercicioTexto is { Length: > 0 }
+            || entidades.SerieOrdinal is not >= 1)
         {
-            return;
+            return false;
         }
 
-        var aclaracion = await db.AclaracionesPendientes.FindAsync([sesionId], cancellationToken);
-        if (aclaracion is null)
+        return entidades.Reps is not null
+            || entidades.PesoKg is not null
+            || entidades.Unidad == Unidad.PesoCorporal;
+    }
+
+    // ¿El dictado cumple la REGLA BASE (ADR-0013)? Un ejercicio nombrado
+    // por el alumno (crudo extraído del mensaje o resuelto por el pipeline) +
+    // una cantidad de series razonable, o una serie puntual. Es la única
+    // puerta por la que nacen filas y se reabre una carga cerrada: fuera de
+    // la regla solo responde la guía, sin usar el ejercicio activo.
+    private static bool EsCapturaBase(AnalisisCaptura analisis)
+    {
+        if (!EsIntentoDeCarga(analisis)
+            || analisis.Entidades?.EjercicioTexto is not { Length: > 0 })
         {
-            return; // pudo ya haberse resuelto cuando confirmó el envío
+            return false;
         }
 
-        aclaracion.MensajeBotWaId = mensajeBotWaId;
-        await db.SaveChangesAsync(cancellationToken);
+        var cantidad = analisis.Entidades!.CantidadSeries;
+        var ordinal = analisis.Entidades.SerieOrdinal;
+        return (cantidad is >= 1 and <= MaxSeriesLote) || ordinal >= 1;
     }
 
     // ─── Cuenta y sesión ────────────────────────────────────────────────────────
-
-    private async Task<Alumno> AlumnoPorTelefonoAsync(string telefono, CancellationToken cancellationToken)
-    {
-        var alumno = await db.Alumnos.SingleOrDefaultAsync(a => a.TelefonoWa == telefono, cancellationToken);
-        if (alumno is not null)
-        {
-            return alumno;
-        }
-
-        // Primer contacto por WhatsApp: alta por teléfono (ADR-0004).
-        alumno = new Alumno { TelefonoWa = telefono, Estado = "ACTIVO" };
-        db.Alumnos.Add(alumno);
-        await db.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Alumno creado por primer contacto desde WhatsApp: {Telefono}.", telefono);
-        return alumno;
-    }
 
     private Task<SesionCaptura?> SesionRecienteAsync(int alumnoId, CancellationToken cancellationToken) =>
         db.SesionesCaptura
@@ -179,39 +220,12 @@ internal sealed class SesionCapturaServicio(
             .OrderByDescending(s => s.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-    // ─── Auditoría de voz ──────────────────────────────────────────────────────
-
-    private void RegistrarTranscripcion(SesionCaptura sesion, IncomingWhatsappMessage? mensaje, AnalisisCaptura analisis, DateTime ahora)
-    {
-        if (mensaje is null || mensaje.Kind != WhatsappMessageKind.Audio || mensaje.AudioMediaId is null)
-        {
-            return;
-        }
-
-        if (analisis.Transcripcion is not { Exito: true, Texto: not null } transcripcion)
-        {
-            return; // etapa fallida: el pipeline ya dejó su log de error
-        }
-
-        // MediaId de Graph, nunca la URL temporal (convención WhatsApp).
-        db.Transcripciones.Add(new Transcripcion
-        {
-            SesionId = sesion.Id,
-            MediaId = mensaje.AudioMediaId,
-            TextoCrudo = transcripcion.Texto,
-            Proveedor = "Gemini", // ADR-0002 S1
-            DuracionSeg = mensaje.AudioDurationSeconds,
-            RecibidoUtc = ahora,
-        });
-    }
-
     // ─── Aclaración pendiente vs intents ───────────────────────────────────────
 
     private async Task<CapturaRespuesta> ResolverPendienteOIntentarAsync(
         SesionCaptura sesion,
         AclaracionPendiente aclaracion,
         AnalisisCaptura analisis,
-        DateTime ahora,
         CancellationToken cancellationToken)
     {
         // CIERRE domina: abandona lo pendiente (UX; ADR-0004) y cierra en Lista.
@@ -222,7 +236,34 @@ internal sealed class SesionCapturaServicio(
             return new(TextosBot.Cierre, sesion.Id, AclaracionCreada: false);
         }
 
-        var resuelta = await IntentarResolverAsync(sesion, aclaracion, analisis, ahora, cancellationToken);
+        // Análisis FALLIDO del LLM (cuota, red, salida no parseable): el
+        // mensaje puede ser perfectamente válido, solo no se pudo leer. NO
+        // cuenta reintento ni abandona el pendiente: quemar un intento por
+        // una falla de infraestructura condena el flujo (bug visto en campo,
+        // 2026-10-23: 2 mensajes válidos + Gemini 429 ⇒ pendiente abandonada).
+        if (!analisis.Clasificacion.Exito)
+        {
+            logger.LogInformation(
+                "NLU caído con aclaración {SesionId}/{Campo} viva: se pide reenvío sin reintento.",
+                sesion.Id, aclaracion.Campo);
+            return new(TextosBot.FalloLectura, sesion.Id, AclaracionCreada: false);
+        }
+
+        // Dictado de datos de serie (regla 2, ADR-0014) con la pregunta del
+        // ejercicio viva: se APLICA el dato sobre el lote vivo y la pregunta
+        // SIGUE viva (decisión del producto, 2026-10-23): el alumno no tiene
+        // por qué respondela antes de seguir dictando. Sin reintento: el dato
+        // no es una respuesta (errónea) a la pregunta.
+        if (aclaracion.Campo == "ejercicio" && EsCargaDatosSerie(analisis))
+        {
+            var respuestaDato = await AplicarDatosSerieAsync(sesion, analisis, cancellationToken);
+            return new(
+                TextosBot.ConRecordatorioPendiente(respuestaDato.MensajeAlumno),
+                sesion.Id,
+                AclaracionCreada: false);
+        }
+
+        var resuelta = await IntentarResolverAsync(sesion, aclaracion, analisis, cancellationToken);
         if (resuelta is { } respuesta)
         {
             return respuesta;
@@ -245,114 +286,40 @@ internal sealed class SesionCapturaServicio(
         return new(TextosBot.DespedirSeriePendiente, sesion.Id, AclaracionCreada: false);
     }
 
+    // Único tipo de aclaración viva (ADR-0013): el ejercicio. La respuesta del
+    // alumno se interpreta determinísticamente sobre el texto crudo, SIN LLM;
+    // si nada matchea → null = reintento (jamás un dato inventado).
     private async Task<CapturaRespuesta?> IntentarResolverAsync(
         SesionCaptura sesion,
         AclaracionPendiente aclaracion,
         AnalisisCaptura analisis,
-        DateTime ahora,
+        CancellationToken cancellationToken)
+    {
+        return aclaracion.Campo switch
+        {
+            "ejercicio" => await ResolverEjercicioAclaracionAsync(sesion, aclaracion, analisis, cancellationToken),
+
+            // Campo no previsto por la regla (pendientes previos al cambio,
+            // p. ej. de peso): reintento; nada inventado ni "rescatado".
+            _ => null,
+        };
+    }
+
+    private async Task<CapturaRespuesta?> ResolverEjercicioAclaracionAsync(
+        SesionCaptura sesion,
+        AclaracionPendiente aclaracion,
+        AnalisisCaptura analisis,
         CancellationToken cancellationToken)
     {
         var texto = analisis.TextoProcesado;
         var contexto = ParsearContexto(aclaracion.Contexto);
         var filas = await FilasDelContextoAsync(contexto, sesion.Id, cancellationToken);
-
-        switch (aclaracion.Campo)
-        {
-            case "peso":
-                var peso = ParseadorAclaraciones.ParsearPeso(texto);
-                if (peso is null)
-                {
-                    return null;
-                }
-
-                foreach (var fila in filas)
-                {
-                    fila.PesoKg = peso;
-                    fila.Unidad ??= Unidad.Kg; // valor hablado sin unidad → kg
-                }
-
-                return await ContinuarLoteAsync(sesion, filas, ahora, cancellationToken);
-
-            case "reps":
-                var reps = ParseadorAclaraciones.ParsearEntero(texto);
-                if (reps is null)
-                {
-                    return null;
-                }
-
-                foreach (var fila in filas)
-                {
-                    fila.Reps = reps;
-                }
-
-                return await ContinuarLoteAsync(sesion, filas, ahora, cancellationToken);
-
-            case "tiempo":
-                var segundos = ParseadorAclaraciones.ParsearEntero(texto);
-                if (segundos is null)
-                {
-                    return null;
-                }
-
-                foreach (var fila in filas)
-                {
-                    fila.TiempoSeg = segundos;
-                    fila.Unidad = Unidad.Tiempo;
-                }
-
-                return await ContinuarLoteAsync(sesion, filas, ahora, cancellationToken);
-
-            case "serie":
-                var serie = ParseadorAclaraciones.ParsearEntero(texto);
-                if (serie is null)
-                {
-                    return null;
-                }
-
-                foreach (var fila in filas)
-                {
-                    fila.NroSerie = serie.Value;
-                }
-
-                sesion.OrdenSerieSiguiente = Math.Max(sesion.OrdenSerieSiguiente, serie.Value + 1);
-                return await ContinuarLoteAsync(sesion, filas, ahora, cancellationToken);
-
-            case "ejercicio":
-                return await ResolverEjercicioAclaracionAsync(sesion, contexto, filas, texto, ahora, cancellationToken);
-
-            default:
-                // Campo no previsto por el spec: reintento; nada inventado.
-                return null;
-        }
-    }
-
-    private async Task<CapturaRespuesta?> ResolverEjercicioAclaracionAsync(
-        SesionCaptura sesion,
-        ContextoAclaracion contexto,
-        List<RegistroParcial> filas,
-        string texto,
-        DateTime ahora,
-        CancellationToken cancellationToken)
-    {
-        // "1"/"2"/"3": elección enumerada sobre sugerencias re-derivadas con el
-        // MISMO resolver determinístico desde el crudo guardado en el contexto.
-        var opcion = ParseadorAclaraciones.ParsearEntero(texto);
-        if (opcion is { } indice)
-        {
-            var sugerencias = await SugerenciasDeContextoAsync(contexto.Crudo, cancellationToken);
-            if (indice > sugerencias.Count)
-            {
-                return null;
-            }
-
-            return await FijarEjercicioAsync(sesion, filas, sugerencias, indice, ahora, cancellationToken);
-        }
-
         if (ParseadorAclaraciones.EsOtro(texto))
         {
             foreach (var fila in filas)
             {
-                fila.DescripcionPendiente = true; // el crudo queda como descripción libre
+                fila.EjercicioCanonico = fila.EjercicioCrudo ?? contexto.Crudo;
+                fila.DescripcionPendiente = false;
                 fila.PendienteAclaracion = false;
             }
 
@@ -364,208 +331,286 @@ internal sealed class SesionCapturaServicio(
                 AclaracionCreada: false);
         }
 
-        // Respuesta textual: se resuelve como ejercicio, determinístico.
-        if (texto.Length == 0)
+        var entidades = analisis.Entidades;
+        var nombre = entidades?.EjercicioNormalizado ?? entidades?.EjercicioTexto;
+        if (string.IsNullOrWhiteSpace(nombre) || filas.Count == 0)
         {
             return null;
         }
 
-        var porNombre = CatalogoEjercicioResolver.Resolver(texto, await catalogo.LeerAsync(cancellationToken));
-        if (porNombre.Estado == EstadoResolucion.Matcheado
-            && porNombre.EjercicioId is { } id && porNombre.EjercicioCanonico is { } canonico)
+        foreach (var fila in filas)
         {
-            return await FijarEjercicioAsync(
-                sesion, filas, new List<SugerenciaEjercicio> { new(id, canonico, 0) }, 1, ahora, cancellationToken);
+            fila.EjercicioCanonico = nombre;
+            fila.PendienteAclaracion = false;
+            fila.DescripcionPendiente = false;
         }
 
-        return null; // ambiguo o sin match → reintento con la misma lista
+        QuitarAclaracion(sesion);
+        sesion.Estado = EstadoSesionCaptura.EnCurso;
+        return await ContinuarLoteAsync(sesion, filas, cancellationToken);
     }
 
     // ─── Lotes de series ───────────────────────────────────────────────────────
 
-    // Continúa el lote tras aplicar un dato: pregunta el próximo faltante o
-    // cierra. Las filas comparten estado — se marca/desmarca el lote entero.
+    // Continúa el lote tras resolver el ejercicio (ADR-0013): el dictado solo
+    // arma filas (los datos de serie se completan después), así que acá NO se
+    // pregunta faltante alguno — se confirma el lote y el flujo queda listo.
     private async Task<CapturaRespuesta> ContinuarLoteAsync(
         SesionCaptura sesion,
         List<RegistroParcial> filas,
-        DateTime ahora,
         CancellationToken cancellationToken)
     {
         if (filas.Count == 0)
         {
-            QuitarAclaracion(sesion);
-            sesion.Estado = EstadoSesionCaptura.EnCurso;
+            DefensivaSinFilas(sesion);
             return new(TextosBot.DespedirSeriePendiente, sesion.Id, AclaracionCreada: false);
         }
 
         QuitarAclaracion(sesion);
-
-        var ejercicio = filas[0].EjercicioId is int id
-            ? (await catalogo.LeerAsync(cancellationToken)).FirstOrDefault(e => e.Id == id)
-            : null;
-
-        var faltante = CampoFaltante(filas[0], ejercicio);
-        if (faltante is null)
-        {
-            foreach (var fila in filas)
-            {
-                fila.PendienteAclaracion = false;
-            }
-
-            sesion.Estado = EstadoSesionCaptura.EnCurso;
-            return new(TextosBot.RegistroConfirmado(DetalleSerie(filas[0])), sesion.Id, AclaracionCreada: false);
-        }
-
         foreach (var fila in filas)
         {
-            fila.PendienteAclaracion = true;
+            fila.PendienteAclaracion = false;
         }
 
-        CrearAclaracion(sesion, faltante, filas.Select(f => f.Id), filas[0].EjercicioCrudo, ahora);
-        sesion.Estado = EstadoSesionCaptura.EsperandoAclaracion;
+        // La numeración sigue a las filas REALES del lote resuelto (nunca un
+        // contador encontrado en un estado raro): el próximo lote continúa.
+        sesion.OrdenSerieSiguiente = Math.Max(
+            sesion.OrdenSerieSiguiente, filas.Max(f => f.NroSerie) + 1);
+        sesion.Estado = EstadoSesionCaptura.EnCurso;
+
+        var nombre = filas[0].EjercicioCanonico
+            ?? filas[0].Ejercicio?.NombreCanonico
+            ?? filas[0].EjercicioCrudo
+            ?? "el ejercicio";
+
         return new(
-            PreguntaPor(faltante, ejercicio?.NombreCanonico ?? filas[0].EjercicioCrudo ?? "esa serie"),
+            TextosBot.SeriesAnotadasBase(
+                nombre,
+                filas.Min(f => f.NroSerie), filas.Max(f => f.NroSerie)),
             sesion.Id,
-            AclaracionCreada: true);
+            AclaracionCreada: false);
     }
 
-    // Alta de ejercicio (CARGA_EJERCICIO) y de series (CARGA_SERIE): mismas
-    // reglas; granularidad POR SERIE — "3x12" ⇒ 3 filas (ADR-0004).
-    private async Task<CapturaRespuesta> AplicarCargaAsync(
+    // Salida sin filas (contexto sin ids de registro): el flujo queda libre y
+    // la pregunta se cierra; nada se inventa sobre filas inexistentes.
+    private void DefensivaSinFilas(SesionCaptura sesion)
+    {
+        QuitarAclaracion(sesion);
+        sesion.Estado = EstadoSesionCaptura.EnCurso;
+    }
+
+    // Dictado en regla (ADR-0013/0014): reparte entre la regla base (lote de
+    // filas) y la de datos de serie según el CONTENIDO del análisis — así un
+    // intent mal etiquetado por el LLM no rompe el flujo determinístico.
+    private async Task<CapturaRespuesta> AplicarDictadoAsync(
         SesionCaptura sesion,
-        EntidadesNlu entidades,
-        ResultadoResolucionEjercicio? resolucion,
+        AnalisisCaptura analisis,
         DateTime ahora,
         CancellationToken cancellationToken)
     {
-        var catalogoItems = await catalogo.LeerAsync(cancellationToken);
-
-        // Prioridad: el ejercicio resuelto en ESTE mensaje gana; cuando el
-        // alumno nombró otro (ambiguo/sin match) NO se usa el activo; sin
-        // mención, la serie cae sobre el activo (spec NLU §2: "segunda serie…").
-        CatalogoEjercicio? ejercicio = null;
-        if (resolucion is { Estado: EstadoResolucion.Matcheado, EjercicioId: int idResuelto })
+        // Regla 2 (ADR-0014) primero: datos de serie sin ejercicio nombrado.
+        if (EsCargaDatosSerie(analisis))
         {
-            ejercicio = catalogoItems.FirstOrDefault(e => e.Id == idResuelto);
-            if (ejercicio is not null && sesion.EjercicioActivoId != idResuelto)
-            {
-                sesion.EjercicioActivoId = idResuelto;
-                sesion.OrdenSerieSiguiente = 1; // ejercicio nuevo reinicia la numeración
-            }
-        }
-        else if (resolucion is null && sesion.EjercicioActivoId is int idActivo)
-        {
-            ejercicio = catalogoItems.FirstOrDefault(e => e.Id == idActivo);
+            return await AplicarDatosSerieAsync(sesion, analisis, cancellationToken);
         }
 
-        var (pesoKg, unidad) = NormalizarValores(entidades.PesoKg, entidades.Unidad);
-        if (entidades.TiempoSegundos is not null && unidad is null)
+        if (!EsCapturaBase(analisis))
         {
-            unidad = Unidad.Tiempo;
+            // Dictado fuera de la regla: guía única, sin filas y SIN apoyarse
+            // en el ejercicio activo (decisión de dominio, ADR-0013).
+            return new(TextosBot.FueraDeRegla, sesion.Id, AclaracionCreada: false);
         }
 
-        var cantidad = entidades.CantidadSeries is > 1 ? entidades.CantidadSeries.Value : 1;
+        var bloqueo = await ObtenerBloqueoPorSeriesIncompletasAsync(sesion.Id, cancellationToken);
+        if (bloqueo is not null)
+        {
+            return new(bloqueo, sesion.Id, AclaracionCreada: false);
+        }
+
+        var entidades = analisis.Entidades!;
+        // La IA propone un nombre normalizado y conserva la frase original. La
+        // captura es texto libre: no se resuelve ni se valida contra un catálogo.
+        var nombreEjercicio = entidades.EjercicioNormalizado ?? entidades.EjercicioTexto!;
+        var aclaracionAbierta = entidades.CampoAclarar == "ejercicio";
+        var ultimoLote = await db.RegistrosParciales
+            .Where(r => r.SesionId == sesion.Id)
+            .OrderByDescending(r => r.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        var nombreUltimoLote = ultimoLote?.EjercicioCanonico
+            ?? ultimoLote?.Ejercicio?.NombreCanonico
+            ?? ultimoLote?.EjercicioCrudo;
+        if (nombreUltimoLote is null
+            || !string.Equals(nombreUltimoLote, nombreEjercicio, StringComparison.OrdinalIgnoreCase))
+        {
+            sesion.OrdenSerieSiguiente = 1;
+        }
+        sesion.EjercicioActivoId = null;
+
+        // La serie ordinal explícita ("tercera serie") gana como base; si solo
+        // hay cantidad ("4 series"), el lote continúa la numeración del
+        // ejercicio activo (1..n en el primero). Con el ejercicio AÚN sin
+        // resolver la numeración es provisional: arranca en el ordinal o en
+        // 1 — el contador del activo puede pertenecer a OTRO ejercicio y no
+        // corresponde heredarlo (ADR-0013).
+        var cantidad = entidades.CantidadSeries is { } c && c >= 1 ? c : 1;
         var nroBase = entidades.SerieOrdinal ?? sesion.OrdenSerieSiguiente;
-        List<RegistroParcial> filas = [];
+        var filas = new List<RegistroParcial>(cantidad);
 
-        // Sin ningún dato de serie no se anota fila: alta "de palabra".
-        var hayDatosSerie = entidades.Reps is not null
-            || pesoKg is not null
-            || unidad is not null
-            || entidades.TiempoSegundos is not null;
-
-        if (hayDatosSerie)
+        for (var i = 0; i < cantidad; i++)
         {
-            for (var i = 0; i < cantidad; i++)
+            filas.Add(new RegistroParcial
             {
-                filas.Add(new RegistroParcial
-                {
-                    SesionId = sesion.Id,
-                    EjercicioId = ejercicio?.Id,
-                    EjercicioCrudo = entidades.EjercicioTexto, // solo si lo dijo
-                    NroSerie = nroBase + i,
-                    Reps = entidades.Reps,
-                    PesoKg = pesoKg,
-                    Unidad = unidad,
-                    TiempoSeg = entidades.TiempoSegundos,
-                    DescripcionPendiente = false,
-                    PendienteAclaracion = false,
-                    CreadoUtc = ahora,
-                });
-            }
-
-            db.RegistrosParciales.AddRange(filas);
-            // Los ids de las filas entran en el contexto de la pregunta viva:
-            // hay que guardar antes de armar la aclaración.
-            await db.SaveChangesAsync(cancellationToken);
-            sesion.OrdenSerieSiguiente = Math.Max(sesion.OrdenSerieSiguiente, nroBase + cantidad);
+                SesionId = sesion.Id,
+                EjercicioId = null,
+                EjercicioCrudo = entidades.EjercicioTexto, // lo que dijo (auditoría)
+                EjercicioCanonico = nombreEjercicio,
+                NroSerie = nroBase + i,
+                Reps = null,    // ADR-0013/0014: el lote nace con ejercicio + serie;
+                PesoKg = null,  // el dato de cada serie llega con la regla 2
+                Unidad = null,
+                TiempoSeg = null,
+                DescripcionPendiente = false,
+                PendienteAclaracion = aclaracionAbierta,
+                CreadoUtc = ahora,
+            });
         }
 
-        // Alta "de palabra" (sólo el ejercicio nombrado): nada que validar aún,
-        // se invita a cargar la primera serie (spec NLU §5).
-        if (ejercicio is not null && filas.Count == 0)
+        db.RegistrosParciales.AddRange(filas);
+        // Los ids de las filas entran en el contexto de la pregunta viva:
+        // hay que guardar antes de armar la aclaración.
+        await db.SaveChangesAsync(cancellationToken);
+        sesion.OrdenSerieSiguiente = Math.Max(sesion.OrdenSerieSiguiente, nroBase + cantidad);
+
+        if (aclaracionAbierta)
         {
-            return new(
-                TextosBot.EjercicioAnotado(ejercicio.NombreCanonico, ejercicio.UsaTiempo),
-                sesion.Id,
-                AclaracionCreada: false);
-        }
-
-        // Sin ejercicio no hay tipo contra qué validar los faltantes.
-        var campoFaltante = ejercicio is null ? "ejercicio" : CampoFaltante(filas[0], ejercicio);
-
-        if (campoFaltante is null)
-        {
-            // Lote completo: confirmamos y quedamos listos para la próxima serie.
-            return new(
-                TextosBot.SeriesAnotadas(
-                    ejercicio!.NombreCanonico, nroBase, nroBase + cantidad - 1, DetalleSerie(filas[0])),
-                sesion.Id,
-                AclaracionCreada: false);
-        }
-
-        if (campoFaltante == "ejercicio")
-        {
-            // Con datos: filas pendientes ya creadas, referenciadas por id en el
-            // contexto. Sin datos: solo la pregunta (alto el ejercicio, nada aún).
-            if (!hayDatosSerie)
-            {
-                filas.Clear();
-            }
-            else
-            {
-                foreach (var fila in filas)
-                {
-                    fila.PendienteAclaracion = true;
-                }
-            }
-
-            List<string> nombres = resolucion?.Sugerencias.Count is > 0
-                ? [.. resolucion.Sugerencias.Select(s => s.NombreCanonico)]
-                : [];
-            var pregunta = resolucion is { Estado: EstadoResolucion.Ambiguo } && nombres.Count > 0
-                ? TextosBot.PreguntaEjercicioAmbiguo(nombres)
-                : TextosBot.PreguntaEjercicio(entidades.EjercicioTexto, nombres);
-
             CrearAclaracion(sesion, "ejercicio", filas.Select(f => f.Id), entidades.EjercicioTexto, ahora);
             sesion.Estado = EstadoSesionCaptura.EsperandoAclaracion;
-            return new(pregunta, sesion.Id, AclaracionCreada: true);
+            return new(TextosBot.PreguntaEjercicioAbierta(entidades.PreguntaAclarar), sesion.Id, AclaracionCreada: true);
         }
 
-        // Faltante puntual (peso/reps/tiempo) sobre filas ya creadas.
-        foreach (var fila in filas)
+        return new(
+            TextosBot.SeriesAnotadasBase(nombreEjercicio, nroBase, nroBase + cantidad - 1),
+            sesion.Id,
+            AclaracionCreada: false);
+    }
+
+    // Regla 2 (ADR-0014): "NRO DE SERIE + REPS y/o PESO" SIN ejercicio nombrado
+    // llena la fila de ese ordinal del ÚLTIMO LOTE armado (el lote vivo que el
+    // alumno está cargando — véase «Estás cargando» en la SPA), sea de un
+    // ejercicio del catálogo o de TEXTO LIBRE (cantidad de series de «otro»).
+    // El objetivo ya NO es el EjercicioActivoId heredado: dictar datos después
+    // de un lote pendiente de resolver (SinMatch) debe tocar ESE lote.
+    // Nada inventado: la fila que no existe se avisa (no se crea), solo se
+    // escriben los valores DICHO y el último dictado gana. Unidad.Tiempo no
+    // entra en la regla: el tiempo se retiró del MVP (ADR-0014).
+    private async Task<CapturaRespuesta> AplicarDatosSerieAsync(
+        SesionCaptura sesion,
+        AnalisisCaptura analisis,
+        CancellationToken cancellationToken)
+    {
+        var entidades = analisis.Entidades!;
+        var ordinal = entidades.SerieOrdinal!.Value;
+
+        var todas = await db.RegistrosParciales
+            .Where(r => r.SesionId == sesion.Id)
+            .ToListAsync(cancellationToken);
+
+        // Lote vivo = las filas del último paso 1 (las comparten CreadoUtc;
+        // edición y arranque de datos no lo tocan). Sin filas: sin contexto.
+        var creadoVivo = todas.Count > 0 ? todas.Max(r => r.CreadoUtc) : default(DateTime?);
+        var lote = creadoVivo is { } vivo
+            ? todas.Where(r => r.CreadoUtc == vivo).OrderBy(r => r.Id).ToList()
+            : [];
+
+        if (lote.Count == 0)
         {
-            fila.PendienteAclaracion = true;
+            // Datos de serie sin contexto: primero el paso 1 (ejercicio +
+            // series); el dictado no apoya en filas ajenas ni las adivina.
+            return new(TextosBot.FueraDeRegla, sesion.Id, AclaracionCreada: false);
         }
 
-        CrearAclaracion(sesion, campoFaltante, filas.Select(f => f.Id), entidades.EjercicioTexto, ahora);
-        sesion.Estado = EstadoSesionCaptura.EsperandoAclaracion;
-        return new(PreguntaPor(campoFaltante, ejercicio!.NombreCanonico), sesion.Id, AclaracionCreada: true);
+        var filaModelo = lote[0];
+        var nombre = filaModelo.EjercicioCanonico
+            ?? filaModelo.Ejercicio?.NombreCanonico
+            ?? filaModelo.EjercicioCrudo
+            ?? "el ejercicio";
+
+        var fila = lote.FirstOrDefault(r => r.NroSerie == ordinal);
+        if (fila is null)
+        {
+            logger.LogInformation(
+                "Datos de serie sin fila: serie {Ordinal} no está en el lote vivo de '{Nombre}' (sesión {Sesion}).",
+                ordinal, nombre, sesion.Id);
+            return new(TextosBot.SerieSinFila(nombre, ordinal), sesion.Id, AclaracionCreada: false);
+        }
+
+        // Solo se escribe lo DICTADO (regla madre: nada inventado); lo demás
+        // de la fila queda como estaba; repetir un valor lo sobrescribe ("último
+        // dictado gana"). "50" suelto → kg (lo fija NormalizarValores).
+        var (peso, unidad) = NormalizarValores(entidades.PesoKg, entidades.Unidad);
+        if (peso is not null)
+        {
+            fila.PesoKg = peso;
+            fila.Unidad = unidad == Unidad.Tiempo ? null : unidad;
+        }
+        else if (entidades.Unidad == Unidad.PesoCorporal)
+        {
+            fila.PesoKg = null;
+            fila.Unidad = Unidad.PesoCorporal;
+        }
+
+        if (entidades.Reps is { } reps)
+        {
+            fila.Reps = reps;
+        }
+
+        // El dato llegó: la fila ya no "espera al bot" en la cuadrícula.
+        fila.PendienteAclaracion = false;
+
+        var faltantes = ReglaCompletitudSeries.CamposFaltantes(fila);
+        var mensajeSerie = TextosBot.SerieConDatos(
+            nombre,
+            ordinal,
+            TextosBot.DetalleSerie(fila.Reps, fila.PesoKg, fila.Unidad));
+        if (faltantes.Count > 0)
+        {
+            mensajeSerie += $" Para seguir, falta {string.Join(" y ", faltantes)} de esta serie.";
+        }
+
+        return new(
+            mensajeSerie,
+            sesion.Id,
+            AclaracionCreada: false);
+    }
+
+    private async Task<string?> ObtenerBloqueoPorSeriesIncompletasAsync(
+        int sesionId,
+        CancellationToken cancellationToken)
+    {
+        var filas = await db.RegistrosParciales
+            .Where(fila => fila.SesionId == sesionId)
+            .ToListAsync(cancellationToken);
+        if (filas.Count == 0)
+        {
+            return null;
+        }
+
+        // Aunque el paso de datos opera sobre el lote vivo, ningún ejercicio
+        // puede quedar incompleto cuando se inicia el siguiente.
+        var incompletas = filas
+            .Where(fila => !ReglaCompletitudSeries.EstaCompleta(fila))
+            .ToList();
+        if (incompletas.Count == 0)
+        {
+            return null;
+        }
+
+        return ReglaCompletitudSeries.MensajeParaCompletar(incompletas);
     }
 
     // ─── Intents sin aclaración previa ─────────────────────────────────────────
 
-    private Task<CapturaRespuesta> ProcesarIntentoAsync(
+    private async Task<CapturaRespuesta> ProcesarIntentoAsync(
         SesionCaptura sesion,
         AnalisisCaptura analisis,
         DateTime ahora,
@@ -574,114 +619,60 @@ internal sealed class SesionCapturaServicio(
         if (!analisis.Clasificacion.Exito)
         {
             // Etapa de análisis fallida: nada de datos → pedir reenvío sin tocar estado.
-            return Task.FromResult(new CapturaRespuesta(TextosBot.FalloLectura, sesion.Id, AclaracionCreada: false));
+            return new CapturaRespuesta(TextosBot.FalloLectura, sesion.Id, AclaracionCreada: false);
         }
 
         // "seguir" con sesión viva sin pendientes: cortesía de retoma.
         if (sesion.Estado == EstadoSesionCaptura.EnCurso && ParseadorAclaraciones.EsSeguir(analisis.TextoProcesado))
         {
-            return Task.FromResult(new CapturaRespuesta(TextosBot.Seguimos, sesion.Id, AclaracionCreada: false));
+            return new CapturaRespuesta(TextosBot.Seguimos, sesion.Id, AclaracionCreada: false);
         }
 
         switch (analisis.Clasificacion.Intento)
         {
             case IntentoCaptura.Cierre:
                 sesion.Estado = EstadoSesionCaptura.Lista;
-                return Task.FromResult(new CapturaRespuesta(TextosBot.Cierre, sesion.Id, AclaracionCreada: false));
+                return new CapturaRespuesta(TextosBot.Cierre, sesion.Id, AclaracionCreada: false);
 
             case IntentoCaptura.AyudaConsulta:
-                return Task.FromResult(new CapturaRespuesta(TextosBot.Ayuda, sesion.Id, AclaracionCreada: false));
+                return new CapturaRespuesta(TextosBot.Ayuda, sesion.Id, AclaracionCreada: false);
 
             case IntentoCaptura.CargaEjercicio:
             case IntentoCaptura.CargaSerie:
                 if (analisis.Entidades is null)
                 {
-                    return Task.FromResult(new CapturaRespuesta(TextosBot.FalloLectura, sesion.Id, AclaracionCreada: false));
+                    return new CapturaRespuesta(TextosBot.FalloLectura, sesion.Id, AclaracionCreada: false);
                 }
 
-                return AplicarCargaAsync(
-                    sesion, analisis.Entidades, analisis.ResolucionEjercicio, ahora, cancellationToken);
+                // La disyuntiva lote base vs datos de serie vs guía la decide
+                // AplicarDictadoAsync (por CONTENIDO, ADR-0013/0014); los dos
+                // intents entran acá porque el LLM puede confundirlos en la voz.
+                return await AplicarDictadoAsync(sesion, analisis, ahora, cancellationToken);
 
             default:
-                return Task.FromResult(new CapturaRespuesta(TextosBot.Cortesia, sesion.Id, AclaracionCreada: false));
+                return new CapturaRespuesta(TextosBot.Cortesia, sesion.Id, AclaracionCreada: false);
         }
     }
 
     // ─── Preguntas y helpers de aclaración ─────────────────────────────────────
 
-    // Próximo campo REQUERIDO según el tipo de ejercicio (ADR-0004): no se
-    // pregunta peso para dominadas ni reps para plancha. El servicio NO confía
-    // ciegamente en CampoAclarar del LLM: valida contra el catálogo.
-    internal static string? CampoFaltante(RegistroParcial fila, CatalogoEjercicio? ejercicio)
-    {
-        if (ejercicio?.UsaPeso is true
-            && fila.PesoKg is null
-            && fila.Unidad != Unidad.PesoCorporal)
-        {
-            return "peso";
-        }
-
-        if (ejercicio?.UsaTiempo is true && fila.TiempoSeg is null)
-        {
-            return "tiempo";
-        }
-
-        // En ejercicios por tiempo (plancha) no se piden reps: se pide el tiempo.
-        if (ejercicio?.UsaTiempo is not true && fila.Reps is null)
-        {
-            return "reps";
-        }
-
-        return null;
-    }
-
-    private static string PreguntaPor(string campo, string referencia) => campo switch
-    {
-        "peso" => TextosBot.PreguntaPeso(referencia),
-        "reps" => TextosBot.PreguntaReps(referencia),
-        "tiempo" => TextosBot.PreguntaTiempo(referencia),
-        _ => TextosBot.Reintento("¿Me lo repetís de otra manera?"),
-    };
-
-    // Re-pregunta en reintento: re-deriva TODO determinísticamente (incluida la
-    // lista de sugerencias), sin nueva llamada al LLM.
+    // Re-pregunta en reintento (aclaración de EJERCICIO, la única que existe:
+    // ADR-0013): re-deriva TODO determinísticamente (incluida la lista de
+    // sugerencias), sin nueva llamada al LLM.
     private async Task<string> PreguntaReintentoAsync(AclaracionPendiente aclaracion, CancellationToken cancellationToken)
     {
+        if (aclaracion.Campo != "ejercicio")
+        {
+            return TextosBot.Reintento(TextosBot.FueraDeRegla);
+        }
+
         var contexto = ParsearContexto(aclaracion.Contexto);
-
-        if (aclaracion.Campo == "ejercicio")
+        if (contexto.Crudo is not { Length: > 0 })
         {
-            if (contexto.Crudo is not { Length: > 0 })
-            {
-                return TextosBot.PreguntaEjercicio(null, []);
-            }
-
-            var resolucion = CatalogoEjercicioResolver.Resolver(contexto.Crudo, await catalogo.LeerAsync(cancellationToken));
-            var nombres = resolucion.Sugerencias.Select(s => s.NombreCanonico).ToList();
-            return resolucion.Estado == EstadoResolucion.Ambiguo
-                ? TextosBot.PreguntaEjercicioAmbiguo(nombres)
-                : TextosBot.PreguntaEjercicio(contexto.Crudo, nombres);
+            return TextosBot.Reintento(TextosBot.PreguntaEjercicio(null, []));
         }
 
-        var filas = await FilasDelContextoAsync(contexto, aclaracion.SesionId, cancellationToken);
-        var ejercicio = filas.Count > 0 && filas[0].EjercicioId is int id
-            ? (await catalogo.LeerAsync(cancellationToken)).FirstOrDefault(e => e.Id == id)
-            : null;
-        var referencia = ejercicio?.NombreCanonico ?? filas.FirstOrDefault()?.EjercicioCrudo ?? "esa serie";
-        return PreguntaPor(aclaracion.Campo, referencia);
-    }
-
-    // Sugerencias (con ids) re-derivadas del crudo guardado: misma lista
-    // determinística que ofreció la pregunta original.
-    private async Task<List<SugerenciaEjercicio>> SugerenciasDeContextoAsync(string? crudo, CancellationToken cancellationToken)
-    {
-        if (crudo is not { Length: > 0 })
-        {
-            return [];
-        }
-
-        var resolucion = CatalogoEjercicioResolver.Resolver(crudo, await catalogo.LeerAsync(cancellationToken));
-        return [.. resolucion.Sugerencias];
+        return TextosBot.Reintento(TextosBot.PreguntaEjercicioAbierta(null));
     }
 
     private async Task<List<RegistroParcial>> FilasDelContextoAsync(
@@ -695,48 +686,6 @@ internal sealed class SesionCapturaServicio(
         return await db.RegistrosParciales
             .Where(r => r.SesionId == sesionId && contexto.RegistroIds.Contains(r.Id))
             .ToListAsync(cancellationToken);
-    }
-
-    // Fija el ejercicio en TODAS las filas del lote y en la sesión (un ejercicio
-    // nuevo reinicia la numeración de series); después continúa el lote.
-    private async Task<CapturaRespuesta> FijarEjercicioAsync(
-        SesionCaptura sesion,
-        List<RegistroParcial> filas,
-        IReadOnlyList<SugerenciaEjercicio> opciones,
-        int indiceElegido,
-        DateTime ahora,
-        CancellationToken cancellationToken)
-    {
-        var elegido = opciones[indiceElegido - 1];
-
-        foreach (var fila in filas)
-        {
-            fila.EjercicioId = elegido.Id;
-            fila.DescripcionPendiente = false;
-            // EjercicioCrudo se conserva: es lo que dijo el alumno (auditoría).
-        }
-
-        if (sesion.EjercicioActivoId != elegido.Id)
-        {
-            sesion.EjercicioActivoId = elegido.Id;
-            sesion.OrdenSerieSiguiente = 1;
-        }
-
-        QuitarAclaracion(sesion);
-
-        if (filas.Count == 0)
-        {
-            // Alta "de palabra" resuelta: la pregunta viva se cierra y el flujo
-            // queda libre para la próxima serie.
-            sesion.Estado = EstadoSesionCaptura.EnCurso;
-            var leido = (await catalogo.LeerAsync(cancellationToken)).FirstOrDefault(e => e.Id == elegido.Id);
-            return new(
-                TextosBot.EjercicioAnotado(elegido.NombreCanonico, porTiempo: leido?.UsaTiempo is true),
-                sesion.Id,
-                AclaracionCreada: false);
-        }
-
-        return await ContinuarLoteAsync(sesion, filas, ahora, cancellationToken);
     }
 
     private void CrearAclaracion(SesionCaptura sesion, string campo, IEnumerable<int> registroIds, string? crudo, DateTime ahora)
@@ -860,27 +809,5 @@ internal sealed class SesionCapturaServicio(
         }
 
         return (peso, unidad);
-    }
-
-    // "12 reps con 45 kg" / "12 reps al cuerpo" / "60 s": lo anotado, tal cual.
-    private static string DetalleSerie(RegistroParcial fila)
-    {
-        if (fila.Unidad == Unidad.Tiempo && fila.TiempoSeg is { } segundos)
-        {
-            return $"{segundos} s";
-        }
-
-        if (fila.PesoKg is { } peso && fila.Unidad != Unidad.PesoCorporal)
-        {
-            var pesoTexto = peso.ToString("0.##", CultureInfo.InvariantCulture);
-            return fila.Reps is { } reps ? $"{reps} reps con {pesoTexto} kg" : $"con {pesoTexto} kg";
-        }
-
-        if (fila.Unidad == Unidad.PesoCorporal)
-        {
-            return fila.Reps is { } repsCuerpo ? $"{repsCuerpo} reps al cuerpo" : "al cuerpo";
-        }
-
-        return fila.Reps is { } repsSolos ? $"{repsSolos} reps" : "sin datos";
     }
 }

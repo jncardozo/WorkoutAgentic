@@ -1,3 +1,27 @@
+<!-- Vista Alumno: captura por texto/voz en navegador y revisión de la cuadrícula. -->
+
+@if (pantallaReportes(); as modoReporte) {
+  @if (planillaConfirmada(); as planillaPrevia) {
+    @if (vistaPrevia(); as formatoPrevia) {
+      <app-reporte-preview
+        [planilla]="planillaPrevia"
+        [formato]="formatoPrevia"
+        (cerrar)="cerrarPrevisualizacion()"
+        (descargar)="descargarPlanilla($event)"
+        (cambiarFormato)="abrirPrevisualizacion($event)"
+      />
+    } @else {
+      <app-reporte-workspace
+        [planilla]="planillaPrevia"
+        [modo]="modoReporte"
+        (cerrar)="cerrarReportes()"
+        (seleccionar)="pantallaReportes.set($event)"
+        (imprimir)="vistaPrevia.set($event)"
+        (descargar)="descargarPlanilla($event)"
+      />
+    }
+  }
+} @else {
 @if (cargando()) {
   <p class="cargando">Cargando tu planilla…</p>
 } @else if (fallaCarga(); as fallo) {
@@ -9,48 +33,99 @@
         <span class="texto-suave"> · {{ fallo.detalle }}</span>
       }
     </p>
-    <button type="button" class="btn btn-primario" (click)="recargar()">Reintentar</button>
+    <button type="button" class="btn-enviar" (click)="recargar()">Reintentar</button>
   </div>
 } @else {
   @if (sesion(); as espacio) {
-    <header class="encabezado">
+    <!-- Encabezado y contexto del atleta -->
+    <header class="encabezado-planilla">
       <div>
-        <h1>Planilla de {{ espacio.alumno.nombre || 'alumno #' + espacio.alumno.id }}</h1>
-        <p class="meta">
-          @if (espacio.alumno.telefonoWa) {
-            WhatsApp {{ espacio.alumno.telefonoWa }}
-            @if (sesionViva(); as viva) {
-              · última actividad {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}
-            }
-          } @else if (sesionViva(); as viva) {
-            última actividad {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}
-          }
-        </p>
+        <h1>Planilla de {{ espacio.alumno.nombre || 'entrenamiento' }}</h1>
+        @if (sesionViva(); as viva) {
+          <p class="meta-planilla">
+            <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+            <span>Actualizada {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}</span>
+          </p>
+        }
       </div>
       <div class="encabezado-lado">
-        <span class="badge {{ chipEstado().clase }}">{{ chipEstado().texto }}</span>
-        <button type="button" class="btn" (click)="recargar()">Actualizar</button>
-        <button type="button" class="btn" (click)="irAEntrada()">Cambiar alumno</button>
+        <span class="badge {{ chipEstado().clase }}">
+          <span class="pulso" aria-hidden="true"></span>
+          {{ chipEstado().texto }}
+        </span>
+        <button
+          type="button"
+          class="btn"
+          (click)="alternarHistorial()"
+          [attr.aria-expanded]="historialAbierto()"
+        >
+          {{ historialAbierto() ? 'Cerrar historial' : 'Historial' }}
+        </button>
+        <button type="button" class="btn" (click)="recargar()" title="Actualizar datos desde la app">
+          <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+          </svg>
+          Actualizar
+        </button>
       </div>
     </header>
+
+    @if (historialAbierto()) {
+      <section class="tarjeta panel-historial" aria-labelledby="titulo-historial">
+        <header class="cabecera-historial">
+          <div>
+            <h2 id="titulo-historial">Historial de planillas</h2>
+            <p class="meta-captura">Tus entrenamientos confirmados siguen guardados.</p>
+          </div>
+        </header>
+        @if (cargandoHistorial()) {
+          <p class="estado-historial">Cargando tus planillas…</p>
+        } @else if (fallaHistorial(); as falla) {
+          <p class="estado-historial mensaje-error" role="alert">{{ falla.detalle ?? falla.titulo }}</p>
+        } @else if (historialPlanillas().length === 0) {
+          <p class="estado-historial">Todavía no confirmaste ninguna planilla.</p>
+        } @else {
+          <div class="lista-historial">
+            @for (planilla of historialPlanillas(); track planilla.id) {
+              <article class="fila-historial">
+                <div>
+                  <h3>Planilla #{{ planilla.id }}</h3>
+                  <p>{{ planilla.confirmadaUtc | date: 'dd MMM yyyy, HH:mm' }} · {{ planilla.filas.length }} {{ planilla.filas.length === 1 ? 'serie' : 'series' }}</p>
+                </div>
+                <button type="button" class="btn" (click)="verPlanillaHistorial(planilla)">Ver reporte</button>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
 
     <!-- Panel de dictado (ADR-0009): siempre disponible; tras una confirmación,
          el primer mensaje dictado abre una carga nueva y saca la vista congelada. -->
     <section class="tarjeta panel-captura">
+      <div class="glow" aria-hidden="true"></div>
       <div class="cabecera-captura">
         <h2>Dictá tu entrenamiento</h2>
-        <p class="meta">Un mensaje por serie. Ej.: «prensa segunda serie 10 con 45».</p>
+        <p class="meta-captura">
+          Escribí o dictá tus ejercicios y series.
+        </p>
       </div>
       <div class="captura">
-        <textarea
-          rows="2"
-          class="entrada-captura"
-          placeholder="Dictá o escribí lo que hiciste…"
-          aria-label="Ejercicio a dictar"
-          [value]="borradorCaptura()"
-          (input)="borradorCaptura.set($any($event.target).value)"
-          (keydown.enter)="$event.preventDefault(); enviarCaptura()"
-        ></textarea>
+        <div class="captura-caja">
+          <textarea
+            #entradaCaptura
+            rows="3"
+            class="entrada-captura"
+            placeholder="Ej.: press de banca, 3 series de 10 con 20 kg"
+            aria-label="Ejercicio a dictar"
+            [value]="borradorCaptura()"
+            (input)="borradorCaptura.set($any($event.target).value)"
+            (keydown.enter)="$event.preventDefault(); enviarCaptura()"
+          ></textarea>
+          <span class="ayuda-enter" aria-hidden="true">Enter para enviar</span>
+        </div>
         <div class="acciones-captura">
           @if (dictado.soportado) {
             <button
@@ -62,42 +137,66 @@
               [attr.aria-label]="dictado.escuchando() ? 'Detener dictado por voz' : 'Dictar por voz'"
               [title]="dictado.escuchando() ? 'Detener el dictado' : 'Dictar por voz'"
             >
-              {{ dictado.escuchando() ? '◼ Escuchando…' : '🎙 Dictar' }}
+              <svg class="icono icono-mic" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                <path clip-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" fill-rule="evenodd"></path>
+              </svg>
+              <span>{{ dictado.escuchando() ? 'Escuchando…' : 'Dictar' }}</span>
             </button>
           }
           <button
             type="button"
-            class="btn btn-primario"
+            class="btn-enviar"
             (click)="enviarCaptura()"
             [disabled]="capturaEnCurso()"
           >
-            Enviar
+            <span>Enviar</span>
+            <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+            </svg>
           </button>
         </div>
       </div>
+      <div class="ejemplos-rapidos" aria-label="Ejemplos rápidos de captura">
+        <span class="etiqueta-ejemplos">EJEMPLOS RÁPIDOS</span>
+        <button type="button" class="ejemplo-rapido" [disabled]="capturaEnCurso()" (click)="borradorCaptura.set('Press de banca 4 series')">
+          <span aria-hidden="true">💡</span> Press de banca 4 series
+        </button>
+        <button type="button" class="ejemplo-rapido" [disabled]="capturaEnCurso()" (click)="borradorCaptura.set('Primera serie 12 repeticiones con 20 kilos')">
+          <span aria-hidden="true">🎙</span> Primera serie 12 reps con 20 kg
+        </button>
+        <button type="button" class="ejemplo-rapido" [disabled]="capturaEnCurso()" (click)="borradorCaptura.set('Segunda serie con 30 kilos')">
+          <span aria-hidden="true">⚡</span> Segunda serie con 30 kg
+        </button>
+      </div>
       @if (dictado.escuchando()) {
         <p class="parcial-dictado" aria-live="polite">
-          {{ dictado.parcial().length > 0 ? '🎙 ' + dictado.parcial() : 'Te escucho… hablá cuando quieras.' }}
+          {{ dictado.parcial().length > 0 ? dictado.parcial() : 'Te escucho… hablá cuando quieras.' }}
         </p>
       }
       @if (dictado.fallo(); as aviso) {
         <div class="banner banner-aviso" role="alert">
+          <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L6.6 16a2 2 0 00-1.73 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+          </svg>
           <div>{{ aviso }}</div>
         </div>
       }
       @if (!dictado.soportado) {
-        <p class="meta">
-          Tu navegador no ofrece dictado por voz: dictale con el teclado (Win+H en Windows, micrófono
-          del teclado en el móvil) o usá Chrome/Edge.
-        </p>
+        <p class="meta-captura aviso-voz">Dictado por voz no disponible. Podés escribir tu entrenamiento.</p>
       }
       @if (ultimoMensajeBot(); as mensaje) {
         <div class="banner banner-info" role="status">
+          <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M13 16h-1v-4h-.01M12 8h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+          </svg>
           <div>{{ mensaje }}</div>
         </div>
       }
       @if (fallaCaptura(); as falla) {
         <div class="banner banner-peligro" role="alert">
+          <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L6.6 16a2 2 0 00-1.73 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+          </svg>
           <div>
             <strong>{{ falla.titulo }}.</strong>
             {{ falla.detalle ?? 'Probá otra vez.' }}
@@ -107,114 +206,204 @@
     </section>
 
     @if (planillaConfirmada(); as congelada) {
+      <!-- Planilla congelada (solo lectura, snapshot ADR-0007 S4) -->
       <section class="tarjeta panel-confirmada">
         <div class="cabecera-confirmada">
           <h2>Planilla confirmada ✓</h2>
-          <p class="meta">
-            Congelada el {{ congelada.confirmadaUtc | date: 'dd MMM, HH:mm' }} · tu profesor ya la
-            puede ver en solo lectura.
+          <p class="meta-captura">
+            Congelada el {{ congelada.confirmadaUtc | date: 'dd MMM, HH:mm' }}.
           </p>
         </div>
 
-        <table class="cuadricula">
-          <thead>
-            <tr>
-              <th class="num">Serie</th>
-              <th>Ejercicio</th>
-              <th class="num">Reps</th>
-              <th class="num">Peso</th>
-              <th class="num">Tiempo</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (firma of congelada.filas; track firma.orden) {
+        <div class="envoltorio-tabla">
+          <table class="cuadricula">
+            <thead>
               <tr>
-                <td class="num">{{ firma.nroSerie }}</td>
-                <td>
-                  <span class="nombre-ejercicio">{{ firma.ejercicioCanonical }}</span>
-                  @if (firma.incompleta) {
-                    <span class="badge badge-aviso">incompleta</span>
-                  }
-                </td>
-                <td class="num">{{ firma.reps ?? '—' }}</td>
-                <td class="num">
-                  {{
-                    firma.unidad === 'PesoCorporal'
-                      ? 'al cuerpo'
-                      : firma.pesoKg === null
-                        ? '—'
-                        : firma.pesoKg + ' kg'
-                  }}
-                </td>
-                <td class="num">{{ firma.tiempoSeg === null ? '—' : firma.tiempoSeg + ' s' }}</td>
+                <th scope="col">Ejercicio</th>
+                <th class="num" scope="col">Serie</th>
+                <th class="num" scope="col">Reps</th>
+                <th class="num" scope="col">Peso</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @for (firma of congelada.filas; track firma.orden) {
+                <tr>
+                  <td>
+                    <span class="ejercicio">
+                      <span class="punto-ejercicio" aria-hidden="true"></span>
+                      {{ firma.ejercicioCanonical }}
+                      @if (firma.incompleta) {
+                        <span class="chip chip-aviso">incompleta</span>
+                      }
+                    </span>
+                  </td>
+                  <td class="num"><span class="chip">{{ firma.nroSerie }}</span></td>
+                  <td class="num reps">{{ firma.reps ?? '—' }}</td>
+                  <td class="num valor">
+                    @if (firma.unidad === 'PesoCorporal') {
+                      al cuerpo
+                    } @else {
+                      {{ firma.pesoKg === null ? '—' : formatoKg(firma.pesoKg) }}
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <section class="panel-exportacion" aria-labelledby="titulo-exportacion">
+          <div>
+            <h3 id="titulo-exportacion">Tus reportes están listos</h3>
+            <p class="meta-captura">Elegí un formato para revisar, imprimir o descargar la planilla.</p>
+          </div>
+          <div class="acciones-descarga">
+            <button type="button" class="btn" (click)="pantallaReportes.set('seleccion')">
+              Elegir reporte PDF o Excel
+            </button>
+            <button
+              type="button"
+              class="btn btn-primario"
+              [disabled]="exportacionEnCurso() || accionEnCurso()"
+              (click)="iniciarNuevoEntrenamiento()"
+            >
+              <span aria-hidden="true">＋</span> Nuevo entrenamiento
+            </button>
+          </div>
+          <details class="envio-correo">
+            <summary>Enviar por correo</summary>
+            <form class="form-correo" (submit)="$event.preventDefault(); enviarPlanillaPorCorreo()">
+              <label class="campo campo-correo">
+                Correo electrónico
+                <input
+                  type="email"
+                  autocomplete="email"
+                  placeholder="jncardozo646@gmail.com"
+                  required
+                  [value]="correoDestino()"
+                  (input)="correoDestino.set($any($event.target).value)"
+                />
+              </label>
+              <label class="campo campo-formato">
+                Formato
+                <select [value]="formatoCorreo()" (change)="formatoCorreo.set($any($event.target).value)">
+                  <option value="excel">Excel</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </label>
+              <button type="submit" class="btn-enviar" [disabled]="exportacionEnCurso()">
+                {{ exportacionEnCurso() ? 'Procesando…' : 'Enviar por correo' }}
+              </button>
+            </form>
+          @if (mensajeExportacion(); as mensaje) {
+            <p class="mensaje-exportacion mensaje-exito" role="status">{{ mensaje }}</p>
+          }
+          @if (fallaExportacion(); as falla) {
+            <p class="mensaje-exportacion mensaje-error" role="alert">{{ falla }}</p>
+          }
+          </details>
+        </section>
 
         <p class="pie-confirmada">
-          Para anotar otro entrenamiento, dictá la primera serie en el panel
-          «Dictá tu entrenamiento».
+          Esta planilla queda guardada en tu historial.
         </p>
       </section>
     } @else {
       @if (sesionViva(); as viva) {
-        <section class="tarjeta">
-          <div class="cabecera-cuadricula">
+        <!-- Sesión en curso: cuadrícula editable -->
+        <section class="tarjeta panel-sesion">
+          <div class="cabecera-sesion">
             <div>
               <h2>Sesión #{{ viva.id }}</h2>
-              @if (viva.ejercicioActivoNombre) {
-                <p class="meta">Estás cargando: {{ viva.ejercicioActivoNombre }}</p>
+              @if (cargandoActual(viva); as lote) {
+                <p class="meta-sesion">
+                  Estás cargando: <span class="cargando-ejercicio">{{ lote }}</span>
+                </p>
+              }
+              @if (viva.filas.length > 0) {
+                @let progreso = progresoSeries();
+                <div class="progreso-series">
+                  <span class="texto-progreso">{{ progreso.completas }} de {{ progreso.total }} series completadas</span>
+                  <span class="porcentaje-progreso">{{ progreso.porcentaje }}%</span>
+                  <div
+                    class="barra-progreso"
+                    role="progressbar"
+                    aria-label="Progreso de series completas"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    [attr.aria-valuenow]="progreso.porcentaje"
+                    [attr.aria-valuetext]="progreso.completas + ' de ' + progreso.total + ' series completadas'"
+                  >
+                    <span [style.width.%]="progreso.porcentaje"></span>
+                  </div>
+                </div>
               }
             </div>
             @if (cuadriculaEditable()) {
               <button
                 type="button"
-                class="btn btn-primario"
+                class="btn-enviar btn-agregar"
                 (click)="abrirAlta()"
-                [disabled]="altaAbierta()"
+                [disabled]="altaAbierta() || filasPendientesDeDatos().length > 0"
+                [title]="filasPendientesDeDatos().length > 0 ? 'Completá las series del ejercicio actual antes de agregar filas' : null"
               >
-                + Agregar fila
+                <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                </svg>
+                <span>+ Agregar fila</span>
               </button>
+              @if (viva.filas.length > 0) {
+                @if (borrarTodasEnConfirmacion()) {
+                  <div class="confirmacion-borrado-total" role="group" aria-label="Confirmar eliminación masiva">
+                    <span>¿Eliminar todos los registros?</span>
+                    <button type="button" class="btn-enlace btn-eliminar" (click)="eliminarTodasLasFilas()" [disabled]="accionEnCurso()">
+                      Sí, eliminar todo
+                    </button>
+                    <button type="button" class="btn-enlace" (click)="cancelarBorradoTotal()">Cancelar</button>
+                  </div>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn-enlace btn-eliminar"
+                    (click)="pedirBorradoTotal()"
+                    [disabled]="accionEnCurso() || filaEditandoId() !== null || altaAbierta()"
+                  >
+                    Eliminar todos
+                  </button>
+                }
+              }
             }
           </div>
 
           @switch (viva.estado) {
-            @case ('EsperandoAclaracion') {
-              <div class="banner banner-aviso" role="status">
-                <div>
-                  <strong>Te falta responder un detalle.</strong>
-                  Te preguntó por «{{ viva.aclaracion?.campo ?? 'un dato de la serie' }}» (intento
-                  {{ viva.aclaracion?.reintento ?? 1 }} de 2). Respondelo desde el panel
-                  «Dictá tu entrenamiento»; la cuadrícula queda congelada mientras tanto.
-                </div>
-              </div>
-            }
             @case ('Expirada') {
               <div class="banner banner-aviso" role="status">
+                <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L6.6 16a2 2 0 00-1.73 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
                 <div>
-                  <strong>La sesión está pausada por inactividad.</strong>
-                  Escribí «seguir» en el panel de arriba para reanudar la carga; mientras tanto no se
-                  puede editar la planilla.
+                  Sesión pausada. Escribí «seguir» arriba para reanudar.
                 </div>
-              </div>
-            }
-            @case ('EnCurso') {
-              <div class="banner banner-info" role="status">
-                <div>
-                  Estás cargando: la cuadrícula se actualiza sola a medida que dictás tus series.
-                </div>
-              </div>
-            }
-            @case ('Lista') {
-              <div class="banner banner-ok" role="status">
-                <div><strong>Tu carga quedó cerrada.</strong> Revisá la cuadrícula y confirmá la planilla.</div>
               </div>
             }
           }
 
+          @if (avisoCompletitud(); as aviso) {
+            <div class="banner banner-aviso" role="status">
+              <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L6.6 16a2 2 0 00-1.73 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+              <div>
+                <strong>Faltan datos:</strong> {{ aviso }}
+              </div>
+            </div>
+          }
+
           @if (fallaAccion(); as falla) {
             <div class="banner banner-peligro" role="alert">
+              <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L6.6 16a2 2 0 00-1.73 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
               <div>
                 <strong>{{ falla.titulo }}.</strong>
                 {{ falla.detalle ?? 'Probá otra vez.' }}
@@ -223,181 +412,155 @@
           }
 
           @if (viva.filas.length === 0) {
-            <p class="vacia">
-              Sin filas todavía: tus series aparecen a medida que las dictás en el panel de arriba.
-            </p>
+            <p class="vacia">Todavía no hay series.</p>
           } @else {
-            <table class="cuadricula">
-              <thead>
-                <tr>
-                  <th class="num">Serie</th>
-                  <th>Ejercicio</th>
-                  <th class="num">Reps</th>
-                  <th class="num">Peso</th>
-                  <th class="num">Tiempo</th>
-                  <th class="col-acciones"><span class="sr-solo">Acciones</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (fila of viva.filas; track fila.id) {
+            <div class="envoltorio-tabla">
+              <table class="cuadricula">
+                <thead>
                   <tr>
-                    <td class="num">
-                      @if (editando(fila) && borradorEdicion(); as borrador) {
-                        <input
-                          type="number"
-                          class="entrada-num"
-                          min="1"
-                          aria-label="Número de serie"
-                          [value]="borrador.serie"
-                          (input)="actualizarBorradorEdicion('serie', $any($event.target).value)"
-                        />
-                      } @else {
-                        {{ fila.nroSerie }}
-                      }
-                    </td>
-                    <td>
-                      <span class="nombre-ejercicio">{{ etiquetaEjercicio(fila) }}</span>
-                      @if (fila.descripcionPendiente) {
-                        <span class="badge badge-violeta">sin ejercicio</span>
-                      }
-                      @if (fila.pendienteAclaracion) {
-                        <span class="badge badge-aviso">pendiente del bot</span>
-                      }
-                    </td>
-                    <td class="num">
-                      @if (editando(fila) && borradorEdicion(); as borrador) {
-                        <input
-                          type="number"
-                          class="entrada-num"
-                          min="1"
-                          aria-label="Repeticiones"
-                          [value]="borrador.reps"
-                          [disabled]="ejercicioDelCatalogo(borrador.ejercicioId)?.usaTiempo === true"
-                          (input)="actualizarBorradorEdicion('reps', $any($event.target).value)"
-                        />
-                      } @else {
-                        {{ fila.reps ?? '—' }}
-                      }
-                    </td>
-                    <td class="num">
-                      @if (editando(fila) && borradorEdicion(); as borrador) {
-                        <div class="celda-peso">
-                          <input
-                            type="number"
-                            class="entrada-num"
-                            min="0"
-                            step="0.5"
-                            aria-label="Peso en kg"
-                            [value]="borrador.peso"
-                            [disabled]="
-                              borrador.pesoAlCuerpo
-                                || borrador.ejercicioId === null
-                                || ejercicioDelCatalogo(borrador.ejercicioId)?.usaTiempo === true
-                            "
-                            (input)="actualizarBorradorEdicion('peso', $any($event.target).value)"
-                          />
-                          <label class="al-cuerpo">
-                            <input
-                              type="checkbox"
-                              [checked]="borrador.pesoAlCuerpo"
-                              (change)="marcarAlCuerpoEdicion($any($event.target).checked)"
-                            />
-                            cuerpo
-                          </label>
-                        </div>
-                      } @else {
-                        {{ pesoTexto(fila) }}
-                      }
-                    </td>
-                    <td class="num">
-                      @if (editando(fila) && borradorEdicion(); as borrador) {
-                        <input
-                          type="number"
-                          class="entrada-num"
-                          min="1"
-                          aria-label="Tiempo en segundos"
-                          [value]="borrador.tiempo"
-                          [disabled]="ejercicioDelCatalogo(borrador.ejercicioId)?.usaTiempo !== true"
-                          (input)="actualizarBorradorEdicion('tiempo', $any($event.target).value)"
-                        />
-                      } @else {
-                        {{ tiempoTexto(fila) }}
-                      }
-                    </td>
-                    <td class="col-acciones">
-                      @if (editando(fila) && borradorEdicion(); as borrador) {
-                        <div class="acciones-editor">
-                          <select
-                            class="selector-ejercicio"
-                            aria-label="Ejercicio de la fila"
-                            [value]="idEjercicioTexto(borrador.ejercicioId)"
-                            (change)="cambiarEjercicioBorrador('edicion', $any($event.target).value)"
-                          >
-                            <option value="">— descripción libre —</option>
-                            @for (e of catalogo(); track e.id) {
-                              <option [value]="e.id">{{ e.nombreCanonico }}</option>
-                            }
-                          </select>
-                          @if (borrador.ejercicioId === null) {
+                    <th scope="col">Ejercicio</th>
+                    <th class="num" scope="col">Serie</th>
+                    <th class="num" scope="col">Reps</th>
+                    <th class="num" scope="col">Peso</th>
+                    <th class="col-acciones" scope="col"><span class="sr-solo">Acciones</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (fila of viva.filas; track fila.id) {
+                    <tr>
+                      <td>
+                        <span class="ejercicio">
+                          <span class="punto-ejercicio" aria-hidden="true"></span>
+                          @if (editando(fila) && borradorEdicion(); as borrador) {
                             <input
                               type="text"
-                              class="entrada-crudo"
-                              placeholder="¿Qué hiciste?"
-                              aria-label="Descripción de la fila"
+                              class="selector-ejercicio"
+                              aria-label="Nombre del ejercicio"
                               [value]="borrador.ejercicioCrudo"
                               (input)="actualizarBorradorEdicion('ejercicioCrudo', $any($event.target).value)"
                             />
+                          } @else {
+                            {{ etiquetaEjercicio(fila) }}
                           }
-                          <div class="par-de-acciones">
-                            <button type="button" class="btn btn-chico" (click)="guardarEdicion(fila)">
-                              Guardar
-                            </button>
-                            <button type="button" class="btn btn-chico" (click)="cancelarEdicion()">
-                              Cancelar
-                            </button>
-                          </div>
-                        </div>
-                      } @else if (cuadriculaEditable()) {
-                        <button type="button" class="btn-enlace" (click)="abrirEdicion(fila)">
-                          Editar
-                        </button>
-                        @if (filaEnConfirmacion() === fila.id) {
-                          <button type="button" class="btn-enlace btn-eliminar" (click)="eliminarFila(fila)">
-                            ¿Borrarla?
-                          </button>
-                          <button type="button" class="btn-enlace" (click)="cancelarBorrado()">No</button>
+                          @if (fila.descripcionPendiente) {
+                            <span class="chip chip-violeta">sin ejercicio</span>
+                          }
+                          @if (fila.pendienteAclaracion) {
+                            <span class="chip chip-aviso">pendiente del bot</span>
+                          }
+                        </span>
+                      </td>
+                      <td class="num">
+                        @if (editando(fila) && borradorEdicion(); as borrador) {
+                          <input
+                            type="number"
+                            class="entrada-num"
+                            min="1"
+                            aria-label="Número de serie"
+                            [value]="borrador.serie"
+                            (input)="actualizarBorradorEdicion('serie', $any($event.target).value)"
+                          />
                         } @else {
-                          <button
-                            type="button"
-                            class="btn-enlace btn-eliminar"
-                            (click)="pedirBorrado(fila.id)"
-                          >
-                            Eliminar
-                          </button>
+                          <span class="chip">{{ fila.nroSerie }}</span>
                         }
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+                      </td>
+                      <td class="num">
+                        @if (editando(fila) && borradorEdicion(); as borrador) {
+                          <input
+                            type="number"
+                            class="entrada-num"
+                            min="1"
+                            aria-label="Repeticiones"
+                            [value]="borrador.reps"
+                            (input)="actualizarBorradorEdicion('reps', $any($event.target).value)"
+                          />
+                        } @else {
+                          <span class="reps">{{ fila.reps ?? '—' }}</span>
+                        }
+                      </td>
+                      <td class="num">
+                        @if (editando(fila) && borradorEdicion(); as borrador) {
+                          <div class="celda-peso">
+                            <input
+                              type="number"
+                              class="entrada-num"
+                              min="0"
+                              step="0.5"
+                              aria-label="Peso en kg"
+                              [value]="borrador.peso"
+                              [disabled]="
+                                borrador.pesoAlCuerpo
+                              "
+                              (input)="actualizarBorradorEdicion('peso', $any($event.target).value)"
+                            />
+                            <label class="al-cuerpo">
+                              <input
+                                type="checkbox"
+                                [checked]="borrador.pesoAlCuerpo"
+                                (change)="marcarAlCuerpoEdicion($any($event.target).checked)"
+                              />
+                              cuerpo
+                            </label>
+                          </div>
+                        } @else {
+                          <span class="valor">{{ pesoTexto(fila) }}</span>
+                        }
+                      </td>
+                      <td class="col-acciones">
+                        @if (editando(fila) && borradorEdicion(); as borrador) {
+                          <div class="acciones-editor">
+                            <div class="par-de-acciones">
+                              <button type="button" class="btn btn-primario btn-chico" (click)="guardarEdicion(fila)">
+                                Guardar
+                              </button>
+                              <button type="button" class="btn btn-chico" (click)="cancelarEdicion()">
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        } @else if (cuadriculaEditable()) {
+                          <button type="button" class="btn-enlace" (click)="abrirEdicion(fila)">
+                            Editar
+                          </button>
+                          @if (filaEnConfirmacion() === fila.id) {
+                            <button type="button" class="btn-enlace btn-eliminar" (click)="eliminarFila(fila)">
+                              ¿Borrarla?
+                            </button>
+                            <button type="button" class="btn-enlace" (click)="cancelarBorrado()">No</button>
+                          } @else {
+                            <button
+                              type="button"
+                              class="btn-enlace btn-eliminar"
+                              (click)="pedirBorrado(fila.id)"
+                              title="Eliminar fila"
+                            >
+                              <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                              </svg>
+                            </button>
+                          }
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           }
 
+          <!-- Alta manual de fila (panel del prototipo) -->
           @if (altaAbierta() && borradorAlta(); as alta) {
             <div class="panel-alta">
               <h3>Agregar fila</h3>
               <div class="campos-alta">
                 <label class="campo campo-ejercicio">
                   Ejercicio
-                  <select
-                    aria-label="Ejercicio de la nueva fila"
-                    [value]="idEjercicioTexto(alta.ejercicioId)"
-                    (change)="cambiarEjercicioBorrador('alta', $any($event.target).value)"
-                  >
-                    @for (e of catalogo(); track e.id) {
-                      <option [value]="e.id">{{ e.nombreCanonico }}</option>
-                    }
-                  </select>
+                  <input
+                    type="text"
+                    placeholder="Ej.: press de banca con mancuernas"
+                    [value]="alta.ejercicioCrudo"
+                    (input)="actualizarBorradorAlta('ejercicioCrudo', $any($event.target).value)"
+                  />
                 </label>
                 <label class="campo">
                   Serie
@@ -414,7 +577,6 @@
                     type="number"
                     min="1"
                     [value]="alta.reps"
-                    [disabled]="ejercicioDelCatalogo(alta.ejercicioId)?.usaTiempo === true"
                     (input)="actualizarBorradorAlta('reps', $any($event.target).value)"
                   />
                 </label>
@@ -425,9 +587,7 @@
                     min="0"
                     step="0.5"
                     [value]="alta.peso"
-                    [disabled]="
-                      alta.pesoAlCuerpo || ejercicioDelCatalogo(alta.ejercicioId)?.usaTiempo === true
-                    "
+                    [disabled]="alta.pesoAlCuerpo"
                     (input)="actualizarBorradorAlta('peso', $any($event.target).value)"
                   />
                   <span class="al-cuerpo">
@@ -439,50 +599,76 @@
                     al cuerpo
                   </span>
                 </label>
-                <label class="campo">
-                  Tiempo (s)
-                  <input
-                    type="number"
-                    min="1"
-                    [value]="alta.tiempo"
-                    [disabled]="ejercicioDelCatalogo(alta.ejercicioId)?.usaTiempo !== true"
-                    (input)="actualizarBorradorAlta('tiempo', $any($event.target).value)"
-                  />
-                </label>
               </div>
               <div class="par-de-acciones">
-                <button type="button" class="btn btn-primario" (click)="guardarAlta()">Guardar fila</button>
+                <button type="button" class="btn-enviar" (click)="guardarAlta()">
+                  Guardar fila
+                </button>
                 <button type="button" class="btn" (click)="cerrarAlta()">Cancelar</button>
               </div>
             </div>
           }
 
-          @if (viva.estado === 'Lista' && !altaAbierta() && filaEditandoId() === null) {
+          @if ((viva.estado === 'EnCurso' || viva.estado === 'Lista') && !altaAbierta() && filaEditandoId() === null) {
             <div class="barra-confirmar">
               <p>
-                ¿La cuadrícula está como querés? Al confirmar, la planilla congela tal cual está y
-                queda visible para tu profesor.
+                Al confirmar, la planilla queda cerrada y podés elegir PDF o Excel.
               </p>
               <button
                 type="button"
-                class="btn btn-primario"
-                [disabled]="viva.filas.length === 0 || accionEnCurso()"
+                class="btn-confirmar"
+                [disabled]="viva.filas.length === 0 || accionEnCurso() || capturaEnCurso()"
                 (click)="confirmar()"
               >
+                <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+                </svg>
                 Confirmar planilla
               </button>
             </div>
           }
         </section>
       } @else {
-        <div class="tarjeta sin-sesion">
-          <h2>No tenés una carga en curso</h2>
-          <p>
-            Dictá tu primer ejercicio en el panel de arriba (o escribilo) y la cuadrícula se va
-            armando sola, directo en esta página.
-          </p>
-        </div>
+        @if (nuevoEntrenamiento()) {
+          <section class="tarjeta panel-sesion nueva-planilla-vacia" aria-labelledby="titulo-nueva-planilla">
+            <div class="cabecera-sesion">
+              <div>
+                <h2 id="titulo-nueva-planilla">Nueva planilla</h2>
+                <p class="meta-sesion">La sesión se inicia cuando envíes el primer ejercicio.</p>
+              </div>
+            </div>
+            <div class="envoltorio-tabla">
+              <table class="cuadricula">
+                <thead>
+                  <tr>
+                    <th scope="col">Ejercicio</th>
+                    <th class="num" scope="col">Serie</th>
+                    <th class="num" scope="col">Reps</th>
+                    <th class="num" scope="col">Peso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td class="mensaje-cuadricula-vacia" colspan="4">Escribí o dictá tu primer ejercicio para empezar.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        } @else {
+          <div class="tarjeta sin-sesion">
+            <h2>Sin sesión activa</h2>
+            <p>Dictá o escribí tu entrenamiento para empezar.</p>
+          </div>
+        }
       }
     }
   }
+}
+}
+
+<!-- Aviso flotante (toast del prototipo) -->
+@if (toast(); as aviso) {
+  <div class="toast {{ aviso.malo ? 'toast-malo' : '' }}" role="status">
+    <span class="punto-toast" aria-hidden="true"></span>
+    <span>{{ aviso.texto }}</span>
+  </div>
 }

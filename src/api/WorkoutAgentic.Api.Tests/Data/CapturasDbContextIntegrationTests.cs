@@ -53,7 +53,6 @@ public class CapturasDbContextIntegrationTests : IDisposable
         {
             await db.Database.MigrateAsync();
 
-            var profesor = new Profesor { Nombre = "Profe Prueba", Email = "profe@example.com" };
             var ejercicio = new Ejercicio
             {
                 NombreCanonico = "Sillón de cuadríceps",
@@ -61,7 +60,7 @@ public class CapturasDbContextIntegrationTests : IDisposable
                 GrupoMuscular = "Cuádriceps",
                 UsaPeso = true,
             };
-            var alumno = new Alumno { Profesor = profesor, TelefonoWa = "5215512345678" };
+            var alumno = new Alumno { Nombre = "Alumno de prueba" };
             var sesion = new SesionCaptura { Alumno = alumno, UltimaActividadUtc = DateTime.UtcNow };
             sesion.Registros.Add(new RegistroParcial
             {
@@ -74,7 +73,7 @@ public class CapturasDbContextIntegrationTests : IDisposable
                 CreadoUtc = DateTime.UtcNow,
             });
 
-            db.AddRange(profesor, ejercicio, alumno);
+            db.AddRange(ejercicio, alumno);
             db.Add(sesion);
             await db.SaveChangesAsync();
         }
@@ -95,22 +94,8 @@ public class CapturasDbContextIntegrationTests : IDisposable
             Assert.Equal(Unidad.Kg, found.Unidad);
             Assert.Equal(45m, found.PesoKg);
             Assert.Equal(12, found.Reps);
-            Assert.Equal("5215512345678", found.Sesion!.Alumno!.TelefonoWa);
+            Assert.Equal("Alumno de prueba", found.Sesion!.Alumno!.Nombre);
             Assert.Equal(EstadoSesionCaptura.EnCurso, found.Sesion.Estado);
-        }
-    }
-
-    [Fact]
-    public async Task SaveChanges_WithDuplicateTelefonoWa_ThrowsConstraintViolation()
-    {
-        using (var db = new CapturasDbContext(_options))
-        {
-            await db.Database.MigrateAsync();
-
-            db.Add(new Alumno { TelefonoWa = "5215510000001" });
-            db.Add(new Alumno { TelefonoWa = "5215510000001" });
-
-            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         }
     }
 

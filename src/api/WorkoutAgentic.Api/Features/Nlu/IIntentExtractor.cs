@@ -7,7 +7,7 @@ public interface IIntentClassifier
 }
 
 // Etapa 3 (ADR-0002 S2): el LLM extrae entidades normalizadas (texto crudo del
-// ejercicio; el CatalogResolver asigna el EjercicioId determinísticamente).
+// ejercicio; el normalizador NLU proporciona un nombre de texto libre).
 public interface IEntityExtractor
 {
     Task<EntidadesExtraidas> ExtraerAsync(string texto, CancellationToken cancellationToken);

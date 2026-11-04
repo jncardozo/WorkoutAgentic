@@ -1,196 +1,11 @@
-/* Vista Alumno · Planilla: encabezado, cuadrícula editable y alta de filas. */
-
-.encabezado {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-}
-
-.meta {
-  color: var(--texto-2);
-  font-size: 13px;
-  margin: 6px 0 0;
-}
-
-.encabezado-lado {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
+/* Vista Alumno · Planilla — estilos portados 1 a 1 del prototipo Stitch
+   (docs/design/prototipo-stitch.html). Tokens y piezas base en styles.scss. */
 
 .texto-suave {
   color: var(--texto-2);
 }
 
-.panel-falla h2 {
-  margin-bottom: 6px;
-}
-
-/* ─── Panel de dictado (captura por texto, ADR-0009) ────────────────────────── */
-
-.panel-captura {
-  margin-bottom: 18px;
-}
-
-.cabecera-captura {
-  margin-bottom: 10px;
-}
-
-.cabecera-captura h2 {
-  margin: 0;
-}
-
-.cabecera-captura .meta {
-  margin-top: 2px;
-}
-
-.captura {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.entrada-captura {
-  flex: 1;
-  min-height: 56px;
-  resize: vertical;
-  background: var(--panel-2);
-  border: 1px solid var(--borde);
-  border-radius: 9px;
-  color: var(--texto);
-  padding: 9px 11px;
-  font-family: var(--tipografia-texto);
-  font-size: 14px;
-  line-height: 1.45;
-  outline: none;
-}
-
-.entrada-captura:focus {
-  border-color: color-mix(in srgb, var(--acento) 55%, var(--borde));
-}
-
-.entrada-captura:disabled {
-  opacity: 0.5;
-}
-
-.acciones-captura {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-self: flex-start;
-}
-
-/* Micrófono (ADR-0011): contorno acento; escuchando, relleno con pulso suave. */
-.btn-mic {
-  border-color: color-mix(in srgb, var(--acento) 45%, var(--borde));
-  color: var(--acento);
-}
-
-.btn-mic.escuchando {
-  color: var(--panel);
-  background: var(--acento);
-  animation: pulso-mic 1.2s ease-in-out infinite;
-}
-
-@keyframes pulso-mic {
-  50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--acento) 25%, transparent);
-  }
-}
-
-.parcial-dictado {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--texto-2);
-  font-style: italic;
-}
-
-@media (max-width: 640px) {
-  .captura {
-    flex-direction: column;
-  }
-
-  .captura .btn {
-    align-self: flex-end;
-  }
-}
-
-/* ─── Cuadrícula ─────────────────────────────────────────────────────────────── */
-
-.cabecera-cuadricula {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-
-.tarjeta .banner {
-  margin-bottom: 14px;
-}
-
-.cuadricula {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.cuadricula th {
-  text-align: left;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--texto-3);
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--borde);
-}
-
-.cuadricula td {
-  padding: 10px;
-  border-bottom: 1px solid var(--borde-suave);
-  vertical-align: middle;
-}
-
-.cuadricula tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.num {
-  font-family: var(--tipografia-numeros);
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-th.num {
-  font-family: var(--tipografia-texto);
-}
-
-.nombre-ejercicio {
-  font-weight: 500;
-}
-
-.nombre-ejercicio + .badge {
-  margin-left: 8px;
-}
-
-.col-acciones {
-  text-align: right;
-}
-
-.col-acciones .btn-enlace {
-  margin-left: 6px;
-}
-
-.vacia {
-  color: var(--texto-2);
-  text-align: center;
-  padding: 28px 0 16px;
-}
+/* ─── Vistas de falla y estados vacíos ───────────────────────────────────────═ */
 
 .sin-sesion h2 {
   margin-bottom: 8px;
@@ -199,9 +14,388 @@ th.num {
 .sin-sesion p {
   color: var(--texto-2);
   margin: 0;
+  line-height: 1.5;
 }
 
-/* ─── Entradas de la cuadrícula (edición inline) ────────────────────────────── */
+.nueva-planilla-vacia .cabecera-sesion {
+  margin-bottom: 18px;
+}
+
+.mensaje-cuadricula-vacia {
+  height: 72px;
+  color: var(--texto-2);
+  text-align: center;
+  font-size: 13px;
+}
+
+.panel-historial {
+  margin-bottom: 28px;
+}
+
+.cabecera-historial,
+.fila-historial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cabecera-historial {
+  margin-bottom: 16px;
+}
+
+.cabecera-historial h2,
+.fila-historial h3 {
+  margin: 0;
+}
+
+.fila-historial h3 {
+  font-size: 14px;
+}
+
+.fila-historial p,
+.estado-historial {
+  margin: 5px 0 0;
+  color: var(--texto-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lista-historial {
+  display: grid;
+  gap: 8px;
+}
+
+.fila-historial {
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--panel-bajo);
+}
+
+.estado-historial {
+  margin-top: 0;
+}
+
+/* ─── Panel de dictado (captura por texto y voz, ADR-0009) ──────────────────── */
+
+.panel-captura {
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+
+/* Glow ambiental verde lima de la esquina superior derecha */
+.glow {
+  position: absolute;
+  right: -64px;
+  top: -64px;
+  width: 192px;
+  height: 192px;
+  background: rgba(163, 230, 53, 0.05);
+  border-radius: 999px;
+  filter: blur(24px);
+  pointer-events: none;
+}
+
+.cabecera-captura {
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.cabecera-captura h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.meta-captura {
+  color: var(--texto-2);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.meta-captura code {
+  font-family: var(--tipografia-numeros);
+  color: var(--texto);
+  font-size: 12px;
+}
+
+.captura {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: stretch;
+  position: relative;
+}
+
+.captura-caja {
+  position: relative;
+}
+
+.entrada-captura {
+  width: 100%;
+  resize: none;
+  background: var(--panel-inset);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-family: var(--tipografia-texto);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.625;
+  padding: 12px 14px;
+  padding-bottom: 28px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.entrada-captura::placeholder {
+  color: var(--texto-3);
+}
+
+.entrada-captura:focus {
+  border-color: var(--acento-fondo);
+  box-shadow: 0 0 0 1px var(--acento-fondo);
+}
+
+.ayuda-enter {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  font-size: 10px;
+  color: var(--texto-3);
+  user-select: none;
+  pointer-events: none;
+}
+
+.acciones-captura {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ejemplos-rapidos {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.etiqueta-ejemplos {
+  margin-right: 3px;
+  color: var(--texto-3);
+  font-family: var(--tipografia-numeros);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.ejemplo-rapido {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 5px 10px;
+  background: var(--panel-2);
+  color: var(--texto-2);
+  font-family: var(--tipografia-texto);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.ejemplo-rapido:hover:not(:disabled),
+.ejemplo-rapido:focus-visible {
+  border-color: var(--acento-fondo);
+  background: var(--panel-2-hover);
+  color: var(--texto-fuerte);
+  outline: none;
+}
+
+.ejemplo-rapido:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* + Agregar fila: versión compacta del botón primario (definido global) */
+
+/* Micrófono: contorno acento; escuchando, relleno con pulso suave. */
+.btn-mic {
+  border-color: var(--borde-fuerte);
+}
+
+.btn-mic .icono-mic {
+  color: var(--acento);
+}
+
+.btn-mic.escuchando {
+  border-color: var(--acento-fondo);
+  background: rgba(26, 46, 12, 0.4);
+  color: #bef264;
+}
+
+.btn-mic.escuchando .icono-mic {
+  color: var(--acento);
+  animation: pulso-suave 1.4s ease-in-out infinite;
+}
+
+.parcial-dictado {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--texto-2);
+  font-style: italic;
+  position: relative;
+}
+
+/* banners ocupan todo el ancho del panel */
+.panel-captura .banner {
+  margin-top: 14px;
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .captura {
+    grid-template-columns: 1fr;
+  }
+
+  .acciones-captura {
+    flex-direction: row;
+  }
+
+  .entrada-captura {
+    min-height: 56px;
+  }
+
+  .ejemplos-rapidos {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .progreso-series {
+    grid-template-columns: auto auto minmax(40px, 1fr);
+    gap: 6px;
+  }
+
+  .texto-progreso {
+    font-size: 10px;
+  }
+}
+
+/* ─── Cuadrícula de la sesión ──────────────────────────────────────────────── */
+
+.panel-sesion {
+  margin-bottom: 0;
+}
+
+.cabecera-sesion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--borde) 80%, transparent);
+}
+
+@media (min-width: 640px) {
+  .cabecera-sesion {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.cabecera-sesion h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.cabecera-sesion > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.meta-sesion {
+  color: var(--texto-2);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.progreso-series {
+  display: grid;
+  grid-template-columns: auto auto minmax(90px, 1fr);
+  align-items: center;
+  gap: 8px;
+  max-width: 620px;
+  margin-top: 10px;
+}
+
+.texto-progreso {
+  color: var(--texto-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.porcentaje-progreso {
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+  font-family: var(--tipografia-numeros);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.barra-progreso {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #263244;
+}
+
+.barra-progreso > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--acento-fondo), var(--ok));
+  transition: width 0.2s ease;
+}
+
+.cargando-ejercicio {
+  color: var(--texto-fuerte);
+  font-weight: 500;
+}
+
+.panel-sesion .banner {
+  margin-bottom: 14px;
+}
+
+.panel-sesion .banner:last-of-type {
+  margin-bottom: 0;
+}
+
+.panel-sesion .envoltorio-tabla {
+  margin-top: 14px;
+}
+
+.vacia {
+  color: var(--texto-2);
+  font-size: 12px;
+  text-align: center;
+  padding: 32px 0 16px;
+  margin: 0;
+}
+
+/* ─── Entradas de la cuadrícula (edición inline) ───────────────────────────── */
 
 .entrada-num {
   width: 78px;
@@ -218,7 +412,7 @@ th.num {
 .entrada-num:focus,
 .selector-ejercicio:focus,
 .entrada-crudo:focus {
-  border-color: color-mix(in srgb, var(--acento) 55%, var(--borde));
+  border-color: var(--acento-fondo);
 }
 
 .entrada-num:disabled,
@@ -229,7 +423,7 @@ th.num {
 
 .selector-ejercicio {
   min-width: 200px;
-  background: var(--panel-2);
+  background: var(--panel-inset);
   border: 1px solid var(--borde);
   border-radius: 8px;
   color: var(--texto);
@@ -241,7 +435,8 @@ th.num {
 
 .entrada-crudo {
   width: 210px;
-  background: var(--panel-2);
+  margin-top: 6px;
+  background: var(--panel-inset);
   border: 1px solid var(--borde);
   border-radius: 8px;
   color: var(--texto);
@@ -261,6 +456,7 @@ th.num {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  font-family: var(--tipografia-texto);
   font-size: 11px;
   color: var(--texto-2);
   white-space: nowrap;
@@ -284,20 +480,12 @@ th.num {
   gap: 8px;
 }
 
-.btn-chico {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-
-.btn-eliminar {
-  color: var(--peligro);
-}
-
-/* ─── Panel de alta ─────────────────────────────────────────────────────────── */
+/* ─── Panel de alta manual ─────────────────────────────────────────────────── */
 
 .panel-alta {
   margin-top: 18px;
-  border-top: 1px solid var(--borde-suave);
+  margin-bottom: 0;
+  border-top: 1px solid color-mix(in srgb, var(--borde) 60%, transparent);
   padding-top: 16px;
 }
 
@@ -308,70 +496,253 @@ th.num {
 
 .campos-alta {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) 80px 80px 110px 90px;
+  grid-template-columns: minmax(200px, 1fr) 80px 80px 130px 90px;
   gap: 12px;
   margin-bottom: 14px;
 }
 
-.campo-ejercicio select {
-  width: 100%;
-  background: var(--panel-2);
-  border: 1px solid var(--borde);
-  border-radius: 9px;
-  color: var(--texto);
-  padding: 8px 10px;
-  font-family: var(--tipografia-texto);
-  font-size: 13px;
-  outline: none;
-}
-
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .campos-alta {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: 1fr 1fr;
   }
 }
 
-/* ─── Confirmación ──────────────────────────────────────────────────────────── */
+/* ─── Barra de confirmación del prototipo ──────────────────────────────────── */
 
 .barra-confirmar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-  padding: 14px 16px;
+  margin-top: 16px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--ok) 30%, var(--borde));
-  background: color-mix(in srgb, var(--ok) 6%, transparent);
+  background: var(--panel-bajo);
+  border: 1px solid var(--borde);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .barra-confirmar {
+    flex-direction: row;
+    justify-content: space-between;
+  }
 }
 
 .barra-confirmar p {
   margin: 0;
   color: var(--texto-2);
-  max-width: 640px;
+  font-size: 12px;
+  line-height: 1.625;
+  text-align: center;
 }
 
-/* ─── Planilla congelada (post confirmación) ────────────────────────────────── */
+@media (min-width: 640px) {
+  .barra-confirmar p {
+    text-align: left;
+  }
+}
+
+.btn-confirmar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  width: 100%;
+  flex-shrink: 0;
+  padding: 10px 24px;
+  font-family: var(--tipografia-texto);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ok-invertido);
+  background: linear-gradient(90deg, var(--acento), var(--ok));
+  transition: background 0.15s ease;
+  box-shadow: var(--brillo-ok);
+}
+
+@media (min-width: 640px) {
+  .btn-confirmar {
+    width: auto;
+  }
+}
+
+.btn-confirmar:hover:not(:disabled) {
+  background: linear-gradient(90deg, var(--acento-suave), #6ee7b7);
+}
+
+.btn-confirmar:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── Planilla confirmada (congelada) ──────────────────────────────────────── */
+
+.panel-confirmada {
+  margin-bottom: 28px;
+}
+
+.cabecera-confirmada h2 {
+  font-size: 20px;
+  letter-spacing: -0.025em;
+}
+
+.cabecera-confirmada .meta-captura {
+  margin-top: 4px;
+}
 
 .cabecera-confirmada {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.panel-confirmada .envoltorio-tabla {
+  margin-bottom: 16px;
+}
+
+.panel-exportacion {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--panel-bajo);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.panel-exportacion h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.acciones-descarga,
+.form-correo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px 12px;
+}
+
+.envio-correo {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--borde) 80%, transparent);
+  padding-top: 14px;
+}
+
+.envio-correo summary {
+  width: fit-content;
+  color: var(--texto);
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.form-correo .campo {
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.campo-correo {
+  flex: 1 1 240px;
+}
+
+.campo-formato {
+  flex: 0 1 140px;
+}
+
+.campo-correo input,
+.campo-formato select {
+  width: 100%;
+  min-height: 40px;
+  background: var(--panel-inset);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  color: var(--texto);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.form-correo .btn-enviar {
+  min-height: 40px;
+}
+
+.mensaje-exportacion {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--borde) 70%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mensaje-exito {
+  color: var(--ok);
+}
+
+.mensaje-error {
+  color: #fda4af;
 }
 
 .pie-confirmada {
   color: var(--texto-2);
-  font-size: 13px;
-  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 20px 0 0;
 }
 
-.sr-solo {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
+@media (max-width: 560px) {
+  .cabecera-historial,
+  .fila-historial {
+    align-items: flex-start;
+  }
+
+  .fila-historial {
+    flex-direction: column;
+  }
+}
+
+/* ─── Toast (aviso flotante del prototipo) ─────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #0f172a;
+  border: 1px solid var(--borde);
+  color: #f1f5f9;
+  font-size: 12px;
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 25px 50px -12px rgba(2, 6, 23, 0.6);
+  animation: toast-entra 0.3s ease;
+}
+
+.punto-toast {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--acento);
+  box-shadow: 0 0 8px var(--acento);
+  flex-shrink: 0;
+}
+
+.toast-malo .punto-toast {
+  background: #f43f5e;
+  box-shadow: none;
+}
+
+@keyframes toast-entra {
+  from {
+    opacity: 0;
+    transform: translateY(64px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

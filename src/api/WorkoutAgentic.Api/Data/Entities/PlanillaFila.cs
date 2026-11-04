@@ -28,7 +28,7 @@ public class PlanillaFila
     public int? TiempoSeg { get; set; }
 
     // Marca congelada: la fila entró al snapshot con un dato faltante según su
-    // tipo de ejercicio (el profesor la ve marcada; regla ADR-0004: la
+    // tipo de ejercicio (la vista la marca; regla ADR-0004: la
     // información nunca se pierde en silencio).
     public bool Incompleta { get; set; }
 }

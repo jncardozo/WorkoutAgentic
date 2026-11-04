@@ -1,6 +1,8 @@
 # ADR 0009 — Pivot: captura por texto en la PWA; WhatsApp deshabilitado
 
 - **Estado:** Aceptado (2026-10-21)
+- **Vigencia:** WhatsApp se retiró del runtime por ADR-0018; este ADR queda
+  como historial del pivot a captura web.
 - **Contexto:** ADR-0002 (S1/S2: STT + NLU), ADR-0004 (sesión de captura y
   aclaraciones), ADR-0008 (SPA Alumno), `docs/domain/nlu-captura.md`,
   `docs/conventions/whatsapp.md`

@@ -7,11 +7,7 @@ namespace WorkoutAgentic.Api.Data;
 // migraciones escritas para ser portables a Postgres (ADR S3).
 public class CapturasDbContext(DbContextOptions<CapturasDbContext> options) : DbContext(options)
 {
-    public DbSet<Profesor> Profesores => Set<Profesor>();
-
     public DbSet<Alumno> Alumnos => Set<Alumno>();
-
-    public DbSet<Invitacion> Invitaciones => Set<Invitacion>();
 
     public DbSet<Ejercicio> Ejercicios => Set<Ejercicio>();
 
@@ -20,8 +16,6 @@ public class CapturasDbContext(DbContextOptions<CapturasDbContext> options) : Db
     public DbSet<RegistroParcial> RegistrosParciales => Set<RegistroParcial>();
 
     public DbSet<AclaracionPendiente> AclaracionesPendientes => Set<AclaracionPendiente>();
-
-    public DbSet<Transcripcion> Transcripciones => Set<Transcripcion>();
 
     public DbSet<PlanillaConfirmada> PlanillasConfirmadas => Set<PlanillaConfirmada>();
 

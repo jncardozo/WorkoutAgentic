@@ -6,6 +6,9 @@
 
 ## S1 — Identificación provisional del alumno (ruta + localStorage)
 
+> **S1 superada por ADR-0022:** el formulario de entrada por número fue retirado
+> para la prueba actual. Se conserva este texto como historial de la decisión.
+
 **Decisión:** hasta AuthApi (S6), el alumno se identifica con una pantalla
 `/entrada` que pide el número de alumno, lo guarda en
 `localStorage['wa.alumnoId']` y navega a `/alumno/:alumnoId/planilla`; la ruta

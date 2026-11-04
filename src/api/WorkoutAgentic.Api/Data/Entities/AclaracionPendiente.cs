@@ -1,6 +1,6 @@
 namespace WorkoutAgentic.Api.Data.Entities;
 
-// Pregunta viva del bot (glosario): pausa el flujo hasta recibir respuesta
+// Pregunta viva de captura: pausa el flujo hasta recibir respuesta
 // (regla madre: no inventar). 1:1 con la sesión.
 public class AclaracionPendiente
 {
@@ -19,8 +19,6 @@ public class AclaracionPendiente
     // Reintento actual: tras 2 reintentos sin resolver, la fila queda marcada
     // con RegistroParcial.PendienteAclaracion=true y el flujo continúa.
     public int Reintento { get; set; }
-
-    public string? MensajeBotWaId { get; set; }
 
     public DateTime ExpiraUtc { get; set; }
 }

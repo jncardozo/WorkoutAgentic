@@ -36,8 +36,6 @@ public class SesionCaptura
 
     public List<RegistroParcial> Registros { get; set; } = [];
 
-    public List<Transcripcion> Transcripciones { get; set; } = [];
-
     // Aclaración viva: 0 o 1 por sesión (1:1).
     public AclaracionPendiente? AclaracionPendiente { get; set; }
 

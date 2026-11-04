@@ -12,17 +12,15 @@ using WorkoutAgentic.Api.Features.CapturaSesion;
 using WorkoutAgentic.Api.Features.CapturaTexto;
 using WorkoutAgentic.Api.Features.Nlu;
 using WorkoutAgentic.Api.Features.PlanillaApi;
-using WorkoutAgentic.Api.Features.WhatsappWebhook;
 
 namespace WorkoutAgentic.Api.Tests.Features.CapturaTexto;
 
 // Tests de integración del POST /api/capturas/{id}/texto (ADR-0009):
 // WebApplicationFactory + BD efímera. El NLU es SINTÉTICO (guion texto →
-// análisis): jamás se llama a Meta ni a Gemini; el resto del pipeline
+// análisis): no se llama a proveedores externos; el resto del pipeline
 // (servicio de sesión, catálogo, vistas) corre real.
 public class CapturaTextoEndpointTests : IDisposable
 {
-    private const string TelefonoSeed = "5215512345678";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -98,22 +96,29 @@ public class CapturaTextoEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task CapturarTexto_WithAltaEjercicio_Returns200WithBotMessageAndRefreshedSession()
+    public async Task CapturarTexto_WithLoteBase_CreaFilasYDejaDatosDeSerieVacios()
     {
         var (alumnoId, ejercicioId, canonico) = await SeedAlumnoConEjercicioAsync("Prensa (prueba)");
-        _nlu.Guion("alta prensa", AnalisisAlta(ejercicioId, canonico, texto: "alta prensa"));
+        _nlu.Guion("prensa 4 series", AnalisisAlta(ejercicioId, canonico, texto: "prensa 4 series", cantidadSeries: 4));
 
-        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "alta prensa" }, JsonOptions);
+        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "prensa 4 series" }, JsonOptions);
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(TextosBot.EjercicioAnotado(canonico), body.MensajeAlumno);
-        Assert.NotNull(body.Respuesta.Sesion);
+        Assert.Equal(TextosBot.SeriesAnotadasBase(canonico, 1, 4), body.MensajeAlumno);
         var sesion = body.Respuesta.Sesion!;
         Assert.Equal("EnCurso", sesion.Estado);
         Assert.Equal(canonico, sesion.EjercicioActivoNombre);
-        // Alta "de palabra": sin datos de serie no se anota fila (regla madre).
-        Assert.Empty(sesion.Filas);
+        // Lote base (ADR-0013): 4 filas con solo ejercicio y serie; los datos
+        // de serie quedan null para completarse después.
+        Assert.Equal(4, sesion.Filas!.Count);
+        Assert.All(sesion.Filas, fila =>
+        {
+            Assert.Null(fila.Reps);
+            Assert.Null(fila.PesoKg);
+            Assert.Equal(canonico, fila.EjercicioCanonico);
+        });
+        Assert.Equal(5, sesion.OrdenSerieSiguiente);
 
         // La sesión creada es la misma que devuelve la vista de planilla.
         var sesionIdDb = await ConDbAsync(async db =>
@@ -122,26 +127,23 @@ public class CapturaTextoEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task CapturarTexto_WithSerieSinPeso_AnnotaFilaYEndsInEsperandoAclaracion()
+    public async Task CapturarTexto_WithSeriesSinEjercicio_EnseniaLaReglaYNoTocaEstado()
     {
-        var (alumnoId, canonicoId, canonico) = await SeedAlumnoConEjercicioAsync("Prensa (prueba)");
-        _nlu.Guion("prensa 8", AnalisisSerie(canonicoId, canonico, texto: "prensa 8", reps: 8));
+        var alumnoId = await SeedAlumnoAsync();
+        _nlu.Guion("3 series de 12", AnalisisSeriesSinEjercicio("3 series de 12"));
 
-        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "prensa 8" }, JsonOptions);
+        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "3 series de 12" }, JsonOptions);
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(TextosBot.PreguntaPeso(canonico), body.MensajeAlumno);
+        Assert.Equal(TextosBot.FueraDeRegla, body.MensajeAlumno);
         var sesion = body.Respuesta.Sesion!;
-        Assert.Equal("EsperandoAclaracion", sesion.Estado);
-        Assert.NotNull(sesion.Aclaracion);
-        Assert.Equal("peso", sesion.Aclaracion!.Campo);
-        var fila = Assert.Single(sesion.Filas);
-        Assert.Equal(8, fila.Reps);
-        Assert.Null(fila.PesoKg); // regla madre: el peso falta y no se inventa
-        Assert.True(fila.PendienteAclaracion);
-        // El servicio ya avanza el contador para la próxima serie del activo.
-        Assert.Equal(2, sesion.OrdenSerieSiguiente);
+        Assert.Equal("EnCurso", sesion.Estado);
+        Assert.Null(sesion.Aclaracion);
+        // Fuera de la regla: nadie cambió el estado ni se apoyó en el activo.
+        Assert.Null(sesion.EjercicioActivoNombre);
+        Assert.Empty(sesion.Filas);
+        Assert.Equal(1, sesion.OrdenSerieSiguiente);
     }
 
     [Fact]
@@ -164,9 +166,7 @@ public class CapturaTextoEndpointTests : IDisposable
     {
         var alumnoId = await SeedAlumnoAsync();
         _nlu.Guion("no entiendo nada", new AnalisisCaptura(
-            WhatsappMessageKind.Text,
             "no entiendo nada",
-            Transcripcion: null,
             ClasificacionIntent.Fallo("No salió la clasificación"),
             Entidades: null,
             ResolucionEjercicio: null));
@@ -215,7 +215,7 @@ public class CapturaTextoEndpointTests : IDisposable
 
     private async Task<int> SeedAlumnoAsync() => await ConDbAsync(async db =>
     {
-        var alumno = new Alumno { TelefonoWa = TelefonoSeed };
+        var alumno = new Alumno { Nombre = "Alumno de prueba" };
         db.Alumnos.Add(alumno);
         await db.SaveChangesAsync();
         return alumno.Id;
@@ -224,7 +224,7 @@ public class CapturaTextoEndpointTests : IDisposable
     private async Task<(int AlumnoId, int EjercicioId, string Canonico)> SeedAlumnoConEjercicioAsync(
         string canonico) => await ConDbAsync(async db =>
     {
-        var alumno = new Alumno { TelefonoWa = TelefonoSeed };
+        var alumno = new Alumno { Nombre = "Alumno de prueba" };
         var ejercicio = new Ejercicio
         {
             NombreCanonico = canonico,
@@ -245,7 +245,7 @@ public class CapturaTextoEndpointTests : IDisposable
             Estado = EstadoSesionCaptura.Expirada,
             UltimaActividadUtc = DateTime.UtcNow.AddHours(-3),
         };
-        db.Add(new Alumno { TelefonoWa = TelefonoSeed, Sesiones = [sesion] });
+        db.Add(new Alumno { Nombre = "Alumno de prueba", Sesiones = [sesion] });
         await db.SaveChangesAsync();
         return sesion.AlumnoId;
     });
@@ -259,33 +259,29 @@ public class CapturaTextoEndpointTests : IDisposable
     private static ClasificacionIntent Clasif(IntentoCaptura intento) => ClasificacionIntent.Ok(intento, 0.9);
 
     private static AnalisisCaptura AnalisisTexto(string texto, IntentoCaptura intento) =>
-        new(WhatsappMessageKind.Text, texto, null, Clasif(intento), null, null);
+        new(texto, Clasif(intento), null, null);
 
-    private static AnalisisCaptura AnalisisAlta(int ejercicioId, string canonico, string texto) =>
+    private static AnalisisCaptura AnalisisAlta(
+        int ejercicioId, string canonico, string texto, int? cantidadSeries = null) =>
         new(
-            WhatsappMessageKind.Text,
             texto,
-            Transcripcion: null,
             Clasif(IntentoCaptura.CargaEjercicio),
             new EntidadesNlu(
-                EjercicioTexto: canonico, SerieOrdinal: null, CantidadSeries: null,
+                EjercicioTexto: canonico, SerieOrdinal: null, CantidadSeries: cantidadSeries,
                 Reps: null, PesoKg: null, Unidad: null, TiempoSegundos: null,
                 DescansoSegundos: null, CampoAclarar: null, PreguntaAclarar: null),
             ResolucionEjercicio: ResultadoResolucionEjercicio.Matcheado(ejercicioId, canonico, 1.0));
 
-    private static AnalisisCaptura AnalisisSerie(
-        int ejercicioId, string canonico, string texto, int? reps, decimal? pesoKg = null) =>
+    private static AnalisisCaptura AnalisisSeriesSinEjercicio(string texto) =>
+        // Dictado fuera de la regla (ADR-0013): series SIN ejercicio nombrado.
         new(
-            WhatsappMessageKind.Text,
             texto,
-            Transcripcion: null,
             Clasif(IntentoCaptura.CargaSerie),
             new EntidadesNlu(
-                EjercicioTexto: null, SerieOrdinal: 1, CantidadSeries: null,
-                Reps: reps, PesoKg: pesoKg, Unidad: pesoKg is null ? null : Unidad.Kg,
-                TiempoSegundos: null, DescansoSegundos: null,
-                CampoAclarar: null, PreguntaAclarar: null),
-            ResolucionEjercicio: ResultadoResolucionEjercicio.Matcheado(ejercicioId, canonico, 1.0));
+                EjercicioTexto: null, SerieOrdinal: null, CantidadSeries: 3,
+                Reps: 12, PesoKg: 60m, Unidad: Unidad.Kg, TiempoSegundos: null,
+                DescansoSegundos: null, CampoAclarar: null, PreguntaAclarar: null),
+            ResolucionEjercicio: null);
 
     // NLU sintético con guion texto → análisis (null = etapa fallida). Los
     // tests NO reimplementan NLU: las etapas reales tienen su propia suite.
@@ -297,12 +293,8 @@ public class CapturaTextoEndpointTests : IDisposable
 
         public void Guion(string texto, AnalisisCaptura? analisis) => _guion[texto] = analisis;
 
-        public Task<AnalisisCaptura?> AnalizarAsync(
-            IncomingWhatsappMessage message, CancellationToken cancellationToken) =>
-            throw new NotSupportedException("El flujo PWA solo consulta AnalizarTextoAsync.");
-
         public Task<AnalisisCaptura?> AnalizarTextoAsync(
-            string texto, string mensajeId, CancellationToken cancellationToken)
+            string texto, CancellationToken cancellationToken)
         {
             Consultas++;
             if (!_guion.TryGetValue(texto, out var analisis))
