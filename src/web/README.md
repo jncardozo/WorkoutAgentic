@@ -11,6 +11,10 @@ API tenga SMTP configurado; no se guardan credenciales en este proyecto.
 
 ## Desarrollo
 
+La guía completa en inglés está en [Local setup and verification](../../docs/getting-started.md),
+incluyendo requisitos, configuración de Gemini y alta explícita del alumno. El
+[recorrido de demo](../../docs/demo.md) muestra el flujo del producto.
+
 Desde esta carpeta:
 
 ```powershell
@@ -23,7 +27,7 @@ para comunicarse con la API.
 ## Compilación y calidad
 
 ```powershell
-npm run build -- --configuration development
+npm run build
 npm run lint
-npm test
+npm test -- --watch=false
 ```
