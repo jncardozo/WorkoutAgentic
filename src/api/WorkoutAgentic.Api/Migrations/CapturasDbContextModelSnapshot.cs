@@ -137,6 +137,9 @@ namespace WorkoutAgentic.Api.Migrations
                     b.Property<int>("Orden")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Comments")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EjercicioCanonical")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -147,6 +150,9 @@ namespace WorkoutAgentic.Api.Migrations
 
                     b.Property<int>("NroSerie")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Observations")
+                        .HasColumnType("TEXT");
 
                     b.Property<decimal?>("PesoKg")
                         .HasColumnType("TEXT");
@@ -172,6 +178,9 @@ namespace WorkoutAgentic.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Comments")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreadoUtc")
                         .HasColumnType("TEXT");
 
@@ -190,6 +199,9 @@ namespace WorkoutAgentic.Api.Migrations
 
                     b.Property<int>("NroSerie")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Observations")
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("PendienteAclaracion")
                         .HasColumnType("INTEGER");

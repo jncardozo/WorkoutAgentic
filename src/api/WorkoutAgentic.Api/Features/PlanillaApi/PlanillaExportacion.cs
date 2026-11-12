@@ -112,6 +112,8 @@ internal static class PlanillaArchivoFactory
         EscribirAnchoColumna(writer, 6, 22);
         EscribirAnchoColumna(writer, 7, 18);
         EscribirAnchoColumna(writer, 8, 25);
+        EscribirAnchoColumna(writer, 9, 30);
+        EscribirAnchoColumna(writer, 10, 60);
         writer.WriteEndElement();
         writer.WriteStartElement("sheetData", SpreadsheetNs);
         EscribirFilaConEstilo(writer, 1, ["WORKOUTAGENTIC  |  REPORTE DE ENTRENAMIENTO"], 1);
@@ -120,7 +122,7 @@ internal static class PlanillaArchivoFactory
         var resumen = Resumir(planilla);
         EscribirFilaConEstilo(writer, 5, [resumen.Series.ToString(CultureInfo.InvariantCulture), "", resumen.VolumenKgReps?.ToString("0.##", CultureInfo.InvariantCulture) ?? "Sin datos", "", resumen.CargaMaximaKg?.ToString("0.##", CultureInfo.InvariantCulture) ?? "Sin datos", ""], 4);
         EscribirFilaConEstilo(writer, 6, ["El volumen suma repeticiones por carga numérica; excluye peso corporal y datos faltantes."], 5);
-        EscribirFilaConEstilo(writer, 7, ["Ejercicio", "Serie", "Repeticiones", "Peso (kg)", "Unidad", "Volumen (kg x reps)", "Estado", "Progresión"], 6);
+        EscribirFilaConEstilo(writer, 7, ["Ejercicio", "Serie", "Repeticiones", "Peso (kg)", "Unidad", "Volumen (kg x reps)", "Estado", "Progresión", "Comentarios", "Observaciones"], 6);
 
         var indice = 8;
         foreach (var fila in planilla.Filas.OrderBy(f => f.Orden))
@@ -144,6 +146,8 @@ internal static class PlanillaArchivoFactory
             }
             CeldaTexto(writer, $"G{indice}", fila.Incompleta ? "Incompleta" : "Registrada", fila.Incompleta ? 9 : estilo);
             CeldaTexto(writer, $"H{indice}", BarraProgresion(fila.PesoKg, fila.Unidad, resumen.CargaMaximaKg), estilo);
+            CeldaTexto(writer, $"I{indice}", fila.Comments, estilo);
+            CeldaTexto(writer, $"J{indice}", fila.Observations, estilo);
             writer.WriteEndElement();
             indice++;
         }
@@ -163,19 +167,19 @@ internal static class PlanillaArchivoFactory
 
         writer.WriteEndElement();
         writer.WriteStartElement("autoFilter", SpreadsheetNs);
-        writer.WriteAttributeString("ref", $"A7:H{Math.Max(7, indice - 1)}");
+        writer.WriteAttributeString("ref", $"A7:J{Math.Max(7, indice - 1)}");
         writer.WriteEndElement();
         writer.WriteStartElement("mergeCells", SpreadsheetNs);
         writer.WriteAttributeString("count", "9");
-        EscribirCeldaFusionada(writer, "A1:H1");
-        EscribirCeldaFusionada(writer, "A2:H2");
+        EscribirCeldaFusionada(writer, "A1:J1");
+        EscribirCeldaFusionada(writer, "A2:J2");
         EscribirCeldaFusionada(writer, "A4:B4");
         EscribirCeldaFusionada(writer, "C4:D4");
         EscribirCeldaFusionada(writer, "E4:F4");
         EscribirCeldaFusionada(writer, "A5:B5");
         EscribirCeldaFusionada(writer, "C5:D5");
         EscribirCeldaFusionada(writer, "E5:F5");
-        EscribirCeldaFusionada(writer, "A6:H6");
+        EscribirCeldaFusionada(writer, "A6:J6");
         writer.WriteEndElement();
         writer.WriteStartElement("pageMargins", SpreadsheetNs);
         writer.WriteAttributeString("left", "0.25");
@@ -247,7 +251,7 @@ internal static class PlanillaArchivoFactory
           <fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF047857"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE8F5EC"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEFF2FF"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF4D6"/><bgColor indexed="64"/></patternFill></fill></fills>
           <borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD5DDE8"/></left><right style="thin"><color rgb="FFD5DDE8"/></right><top style="thin"><color rgb="FFD5DDE8"/></top><bottom style="thin"><color rgb="FFD5DDE8"/></bottom><diagonal/></border></borders>
           <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-          <cellXfs count="11"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0"/><xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0"/><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0"/><xf numFmtId="0" fontId="4" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0"/><xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0"/><xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0"/><xf numFmtId="0" fontId="4" fillId="3" borderId="1" xfId="0"/></cellXfs>
+          <cellXfs count="11"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0"/><xf numFmtId="0" fontId="3" fillId="3" borderId="0" xfId="0"/><xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0"/><xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0"/><xf numFmtId="0" fontId="4" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0"/><xf numFmtId="0" fontId="4" fillId="3" borderId="1" xfId="0"/></cellXfs>
           <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
         </styleSheet>
         """;
@@ -303,10 +307,60 @@ internal static class PlanillaArchivoFactory
         return resultado;
     }
 
+    private sealed record PdfRowBlock(PlanillaFila Row, string[] Notes)
+    {
+        public int Height => 20 + Notes.Length * 10;
+    }
+
+    // Notes wrap and continue on additional pages; no observation is truncated.
+    private static PdfRowBlock[][] PaginatePdf(IEnumerable<PlanillaFila> rows)
+    {
+        var pages = new List<PdfRowBlock[]>();
+        var page = new List<PdfRowBlock>();
+        var height = 0;
+        foreach (var row in rows)
+        {
+            var notes = new List<string>();
+            if (!string.IsNullOrWhiteSpace(row.Comments)) notes.AddRange(WrapNote("Comentarios: " + row.Comments));
+            if (!string.IsNullOrWhiteSpace(row.Observations)) notes.AddRange(WrapNote("Observaciones: " + row.Observations));
+            var chunks = notes.Count == 0 ? new[] { Array.Empty<string>() } : notes.Chunk(40);
+            foreach (var chunk in chunks)
+            {
+                var block = new PdfRowBlock(row, chunk);
+                if (height + block.Height > 440 && page.Count > 0)
+                {
+                    pages.Add(page.ToArray());
+                    page.Clear();
+                    height = 0;
+                }
+                page.Add(block);
+                height += block.Height;
+            }
+        }
+        if (page.Count > 0) pages.Add(page.ToArray());
+        return pages.ToArray();
+    }
+
+    private static IEnumerable<string> WrapNote(string text)
+    {
+        foreach (var paragraph in text.Replace("\r", "").Split('\n'))
+        {
+            var remaining = paragraph;
+            while (remaining.Length > 70)
+            {
+                var boundary = remaining.LastIndexOf(' ', 70);
+                if (boundary <= 0) boundary = 70;
+                yield return remaining[..boundary];
+                remaining = remaining[boundary..].TrimStart();
+            }
+            yield return remaining;
+        }
+    }
+
     private static byte[] CrearPdfReporte(PlanillaConfirmada planilla)
     {
         var filas = planilla.Filas.OrderBy(f => f.Orden).ToArray();
-        var paginas = filas.Chunk(20).Select(p => p.ToArray()).ToArray();
+        var paginas = PaginatePdf(filas);
         if (paginas.Length == 0) paginas = [[]];
         var resumen = Resumir(planilla);
         var contenidos = paginas.Select((pagina, indice) => ContenidoPaginaPdf(planilla, resumen, pagina, indice + 1, paginas.Length)).ToArray();
@@ -351,10 +405,11 @@ internal static class PlanillaArchivoFactory
     private static byte[] ContenidoPaginaPdf(
         PlanillaConfirmada planilla,
         ResumenReporte resumen,
-        IReadOnlyList<PlanillaFila> filas,
+        IReadOnlyList<PdfRowBlock> blocks,
         int numeroPagina,
         int totalPaginas)
     {
+        var filas = blocks.Select(b => b.Row).Distinct().ToArray();
         var pdf = new StringBuilder();
         RectanguloPdf(pdf, 0, 777, 595, 65, "0.02 0.38 0.20");
         TextoPdf(pdf, 40, 814, 17, "WORKOUTAGENTIC  |  REPORTE DE ENTRENAMIENTO", "1 1 1");
@@ -397,10 +452,11 @@ internal static class PlanillaArchivoFactory
         TextoPdf(pdf, 478, 544, 8, "ESTADO", "0.12 0.18 0.27");
 
         var y = 513d;
-        for (var i = 0; i < filas.Count; i++)
+        for (var i = 0; i < blocks.Count; i++)
         {
-            if (i % 2 == 0) RectanguloPdf(pdf, 40, y - 5, 515, 20, "0.97 0.98 1");
-            var fila = filas[i];
+            var block = blocks[i];
+            if (i % 2 == 0) RectanguloPdf(pdf, 40, y - 5 - block.Notes.Length * 10, 515, block.Height, "0.97 0.98 1");
+            var fila = block.Row;
             TextoPdf(pdf, 48, y, 8, Acortar(fila.EjercicioCanonical, 43), "0.08 0.12 0.20");
             TextoPdf(pdf, 323, y, 8, fila.NroSerie.ToString(CultureInfo.InvariantCulture), "0.08 0.12 0.20");
             TextoPdf(pdf, 368, y, 8, fila.Reps?.ToString(CultureInfo.InvariantCulture) ?? "-", "0.08 0.12 0.20");
@@ -411,7 +467,9 @@ internal static class PlanillaArchivoFactory
                     : TieneCargaNumerica(fila) ? $"{fila.PesoKg!.Value.ToString("0.##", cultura)} kg" : "-";
             TextoPdf(pdf, 410, y, 8, peso, "0.02 0.38 0.20");
             TextoPdf(pdf, 478, y, 7, fila.Incompleta ? "INCOMPLETA" : "REGISTRADA", fila.Incompleta ? "0.65 0.35 0.02" : "0.02 0.38 0.20");
-            y -= 20;
+            for (var line = 0; line < block.Notes.Length; line++)
+                TextoPdf(pdf, 48, y - 14 - line * 10, 7, block.Notes[line], "0.20 0.25 0.31");
+            y -= block.Height;
         }
         RectanguloPdf(pdf, 40, 40, 515, 1, "0.83 0.86 0.90");
         TextoPdf(pdf, 40, 26, 7, $"WorkoutAgentic  |  Planilla #{planilla.Id}", "0.35 0.39 0.43");

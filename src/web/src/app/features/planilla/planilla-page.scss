@@ -1,5 +1,11 @@
-/* Vista Alumno · Planilla — estilos portados 1 a 1 del prototipo Stitch
-   (docs/design/prototipo-stitch.html). Tokens y piezas base en styles.scss. */
+/* Vista Alumno · Planilla — Stitch Energy Orange (ADR-0032).
+   Tokens y piezas base en styles.scss. */
+
+:host {
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
 
 .texto-suave {
   color: var(--texto-2);
@@ -20,18 +26,15 @@
 .nueva-planilla-vacia .cabecera-sesion {
   margin-bottom: 18px;
 }
-
 .mensaje-cuadricula-vacia {
   height: 72px;
   color: var(--texto-2);
   text-align: center;
   font-size: 13px;
 }
-
 .panel-historial {
   margin-bottom: 28px;
 }
-
 .cabecera-historial,
 .fila-historial {
   display: flex;
@@ -39,20 +42,16 @@
   justify-content: space-between;
   gap: 16px;
 }
-
 .cabecera-historial {
   margin-bottom: 16px;
 }
-
 .cabecera-historial h2,
 .fila-historial h3 {
   margin: 0;
 }
-
 .fila-historial h3 {
   font-size: 14px;
 }
-
 .fila-historial p,
 .estado-historial {
   margin: 5px 0 0;
@@ -60,12 +59,10 @@
   font-size: 12px;
   line-height: 1.5;
 }
-
 .lista-historial {
   display: grid;
   gap: 8px;
 }
-
 .fila-historial {
   min-height: 64px;
   padding: 12px 14px;
@@ -73,66 +70,54 @@
   border-radius: 8px;
   background: var(--panel-bajo);
 }
-
 .estado-historial {
   margin-top: 0;
 }
-
-/* ─── Panel de dictado (captura por texto y voz, ADR-0009) ──────────────────── */
-
 .panel-captura {
   overflow: hidden;
   margin-bottom: 28px;
 }
-
-/* Glow ambiental verde lima de la esquina superior derecha */
 .glow {
   position: absolute;
   right: -64px;
   top: -64px;
   width: 192px;
   height: 192px;
-  background: rgba(163, 230, 53, 0.05);
+  background: #ff6a000d;
   border-radius: 999px;
   filter: blur(24px);
   pointer-events: none;
 }
-
 .cabecera-captura {
   margin-bottom: 14px;
   position: relative;
 }
-
 .cabecera-captura h2 {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.025em;
 }
-
 .meta-captura {
   color: var(--texto-2);
   font-size: 12px;
   margin: 4px 0 0;
 }
-
 .meta-captura code {
   font-family: var(--tipografia-numeros);
   color: var(--texto);
   font-size: 12px;
 }
-
 .captura {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
   align-items: stretch;
   position: relative;
 }
-
 .captura-caja {
   position: relative;
+  min-width: 0;
 }
-
 .entrada-captura {
   width: 100%;
   resize: none;
@@ -144,37 +129,34 @@
   font-weight: 500;
   font-size: 14px;
   line-height: 1.625;
-  padding: 12px 14px;
-  padding-bottom: 28px;
+  padding: 12px 14px 28px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
-
 .entrada-captura::placeholder {
   color: var(--texto-3);
 }
-
 .entrada-captura:focus {
   border-color: var(--acento-fondo);
   box-shadow: 0 0 0 1px var(--acento-fondo);
 }
-
 .ayuda-enter {
   position: absolute;
   bottom: 10px;
   right: 12px;
   font-size: 10px;
   color: var(--texto-3);
+  -webkit-user-select: none;
   user-select: none;
   pointer-events: none;
 }
-
 .acciones-captura {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
-
 .ejemplos-rapidos {
   position: relative;
   display: flex;
@@ -183,7 +165,6 @@
   gap: 7px;
   margin-top: 12px;
 }
-
 .etiqueta-ejemplos {
   margin-right: 3px;
   color: var(--texto-3);
@@ -193,12 +174,11 @@
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
-
 .ejemplo-rapido {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
+  min-height: 44px;
   border: 1px solid var(--borde);
   border-radius: 6px;
   padding: 5px 10px;
@@ -207,9 +187,11 @@
   font-family: var(--tipografia-texto);
   font-size: 11px;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
 }
-
 .ejemplo-rapido:hover:not(:disabled),
 .ejemplo-rapido:focus-visible {
   border-color: var(--acento-fondo);
@@ -217,34 +199,25 @@
   color: var(--texto-fuerte);
   outline: none;
 }
-
 .ejemplo-rapido:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
-/* + Agregar fila: versión compacta del botón primario (definido global) */
-
-/* Micrófono: contorno acento; escuchando, relleno con pulso suave. */
 .btn-mic {
   border-color: var(--borde-fuerte);
 }
-
 .btn-mic .icono-mic {
   color: var(--acento);
 }
-
 .btn-mic.escuchando {
   border-color: var(--acento-fondo);
-  background: rgba(26, 46, 12, 0.4);
-  color: #bef264;
+  background: #371b0866;
+  color: #ffab66;
 }
-
 .btn-mic.escuchando .icono-mic {
   color: var(--acento);
   animation: pulso-suave 1.4s ease-in-out infinite;
 }
-
 .parcial-dictado {
   margin: 10px 0 0;
   font-size: 13px;
@@ -252,122 +225,77 @@
   font-style: italic;
   position: relative;
 }
-
-/* banners ocupan todo el ancho del panel */
 .panel-captura .banner {
   margin-top: 14px;
   position: relative;
 }
-
 @media (max-width: 640px) {
   .captura {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-
   .acciones-captura {
     flex-direction: row;
   }
-
   .entrada-captura {
     min-height: 56px;
   }
-
-  .ejemplos-rapidos {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .progreso-series {
-    grid-template-columns: auto auto minmax(40px, 1fr);
-    gap: 6px;
-  }
-
-  .texto-progreso {
-    font-size: 10px;
-  }
 }
-
-/* ─── Cuadrícula de la sesión ──────────────────────────────────────────────── */
-
 .panel-sesion {
   margin-bottom: 0;
 }
 
 .cabecera-sesion {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--borde) 80%, transparent);
+  min-width: 0;
+  margin-bottom: 24px;
 }
-
-@media (min-width: 640px) {
-  .cabecera-sesion {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
 .cabecera-sesion h2 {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.025em;
 }
+.session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--borde);
+}
+.session-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.session-primary-actions > button {
+  min-height: 44px;
+}
+.session-destructive-actions {
+  margin-left: auto;
+}
+.session-destructive-actions > button {
+  min-height: 44px;
+}
 
-.cabecera-sesion > div:first-child {
-  min-width: 0;
-  flex: 1;
+@media (max-width: 640px) {
+  .session-primary-actions {
+    width: 100%;
+  }
+  .session-primary-actions > button {
+    width: 100%;
+  }
+  .session-destructive-actions {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--borde);
+  }
 }
 
 .meta-sesion {
   color: var(--texto-2);
   font-size: 12px;
   margin: 4px 0 0;
-}
-
-.progreso-series {
-  display: grid;
-  grid-template-columns: auto auto minmax(90px, 1fr);
-  align-items: center;
-  gap: 8px;
-  max-width: 620px;
-  margin-top: 10px;
-}
-
-.texto-progreso {
-  color: var(--texto-2);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.porcentaje-progreso {
-  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
-  border-radius: 4px;
-  padding: 2px 6px;
-  color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 10%, transparent);
-  font-family: var(--tipografia-numeros);
-  font-size: 10px;
-  line-height: 1.3;
-}
-
-.barra-progreso {
-  height: 7px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #263244;
-}
-
-.barra-progreso > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--acento-fondo), var(--ok));
-  transition: width 0.2s ease;
 }
 
 .cargando-ejercicio {
@@ -503,7 +431,7 @@
 
 @media (max-width: 900px) {
   .campos-alta {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -569,7 +497,7 @@
 }
 
 .btn-confirmar:hover:not(:disabled) {
-  background: linear-gradient(90deg, var(--acento-suave), #6ee7b7);
+  background: linear-gradient(90deg, var(--acento-suave), #ffb780);
 }
 
 .btn-confirmar:disabled {
@@ -708,6 +636,8 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
+  max-width: calc(100% - 48px);
+  overflow-wrap: anywhere;
   z-index: 50;
   display: flex;
   align-items: center;
@@ -745,4 +675,106 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.series-note {
+  min-width: 180px;
+  max-width: 320px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  textarea { width: 100%; min-width: 160px; resize: vertical; }
+}
+.campos-alta textarea { width: 100%; resize: vertical; }
+
+@media (max-width: 640px) {
+  .ejemplo-rapido {
+    flex-shrink: 0;
+  }
+}
+
+.row-edit { appearance: none; background: none; border: none; color: inherit; font: inherit; text-align: left; padding: 8px 0; min-height: 44px; cursor: pointer; }
+.row-edit:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+.capture-spinner {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: capture-spin 0.8s linear infinite;
+}
+
+.capture-loading {
+  margin: 12px 0 0;
+  color: var(--acento);
+  font-size: 13px;
+}
+
+.dismissible-notice {
+  width: 100%;
+  min-height: 44px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dismissible-notice > .icono-16 { flex-shrink: 0; }
+.notice-close { margin-left: auto; font-size: 20px; line-height: 1; }
+.dismissible-notice:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+@keyframes capture-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-spinner { animation: none; }
+}
+.exercise-card {
+  min-width: 0;
+  margin-top: 16px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+}
+
+.exercise-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid var(--borde);
+  background: var(--panel-cabeza);
+}
+
+.exercise-card-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  color: var(--texto-fuerte);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.exercise-card-header > span {
+  flex-shrink: 0;
+  color: var(--texto-2);
+  font-size: 12px;
+}
+
+.exercise-card .envoltorio-tabla {
+  margin: 0;
+  border: 0;
+  border-radius: 0 0 10px 10px;
+}
+
+.inline-exercise-name label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto-2);
 }

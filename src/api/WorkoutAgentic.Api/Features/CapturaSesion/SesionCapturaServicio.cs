@@ -12,14 +12,9 @@ namespace WorkoutAgentic.Api.Features.CapturaSesion;
 // Reglas de dominio en docs/domain/business-rules.md; decisiones del slice en
 // ADR-0004. Regla madre: si falta o es ambiguo → aclaración, jamás inventado.
 //
-// Regla del dictado (ADR-0013 + ADR-0014): el alumno carga en DOS pasos.
-// PASO 1 "EJERCICIO + SERIES" (ej.: "press de banca 4 series", o "sillón,
-// segunda serie" puntual) crea filas con ejercicio y número de serie SOLAMENTE.
-// PASO 2 "NRO DE SERIE + REPS y/o PESO" (ej.: "primera serie 12 repeticiones
-// con 20 kilos", sin nombrar ejercicio) llena la fila de ese ordinal del
-// EJERCICIO ACTIVO de la sesión. Lo dictado fuera de cualquiera de las dos
-// reglas responde la guía y NO toca el estado: nunca se inventa un dato.
-internal sealed class SesionCapturaServicio(
+// ADR-0025: altas con datos comunes y particulares, y actualizaciones de
+// varias series existentes. La validación precede a cualquier cambio de filas.
+internal sealed partial class SesionCapturaServicio(
     CapturasDbContext db,
     ILogger<SesionCapturaServicio> logger) : ISesionCapturaServicio
 {
@@ -57,6 +52,12 @@ internal sealed class SesionCapturaServicio(
         var alumno = await db.Alumnos.SingleOrDefaultAsync(a => a.Id == alumnoId, cancellationToken)
                      ?? throw new InvalidOperationException(
                          $"Alumno {alumnoId} inexistente: el borde valida 404 antes de aplicar.");
+        var validation = ValidateCapture(analisis);
+        if (validation is not null)
+        {
+            var current = await SesionRecienteAsync(alumnoId, cancellationToken);
+            return new(validation, current?.Id ?? 0, AclaracionCreada: false);
+        }
         return await NucleoAsync(alumno, analisis, ahora, cancellationToken);
     }
 
@@ -105,7 +106,7 @@ internal sealed class SesionCapturaServicio(
                     AclaracionCreada: false);
             }
 
-            if (!EsCapturaBase(analisis))
+            if (!EsCapturaBase(analisis) && !EsCargaDatosSerie(analisis))
             {
                 // Dictado de carga fuera de la regla → el bot enseña la regla
                 // (sin abrir la planilla); ayuda, cortesía e inválidos solo
@@ -173,25 +174,13 @@ internal sealed class SesionCapturaServicio(
     private static bool EsIntentoDeCarga(AnalisisCaptura analisis) =>
         analisis.Clasificacion is { Exito: true, Intento: IntentoCaptura.CargaEjercicio or IntentoCaptura.CargaSerie };
 
-    // ¿El dictado carga el DATO de una serie ya creada (regla 2, ADR-0014)?
-    // "NRO DE SERIE + REPS y/o PESO" SIN nombrar ejercicio: la fila es la de
-    // ese ordinal del EJERCICIO ACTIVO (el alumno ya la armó en el paso 1,
-    // ADR-0013). Exige ordinal y al menos un dato hablado: un ordinal suelto
-    // o un mensaje con ejercicio nombrado pertenecen a la regla base.
-    private static bool EsCargaDatosSerie(AnalisisCaptura analisis)
-    {
-        if (!EsIntentoDeCarga(analisis)
-            || analisis.Entidades is not { } entidades
-            || entidades.EjercicioTexto is { Length: > 0 }
-            || entidades.SerieOrdinal is not >= 1)
-        {
-            return false;
-        }
-
-        return entidades.Reps is not null
-            || entidades.PesoKg is not null
-            || entidades.Unidad == Unidad.PesoCorporal;
-    }
+    // ADR-0025: uno o varios ordinales con datos/notas actualizan filas;
+    // el ejercicio puede nombrarse y no hay cantidad de un lote nuevo.
+    private static bool EsCargaDatosSerie(AnalisisCaptura analisis) =>
+        EsIntentoDeCarga(analisis)
+        && analisis.Entidades is { CantidadSeries: null } entities
+        && (entities.Series is { Count: > 0 }
+            || (entities.SerieOrdinal is >= 1 && HasData(CommonData(entities))));
 
     // ¿El dictado cumple la REGLA BASE (ADR-0013)? Un ejercicio nombrado
     // por el alumno (crudo extraído del mensaje o resuelto por el pipeline) +
@@ -333,7 +322,7 @@ internal sealed class SesionCapturaServicio(
 
         var entidades = analisis.Entidades;
         var nombre = entidades?.EjercicioNormalizado ?? entidades?.EjercicioTexto;
-        if (string.IsNullOrWhiteSpace(nombre) || filas.Count == 0)
+        if (entidades?.CampoAclarar == "ejercicio" || string.IsNullOrWhiteSpace(nombre) || filas.Count == 0)
         {
             return null;
         }
@@ -384,9 +373,7 @@ internal sealed class SesionCapturaServicio(
             ?? "el ejercicio";
 
         return new(
-            TextosBot.SeriesAnotadasBase(
-                nombre,
-                filas.Min(f => f.NroSerie), filas.Max(f => f.NroSerie)),
+            BatchMessage(nombre, filas),
             sesion.Id,
             AclaracionCreada: false);
     }
@@ -408,7 +395,7 @@ internal sealed class SesionCapturaServicio(
         DateTime ahora,
         CancellationToken cancellationToken)
     {
-        // Regla 2 (ADR-0014) primero: datos de serie sin ejercicio nombrado.
+        // Actualizaciones primero: datos/notas sobre ordinales existentes (ADR-0025).
         if (EsCargaDatosSerie(analisis))
         {
             return await AplicarDatosSerieAsync(sesion, analisis, cancellationToken);
@@ -453,7 +440,9 @@ internal sealed class SesionCapturaServicio(
         // 1 — el contador del activo puede pertenecer a OTRO ejercicio y no
         // corresponde heredarlo (ADR-0013).
         var cantidad = entidades.CantidadSeries is { } c && c >= 1 ? c : 1;
-        var nroBase = entidades.SerieOrdinal ?? sesion.OrdenSerieSiguiente;
+        var nroBase = entidades.CantidadSeries is not null
+            ? sesion.OrdenSerieSiguiente
+            : entidades.SerieOrdinal ?? sesion.OrdenSerieSiguiente;
         var filas = new List<RegistroParcial>(cantidad);
 
         for (var i = 0; i < cantidad; i++)
@@ -465,14 +454,21 @@ internal sealed class SesionCapturaServicio(
                 EjercicioCrudo = entidades.EjercicioTexto, // lo que dijo (auditoría)
                 EjercicioCanonico = nombreEjercicio,
                 NroSerie = nroBase + i,
-                Reps = null,    // ADR-0013/0014: el lote nace con ejercicio + serie;
-                PesoKg = null,  // el dato de cada serie llega con la regla 2
+                Reps = null,    // Solo se completan abajo los datos explícitos.
+                PesoKg = null,
                 Unidad = null,
                 TiempoSeg = null,
                 DescripcionPendiente = false,
                 PendienteAclaracion = aclaracionAbierta,
                 CreadoUtc = ahora,
             });
+        }
+
+        foreach (var (row, index) in filas.Select((row, index) => (row, index)))
+        {
+            ApplyValues(row, CommonData(entidades));
+            var detail = entidades.Series?.SingleOrDefault(d => d.Ordinal == index + 1);
+            if (detail is not null) ApplyValues(row, detail);
         }
 
         db.RegistrosParciales.AddRange(filas);
@@ -489,96 +485,7 @@ internal sealed class SesionCapturaServicio(
         }
 
         return new(
-            TextosBot.SeriesAnotadasBase(nombreEjercicio, nroBase, nroBase + cantidad - 1),
-            sesion.Id,
-            AclaracionCreada: false);
-    }
-
-    // Regla 2 (ADR-0014): "NRO DE SERIE + REPS y/o PESO" SIN ejercicio nombrado
-    // llena la fila de ese ordinal del ÚLTIMO LOTE armado (el lote vivo que el
-    // alumno está cargando — véase «Estás cargando» en la SPA), sea de un
-    // ejercicio del catálogo o de TEXTO LIBRE (cantidad de series de «otro»).
-    // El objetivo ya NO es el EjercicioActivoId heredado: dictar datos después
-    // de un lote pendiente de resolver (SinMatch) debe tocar ESE lote.
-    // Nada inventado: la fila que no existe se avisa (no se crea), solo se
-    // escriben los valores DICHO y el último dictado gana. Unidad.Tiempo no
-    // entra en la regla: el tiempo se retiró del MVP (ADR-0014).
-    private async Task<CapturaRespuesta> AplicarDatosSerieAsync(
-        SesionCaptura sesion,
-        AnalisisCaptura analisis,
-        CancellationToken cancellationToken)
-    {
-        var entidades = analisis.Entidades!;
-        var ordinal = entidades.SerieOrdinal!.Value;
-
-        var todas = await db.RegistrosParciales
-            .Where(r => r.SesionId == sesion.Id)
-            .ToListAsync(cancellationToken);
-
-        // Lote vivo = las filas del último paso 1 (las comparten CreadoUtc;
-        // edición y arranque de datos no lo tocan). Sin filas: sin contexto.
-        var creadoVivo = todas.Count > 0 ? todas.Max(r => r.CreadoUtc) : default(DateTime?);
-        var lote = creadoVivo is { } vivo
-            ? todas.Where(r => r.CreadoUtc == vivo).OrderBy(r => r.Id).ToList()
-            : [];
-
-        if (lote.Count == 0)
-        {
-            // Datos de serie sin contexto: primero el paso 1 (ejercicio +
-            // series); el dictado no apoya en filas ajenas ni las adivina.
-            return new(TextosBot.FueraDeRegla, sesion.Id, AclaracionCreada: false);
-        }
-
-        var filaModelo = lote[0];
-        var nombre = filaModelo.EjercicioCanonico
-            ?? filaModelo.Ejercicio?.NombreCanonico
-            ?? filaModelo.EjercicioCrudo
-            ?? "el ejercicio";
-
-        var fila = lote.FirstOrDefault(r => r.NroSerie == ordinal);
-        if (fila is null)
-        {
-            logger.LogInformation(
-                "Datos de serie sin fila: serie {Ordinal} no está en el lote vivo de '{Nombre}' (sesión {Sesion}).",
-                ordinal, nombre, sesion.Id);
-            return new(TextosBot.SerieSinFila(nombre, ordinal), sesion.Id, AclaracionCreada: false);
-        }
-
-        // Solo se escribe lo DICTADO (regla madre: nada inventado); lo demás
-        // de la fila queda como estaba; repetir un valor lo sobrescribe ("último
-        // dictado gana"). "50" suelto → kg (lo fija NormalizarValores).
-        var (peso, unidad) = NormalizarValores(entidades.PesoKg, entidades.Unidad);
-        if (peso is not null)
-        {
-            fila.PesoKg = peso;
-            fila.Unidad = unidad == Unidad.Tiempo ? null : unidad;
-        }
-        else if (entidades.Unidad == Unidad.PesoCorporal)
-        {
-            fila.PesoKg = null;
-            fila.Unidad = Unidad.PesoCorporal;
-        }
-
-        if (entidades.Reps is { } reps)
-        {
-            fila.Reps = reps;
-        }
-
-        // El dato llegó: la fila ya no "espera al bot" en la cuadrícula.
-        fila.PendienteAclaracion = false;
-
-        var faltantes = ReglaCompletitudSeries.CamposFaltantes(fila);
-        var mensajeSerie = TextosBot.SerieConDatos(
-            nombre,
-            ordinal,
-            TextosBot.DetalleSerie(fila.Reps, fila.PesoKg, fila.Unidad));
-        if (faltantes.Count > 0)
-        {
-            mensajeSerie += $" Para seguir, falta {string.Join(" y ", faltantes)} de esta serie.";
-        }
-
-        return new(
-            mensajeSerie,
+            BatchMessage(nombreEjercicio, filas),
             sesion.Id,
             AclaracionCreada: false);
     }

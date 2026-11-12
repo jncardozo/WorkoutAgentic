@@ -40,7 +40,19 @@ public sealed record EntidadesNlu(
     int? DescansoSegundos,
     string? CampoAclarar,
     string? PreguntaAclarar,
-    string? EjercicioNormalizado = null);
+    string? EjercicioNormalizado = null,
+    string? Comments = null,
+    string? Observations = null,
+    IReadOnlyList<SeriesDetail>? Series = null);
+
+// Ordinal relativo 1..N en un alta por cantidad; ordinal real al actualizar.
+public sealed record SeriesDetail(
+    int Ordinal,
+    int? Reps = null,
+    decimal? Weight = null,
+    Unidad? Unit = null,
+    string? Comments = null,
+    string? Observations = null);
 
 public sealed record EntidadesExtraidas(
     bool Exito,

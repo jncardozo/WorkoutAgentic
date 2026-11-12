@@ -17,7 +17,7 @@
 
     <div class="acciones-top">
       @if (modo() !== 'seleccion') {
-        <button type="button" class="boton-lima" (click)="descargar.emit(modo() === 'excel' ? 'excel' : 'pdf')">↓ Descargar</button>
+        <button type="button" class="boton-acento" (click)="descargar.emit(modo() === 'excel' ? 'excel' : 'pdf')">↓ Descargar</button>
       }
       <button type="button" class="boton-usuario" aria-label="Volver a la planilla" (click)="cerrar.emit()">×</button>
     </div>
@@ -37,7 +37,7 @@
             <p>Documento listo para imprimir en hoja A4.</p>
           </div>
           <span class="tipo-opcion">{{ filas().length }} {{ filas().length === 1 ? 'serie' : 'series' }}</span>
-          <button type="button" class="boton-lima" (click)="seleccionar.emit('pdf')">Ver reporte PDF <span aria-hidden="true">→</span></button>
+          <button type="button" class="boton-acento" (click)="seleccionar.emit('pdf')">Ver reporte PDF <span aria-hidden="true">→</span></button>
         </article>
 
         <article class="opcion-reporte">
@@ -47,7 +47,7 @@
             <p>Planilla de datos para abrir o guardar como XLSX.</p>
           </div>
           <span class="tipo-opcion">{{ filas().length }} {{ filas().length === 1 ? 'serie' : 'series' }}</span>
-          <button type="button" class="boton-lima" (click)="seleccionar.emit('excel')">Ver planilla Excel <span aria-hidden="true">→</span></button>
+          <button type="button" class="boton-acento" (click)="seleccionar.emit('excel')">Ver planilla Excel <span aria-hidden="true">→</span></button>
         </article>
       </div>
       <button class="volver-planilla" type="button" (click)="cerrar.emit()">Volver a la planilla</button>
@@ -57,7 +57,7 @@
       <div class="estado-documento"><span class="punto-ok"></span><span>VISTA PREVIA</span><span class="separador">·</span><span>A4 ESTÁNDAR</span></div>
       <div class="acciones-documento">
         <button type="button" class="boton-secundario" (click)="imprimir.emit('pdf')">⎙ Imprimir</button>
-        <button type="button" class="boton-lima" (click)="descargar.emit('pdf')">↓ Descargar PDF</button>
+        <button type="button" class="boton-acento" (click)="descargar.emit('pdf')">↓ Descargar PDF</button>
       </div>
     </div>
 
@@ -88,6 +88,8 @@
                   <span class="serie-label">Serie {{ fila.nroSerie }}</span>
                   <span>{{ fila.reps === null ? '—' : fila.reps + ' reps' }}</span>
                   <strong>{{ pesoTexto(fila) }}</strong>
+                  @if (fila.comments) { <p class="series-note">Comentarios: {{ fila.comments }}</p> }
+                  @if (fila.observations) { <p class="series-note">Observaciones: {{ fila.observations }}</p> }
                   @if (fila.incompleta) { <span class="badge-incompleta">INCOMPLETA</span> }
                 </div>
               }
@@ -116,7 +118,7 @@
       <div class="excel-icono">▦</div>
       <div><h1>{{ nombreArchivo('excel') }}</h1><p><span class="punto-ok"></span> Vista de planilla · Formato OpenXML estándar</p></div>
       <span class="etiqueta-hoja">HOJA 1</span>
-      <div class="acciones-archivo"><button type="button" class="boton-lima" (click)="descargar.emit('excel')">↓ Descargar .XLSX</button><button type="button" class="boton-secundario" (click)="imprimir.emit('excel')">⎙ Imprimir</button></div>
+      <div class="acciones-archivo"><button type="button" class="boton-acento" (click)="descargar.emit('excel')">↓ Descargar .XLSX</button><button type="button" class="boton-secundario" (click)="imprimir.emit('excel')">⎙ Imprimir</button></div>
     </div>
 
     <main class="vista-excel">
@@ -139,10 +141,10 @@
 
       <section class="hoja-excel" aria-label="Hoja de datos del reporte Excel">
         <div class="barra-hoja"><strong>PLANILLA DE ENTRENAMIENTO</strong><span>{{ filas().length }} FILAS REGISTRADAS</span></div>
-        <div class="tabla-scroll"><table><thead><tr><th>#</th><th>Ejercicio</th><th>Serie</th><th>Reps</th><th>Peso (kg)</th><th>Volumen</th><th>Progresión</th></tr></thead>
+        <div class="tabla-scroll"><table><thead><tr><th>#</th><th>Ejercicio</th><th>Serie</th><th>Reps</th><th>Peso (kg)</th><th>Volumen</th><th>Progresión</th><th>Comentarios</th><th>Observaciones</th></tr></thead>
           <tbody>
             @for (fila of filas(); track fila.orden; let indice = $index) {
-              <tr><td>{{ indice + 1 }}</td><td><span class="punto-tabla"></span>{{ fila.ejercicioCanonical }}</td><td>{{ fila.nroSerie }}</td><td>{{ fila.reps ?? '—' }}</td><td>{{ pesoTexto(fila) }}</td><td>{{ volumenFila(fila) }}</td><td><span class="barra-celda"><i [style.width]="anchoBarra(fila)"></i></span></td></tr>
+              <tr><td>{{ indice + 1 }}</td><td><span class="punto-tabla"></span>{{ fila.ejercicioCanonical }}</td><td>{{ fila.nroSerie }}</td><td>{{ fila.reps ?? '—' }}</td><td>{{ pesoTexto(fila) }}</td><td>{{ volumenFila(fila) }}</td><td><span class="barra-celda"><i [style.width]="anchoBarra(fila)"></i></span></td><td class="series-note">{{ fila.comments || '—' }}</td><td class="series-note">{{ fila.observations || '—' }}</td></tr>
             }
           </tbody>
         </table></div>

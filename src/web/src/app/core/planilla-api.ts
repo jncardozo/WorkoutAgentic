@@ -27,6 +27,8 @@ export interface FilaParcialVista {
   pesoKg: number | null;
   unidad: string | null;
   tiempoSeg: number | null;
+  comments?: string | null;
+  observations?: string | null;
   pendienteAclaracion: boolean;
   creadoUtc: string;
 }
@@ -62,6 +64,8 @@ export interface ComandoNuevaFila {
   pesoKg: number | null;
   unidad: string | null;
   tiempoSeg: number | null;
+  comments?: string | null;
+  observations?: string | null;
 }
 
 /** Edición = reemplazo completo de los campos (ADR-0007 S2). */
@@ -73,6 +77,14 @@ export interface ComandoEdicionFila {
   pesoKg: number | null;
   unidad: string | null;
   tiempoSeg: number | null;
+  comments?: string | null;
+  observations?: string | null;
+}
+
+export interface BulkRowEdit {
+  id: number;
+  original: ComandoEdicionFila;
+  values: ComandoEdicionFila;
 }
 
 export interface ComandoConfirmar {
@@ -87,6 +99,8 @@ export interface FilaConfirmadaVista {
   pesoKg: number | null;
   unidad: string | null;
   tiempoSeg: number | null;
+  comments?: string | null;
+  observations?: string | null;
   incompleta: boolean;
 }
 
@@ -167,6 +181,12 @@ export class PlanillaApi {
 
   editarFila(filaId: number, comando: ComandoEdicionFila): Observable<RespuestaSesionActual> {
     return this.http.put<RespuestaSesionActual>(`${this.baseUrl}/filas/${filaId}`, comando);
+  }
+
+  bulkEdit(alumnoId: number, sessionId: number, rows: BulkRowEdit[]): Observable<RespuestaSesionActual> {
+    return this.http.put<RespuestaSesionActual>(
+      `${this.baseUrl}/sesion-actual/${alumnoId}/filas`, { sessionId, rows },
+    );
   }
 
   eliminarFila(filaId: number): Observable<RespuestaSesionActual> {

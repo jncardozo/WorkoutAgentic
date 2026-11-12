@@ -26,6 +26,10 @@ public class RegistroParcial
 
     public int? Reps { get; set; }
 
+    public string? Comments { get; set; }
+
+    public string? Observations { get; set; }
+
     public decimal? PesoKg { get; set; }
 
     // NULL = todavía no se definió (aclaración en curso); ver Unidad para los valores.

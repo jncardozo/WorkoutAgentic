@@ -105,7 +105,7 @@ public class CapturaTextoEndpointTests : IDisposable
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(TextosBot.SeriesAnotadasBase(canonico, 1, 4), body.MensajeAlumno);
+        Assert.Contains($"Anotadas 4 series de {canonico} (1 a 4)", body.MensajeAlumno);
         var sesion = body.Respuesta.Sesion!;
         Assert.Equal("EnCurso", sesion.Estado);
         Assert.Equal(canonico, sesion.EjercicioActivoNombre);
@@ -176,9 +176,8 @@ public class CapturaTextoEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(TextosBot.FalloLectura, body.MensajeAlumno);
-        var sesion = body.Respuesta.Sesion!;
-        Assert.Equal("EnCurso", sesion.Estado);
-        Assert.Empty(sesion.Filas);
+        Assert.Null(body.Respuesta.Sesion);
+        Assert.Equal(0, await SesionesEnDbAsync());
     }
 
     [Fact]

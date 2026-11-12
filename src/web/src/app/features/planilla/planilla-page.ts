@@ -25,6 +25,10 @@ import {
   SesionActualVista,
   fallaDe,
 } from '../../core/planilla-api';
+import { TrainingEditor } from './training-editor';
+import { TrainingProgress } from './training-progress';
+import { CommandExample } from './command-example';
+import { groupExerciseRows } from './exercise-groups';
 import { DictadoVoz } from './dictado-voz';
 import { ReportePreview, FormatoVistaPrevia } from './reporte-preview';
 import { ReporteWorkspace, ModoReporte } from './reporte-workspace';
@@ -36,10 +40,12 @@ interface BorradorFila {
   reps: string;
   peso: string;
   pesoAlCuerpo: boolean;
+  comments: string;
+  observations: string;
 }
 
 /** Campos del borrador que se editan como texto libre en la cuadrícula. */
-type CampoTextoBorrador = 'ejercicioCrudo' | 'serie' | 'reps' | 'peso';
+type CampoTextoBorrador = 'ejercicioCrudo' | 'serie' | 'reps' | 'peso' | 'comments' | 'observations';
 
 const INTERVALO_ENCUESTA_MS = 10_000;
 
@@ -56,7 +62,7 @@ const INTERVALO_ENCUESTA_MS = 10_000;
 @Component({
   selector: 'app-planilla-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, ReportePreview, ReporteWorkspace],
+  imports: [DatePipe, ReportePreview, ReporteWorkspace, TrainingEditor, TrainingProgress, CommandExample],
   templateUrl: './planilla-page.html',
   styleUrl: './planilla-page.scss',
 })
@@ -66,6 +72,27 @@ export class PlanillaPage {
 
   /** Viene de la ruta `alumno/:alumnoId/planilla` (input binding de rutas). */
   readonly alumnoId = input.required<number>();
+  readonly trainingEditorOpen = signal(false);
+  private readonly trainingEditor = viewChild(TrainingEditor);
+
+  openTrainingEditor(): void {
+    if (!this.cuadriculaEditable() || this.accionEnCurso() || this.capturaEnCurso()) return;
+    this.dictado.cancelar();
+    this.cerrarBorradores();
+    this.trainingEditorOpen.set(true);
+  }
+
+  closeTrainingEditor(): void {
+    this.trainingEditorOpen.set(false);
+    this.recargar();
+  }
+
+  savedTraining(response: RespuestaSesionActual): void {
+    this.sesion.set(response);
+    this.trainingEditorOpen.set(false);
+  }
+
+  canLeave(): Promise<boolean> { return this.trainingEditor()?.requestLeave() ?? Promise.resolve(true); }
   private readonly entradaCaptura = viewChild<ElementRef<HTMLTextAreaElement>>('entradaCaptura');
 
   readonly cargando = signal(true);
@@ -100,6 +127,32 @@ export class PlanillaPage {
   /** Panel de dictado (ADR-0009): borrador del texto + última respuesta del bot. */
   readonly borradorCaptura = signal('');
   readonly ultimoMensajeBot = signal<string | null>(null);
+  private captureMessageTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly mensajeBotDescartable = computed(() => {
+    const message = this.ultimoMensajeBot();
+    return message !== null && !this.sesionViva()?.aclaracion && !/[¿?]/.test(message);
+  });
+
+  dismissCaptureMessage(): void {
+    if (this.mensajeBotDescartable()) this.clearCaptureMessage();
+  }
+
+  private clearCaptureMessage(): void {
+    if (this.captureMessageTimer !== null) clearTimeout(this.captureMessageTimer);
+    this.captureMessageTimer = null;
+    this.ultimoMensajeBot.set(null);
+  }
+
+  private showCaptureMessage(message: string): void {
+    this.clearCaptureMessage();
+    this.ultimoMensajeBot.set(message);
+    if (this.mensajeBotDescartable()) {
+      this.captureMessageTimer = setTimeout(() => {
+        this.captureMessageTimer = null;
+        this.dismissCaptureMessage();
+      }, 8000);
+    }
+  }
   readonly capturaEnCurso = signal(false);
   readonly fallaCaptura = signal<FallaApi | null>(null);
 
@@ -109,6 +162,12 @@ export class PlanillaPage {
 
   readonly sesionViva = computed(() => this.sesion()?.sesion ?? null);
   readonly filas = computed(() => this.sesionViva()?.filas ?? []);
+  readonly exerciseGroups = computed(() => groupExerciseRows(
+    this.filas(), row => this.etiquetaEjercicio(row), row => row.id,
+  ));
+  readonly confirmedExerciseGroups = computed(() => groupExerciseRows(
+    this.planillaConfirmada()?.filas ?? [], row => row.ejercicioCanonical, row => row.orden,
+  ));
   readonly filasPendientesDeDatos = computed(() => {
     return this.filas()
       .filter((fila) => fila.reps === null || (fila.pesoKg === null && fila.unidad !== 'PesoCorporal'))
@@ -158,7 +217,7 @@ export class PlanillaPage {
         this.reporteDesdeHistorial.set(false);
         this.cerrarBorradores();
         this.borradorCaptura.set('');
-        this.ultimoMensajeBot.set(null);
+        this.clearCaptureMessage();
         this.fallaCaptura.set(null);
         this.mensajeExportacion.set(null);
         this.fallaExportacion.set(null);
@@ -167,8 +226,14 @@ export class PlanillaPage {
       });
     });
 
+    effect(() => {
+      if (this.pantallaReportes()) this.dictado.cancelar();
+    });
+
     inject(DestroyRef).onDestroy(() => {
+      this.dictado.cancelar();
       this.detenerEncuesta();
+      this.clearCaptureMessage();
       if (this.temporizadorToast !== null) {
         clearTimeout(this.temporizadorToast);
       }
@@ -185,6 +250,7 @@ export class PlanillaPage {
   private cargar(alumnoId: number): void {
     this.planillaApi.sesionActual(alumnoId).subscribe({
       next: (respuesta) => {
+        if (this.trainingEditorOpen()) return;
         this.sesion.set(respuesta);
         this.fallaCarga.set(null);
         this.cargando.set(false);
@@ -230,6 +296,7 @@ export class PlanillaPage {
   private encuestar(alumnoId: number): void {
     if (
       this.filaEditandoId() !== null
+      || this.trainingEditorOpen()
       || this.altaAbierta()
       || this.planillaConfirmada()
       || this.accionEnCurso()
@@ -240,6 +307,7 @@ export class PlanillaPage {
 
     this.planillaApi.sesionActual(alumnoId).subscribe({
       next: (respuesta) => {
+        if (this.trainingEditorOpen()) return;
         this.sesion.set(respuesta);
         this.fallaCarga.set(null);
       },
@@ -258,7 +326,7 @@ export class PlanillaPage {
    * como snapshot consultable en el historial.
    */
   enviarCaptura(): void {
-    if (this.capturaEnCurso()) {
+    if (this.capturaEnCurso() || this.dictado.escuchando()) {
       return;
     }
 
@@ -272,6 +340,7 @@ export class PlanillaPage {
       return;
     }
 
+    this.clearCaptureMessage();
     this.capturaEnCurso.set(true);
     this.fallaCaptura.set(null);
     this.planillaApi.capturarTexto(this.alumnoId(), texto).subscribe({
@@ -279,7 +348,7 @@ export class PlanillaPage {
         this.planillaConfirmada.set(null);
         this.nuevoEntrenamiento.set(false);
         this.sesion.set(respuesta.respuesta);
-        this.ultimoMensajeBot.set(respuesta.mensajeAlumno);
+        this.showCaptureMessage(respuesta.mensajeAlumno);
         this.borradorCaptura.set('');
         this.capturaEnCurso.set(false);
       },
@@ -298,6 +367,7 @@ export class PlanillaPage {
    * enviar. Si ya está escuchando, alterna a detener.
    */
   alternarDictado(): void {
+    if (this.capturaEnCurso()) return;
     if (this.dictado.escuchando()) {
       this.dictado.detener();
       return;
@@ -322,6 +392,8 @@ export class PlanillaPage {
       reps: '',
       peso: '',
       pesoAlCuerpo: false,
+      comments: '',
+      observations: '',
     });
   }
 
@@ -372,6 +444,10 @@ export class PlanillaPage {
         return { ...borrador, serie: valor };
       case 'reps':
         return { ...borrador, reps: valor };
+      case 'comments':
+        return { ...borrador, comments: valor };
+      case 'observations':
+        return { ...borrador, observations: valor };
       case 'peso':
         return { ...borrador, peso: valor };
     }
@@ -403,6 +479,8 @@ export class PlanillaPage {
       pesoKg,
       unidad: borrador.pesoAlCuerpo ? 'PesoCorporal' : pesoKg !== null ? 'Kg' : null,
       tiempoSeg: null,
+      comments: borrador.comments.trim() || null,
+      observations: borrador.observations.trim() || null,
     };
 
     this.ejecutar(
@@ -452,6 +530,8 @@ export class PlanillaPage {
       reps: fila.reps === null ? '' : String(fila.reps),
       peso: pesoAlCuerpo ? '' : fila.pesoKg === null ? '' : String(fila.pesoKg),
       pesoAlCuerpo,
+      comments: fila.comments ?? '',
+      observations: fila.observations ?? '',
     });
   }
 
@@ -493,6 +573,8 @@ export class PlanillaPage {
       pesoKg,
       unidad,
       tiempoSeg: null,
+      comments: borrador.comments.trim() || null,
+      observations: borrador.observations.trim() || null,
     };
 
     this.ejecutar(
@@ -645,6 +727,7 @@ export class PlanillaPage {
   }
 
   iniciarNuevoEntrenamiento(): void {
+    this.dictado.cancelar();
     this.planillaConfirmada.set(null);
     this.pantallaReportes.set(null);
     this.vistaPrevia.set(null);
@@ -652,7 +735,7 @@ export class PlanillaPage {
     this.historialAbierto.set(false);
     this.nuevoEntrenamiento.set(true);
     this.borradorCaptura.set('');
-    this.ultimoMensajeBot.set(null);
+    this.clearCaptureMessage();
     this.fallaCaptura.set(null);
     this.fallaAccion.set(null);
     this.mensajeExportacion.set(null);

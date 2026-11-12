@@ -19,6 +19,10 @@ public class PlanillaFila
 
     public int? Reps { get; set; }
 
+    public string? Comments { get; set; }
+
+    public string? Observations { get; set; }
+
     public decimal? PesoKg { get; set; }
 
     public Unidad? Unidad { get; set; }

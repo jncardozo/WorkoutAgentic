@@ -1,12 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 
 import {
-  ComandoEdicionFila,
-  EjercicioCatalogoVista,
   FilaParcialVista,
   PlanillaApi,
   PlanillaConfirmadaVista,
@@ -17,7 +16,7 @@ import {
 import { DictadoVoz, FABRICA_RECONOCEDOR } from './dictado-voz';
 import { PlanillaPage } from './planilla-page';
 
-const CATALOGO: EjercicioCatalogoVista[] = [
+const CATALOGO = [
   { id: 11, nombreCanonico: 'Press banca', grupoMuscular: 'Pecho', usaPeso: true, usaTiempo: false },
   { id: 22, nombreCanonico: 'Plancha', grupoMuscular: 'Core', usaPeso: false, usaTiempo: true },
   { id: 33, nombreCanonico: 'Dominadas', grupoMuscular: 'Espalda', usaPeso: false, usaTiempo: false },
@@ -98,6 +97,7 @@ interface StubPlanilla {
   capturarTexto: ReturnType<typeof vi.fn>;
   agregarFila: ReturnType<typeof vi.fn>;
   editarFila: ReturnType<typeof vi.fn>;
+  bulkEdit: ReturnType<typeof vi.fn>;
   eliminarFila: ReturnType<typeof vi.fn>;
   confirmar: ReturnType<typeof vi.fn>;
 }
@@ -118,6 +118,7 @@ function stubPlanilla(
     capturarTexto: vi.fn(() => of(RESPUESTA_CAPTURA)),
     agregarFila: vi.fn(() => of(respuestaInicial)),
     editarFila: vi.fn(() => of(respuestaInicial)),
+    bulkEdit: vi.fn(() => of(respuestaInicial)),
     eliminarFila: vi.fn(() => of(respuestaInicial)),
     confirmar: vi.fn(() => of(PLANILLA_CONFIRMADA)),
     ...sobres,
@@ -170,10 +171,232 @@ function escribir(fixture: ComponentFixture<PlanillaPage>, selector: string, val
 }
 
 describe('PlanillaPage', () => {
+  it('la ayuda del comando no reemplaza el borrador ni envía una captura', async () => {
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub);
+    const host = fixture.nativeElement as HTMLElement;
+    escribir(fixture, 'textarea.entrada-captura', 'Mi entrenamiento pendiente');
+    const dialog = host.querySelector('dialog.command-example-dialog') as HTMLDialogElement;
+    // JSDOM no implementa los métodos del diálogo; el comportamiento nativo se
+    // comprueba además en navegador con X, Escape y clic fuera.
+    const show = vi.fn(() => dialog.setAttribute('open', ''));
+    dialog.showModal = show;
+    dialog.close = vi.fn(() => dialog.removeAttribute('open'));
+
+    expect(host.querySelectorAll('.ejemplo-rapido')).toHaveLength(1);
+    boton(fixture, 'Comando de ejemplo').click();
+    expect(show).toHaveBeenCalledOnce();
+    expect(dialog.open).toBe(true);
+    expect(dialog.textContent).toContain('Sillón de cuádriceps, 4 series');
+    expect(dialog.textContent).toContain('Cuarta serie efectiva con 12 repeticiones y 75 kg');
+    expect(dialog.textContent).toContain('100%');
+    (dialog.querySelector('button') as HTMLButtonElement).click();
+    expect(dialog.open).toBe(false);
+    expect(fixture.componentInstance.borradorCaptura()).toBe('Mi entrenamiento pendiente');
+    expect(stub.capturarTexto).not.toHaveBeenCalled();
+  });
+
+  it('actualiza el progreso real de las series y distingue completitud de confirmación', async () => {
+    const rows = [fila(), fila({ id: 6, nroSerie: 2 }), fila({ id: 7, nroSerie: 3 }),
+      fila({ id: 8, nroSerie: 4, pesoKg: null })];
+    const fixture = await montar(stubPlanilla(respuesta(sesion({ filas: rows }))));
+    const host = fixture.nativeElement as HTMLElement;
+    const bar = () => host.querySelector('[role="progressbar"]')!;
+    expect(bar().getAttribute('aria-valuenow')).toBe('75');
+    expect(bar().getAttribute('aria-valuetext')).toBe('3 de 4 series completadas');
+    expect(host.querySelector('.progress-fill')?.getAttribute('style')).toContain('75%');
+    expect(texto(fixture)).not.toContain('Todas las series completas');
+
+    fixture.componentInstance.sesion.set(respuesta(sesion({ filas: rows.map(row => ({ ...row, pesoKg: 45 })) })));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(bar().getAttribute('aria-valuenow')).toBe('100');
+    expect(texto(fixture)).toContain('Todas las series completas');
+    expect(fixture.componentInstance.planillaConfirmada()).toBeNull();
+  });
+
+  it.each(['timeout', 'click'])('descarta la confirmación por %s sin cambiar la cuadrícula', async (mode) => {
+    const fixture = await montar(stubPlanilla(respuesta(null)));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      fixture.componentInstance.borradorCaptura.set('Press de banca 4 series');
+      fixture.componentInstance.enviarCaptura();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('.dismissible-notice')).not.toBeNull();
+      if (mode === 'timeout') {
+        vi.advanceTimersByTime(7999);
+        expect(fixture.componentInstance.ultimoMensajeBot()).not.toBeNull();
+        vi.advanceTimersByTime(1);
+      } else (fixture.nativeElement.querySelector('.dismissible-notice') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.ultimoMensajeBot()).toBeNull();
+      expect(fixture.nativeElement.querySelector('.dismissible-notice')).toBeNull();
+      expect(fixture.nativeElement.querySelector('table.cuadricula')).not.toBeNull();
+    } finally { fixture.destroy(); vi.useRealTimers(); }
+  });
+
+  it('reinicia el plazo con un mensaje nuevo y limpia el temporizador al salir', async () => {
+    const fixture = await montar(stubPlanilla(respuesta(null)));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      fixture.componentInstance.borradorCaptura.set('Primera serie 12 con 20');
+      fixture.componentInstance.enviarCaptura();
+      vi.advanceTimersByTime(4000);
+      fixture.componentInstance.borradorCaptura.set('Segunda serie 12 con 30');
+      fixture.componentInstance.enviarCaptura();
+      vi.advanceTimersByTime(4000);
+      expect(fixture.componentInstance.ultimoMensajeBot()).not.toBeNull();
+      vi.advanceTimersByTime(4000);
+      expect(fixture.componentInstance.ultimoMensajeBot()).toBeNull();
+      fixture.componentInstance.borradorCaptura.set('Tercera serie 12 con 40');
+      fixture.componentInstance.enviarCaptura();
+      fixture.destroy();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(['question', 'clarification'])('mantiene visibles los mensajes de %s', async (mode) => {
+    const message = mode === 'question' ? '¿La serie fue con 40 o 60 kg?' : 'Me falta la variante del ejercicio.';
+    const capture = { ...RESPUESTA_CAPTURA, mensajeAlumno: message,
+      respuesta: respuesta(sesion({ aclaracion: mode === 'clarification' ? { campo: 'ejercicio', reintento: 0 } : null })) };
+    const fixture = await montar(stubPlanilla(respuesta(null), { capturarTexto: vi.fn(() => of(capture)) }));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      fixture.componentInstance.borradorCaptura.set('Press 4 series');
+      fixture.componentInstance.enviarCaptura();
+      vi.advanceTimersByTime(20_000);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.ultimoMensajeBot()).toBe(message);
+      expect(fixture.nativeElement.querySelector('.dismissible-notice')).toBeNull();
+    } finally { fixture.destroy(); vi.useRealTimers(); }
+  });
+
+  it.each(['success', 'error'])('muestra carga durante el envío y la retira con %s', async (outcome) => {
+    const pending = new Subject<RespuestaCapturaTexto>();
+    const stub = stubPlanilla(respuesta(null), { capturarTexto: vi.fn(() => pending) });
+    const fixture = await montar(stub);
+    escribir(fixture, 'textarea.entrada-captura', 'Press de banca 4 series');
+    boton(fixture, 'Enviar').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(boton(fixture, 'Cargando').disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('.capture-spinner')).not.toBeNull();
+    expect(texto(fixture)).toContain('Cargando tus series en la cuadrícula');
+    expect((fixture.nativeElement.querySelector('textarea.entrada-captura') as HTMLTextAreaElement).readOnly).toBe(true);
+    fixture.componentInstance.enviarCaptura();
+    expect(stub.capturarTexto).toHaveBeenCalledTimes(1);
+
+    if (outcome === 'success') { pending.next(RESPUESTA_CAPTURA); pending.complete(); }
+    else pending.error(new HttpErrorResponse({ status: 503, error: { title: 'Servicio temporalmente no disponible' } }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.capture-spinner')).toBeNull();
+    expect(boton(fixture, 'Enviar').disabled).toBe(false);
+    if (outcome === 'error') expect(fixture.componentInstance.borradorCaptura()).toBe('Press de banca 4 series');
+    else expect(fixture.nativeElement.querySelector('table.cuadricula')).not.toBeNull();
+  });
+
+  it('el botón Editar de la cuadrícula abre campos inline sin abrir el editor múltiple', async () => {
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub);
+    const editButton = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.cuadricula button')]
+      .find(button => button.textContent?.trim() === 'Editar') as HTMLButtonElement;
+    editButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.trainingEditorOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('input[aria-label="Peso en kg"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('app-training-editor')).toBeNull();
+    expect(stub.bulkEdit).not.toHaveBeenCalled();
+  });
+
+  it('muestra una cabecera por ejercicio y conserva todas sus series y notas', async () => {
+    const rows = [fila({ comments: 'aproximación' }),
+      fila({ id: 6, ejercicioCanonico: 'Sentadilla', observations: 'Molestia leve' }),
+      fila({ id: 7, nroSerie: 2 })];
+    const fixture = await montar(stubPlanilla(respuesta(sesion({ filas: rows }))));
+    const host = fixture.nativeElement as HTMLElement;
+    const cards = [...host.querySelectorAll('.exercise-card')];
+    expect(cards).toHaveLength(2);
+    expect(cards[0].querySelector('h3')?.textContent).toBe('Press banca');
+    expect(cards[0].querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(cards[0].querySelector('tbody')?.textContent).not.toContain('Press banca');
+    expect(cards[0].textContent).toContain('aproximación');
+    expect(cards[1].textContent).toContain('Molestia leve');
+    expect(host.querySelectorAll('tbody tr')).toHaveLength(3);
+    expect([...host.querySelectorAll('.cuadricula th')].some(th => th.textContent === 'Ejercicio')).toBe(false);
+    expect(fixture.componentInstance.filas()).toEqual(rows);
+  });
+
+  it('agrupa también la planilla confirmada sin mostrar acciones de edición', async () => {
+    const fixture = await montar(stubPlanilla(respuesta(null)));
+    fixture.componentInstance.planillaConfirmada.set({ ...PLANILLA_CONFIRMADA,
+      filas: [PLANILLA_CONFIRMADA.filas[0], { ...PLANILLA_CONFIRMADA.filas[0], orden: 2, nroSerie: 2 }] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelectorAll('.exercise-card')).toHaveLength(1);
+    expect(host.querySelectorAll('.cuadricula tbody tr')).toHaveLength(2);
+    expect(host.querySelector('.cuadricula tbody')?.textContent).not.toContain('Press banca');
+    expect(host.querySelector('.cuadricula button')).toBeNull();
+  });
+
+  it('ignora una recarga en vuelo mientras se edita el borrador', async () => {
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub);
+    const inFlight = new Subject<RespuestaSesionActual>();
+    stub.sesionActual.mockReturnValueOnce(inFlight);
+    fixture.componentInstance.recargar();
+    fixture.componentInstance.openTrainingEditor();
+    await fixture.whenStable();
+    inFlight.next(respuesta(sesion({ filas: [fila({ pesoKg: 999 })] })));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.filas()[0].pesoKg).toBe(45);
+    inFlight.complete();
+  });
+
+  it('muestra y edita comentarios y observaciones como campos separados', async () => {
+    const row = fila({ comments: 'aproximación', observations: 'Sentí un tirón en el pectoral izquierdo' });
+    const stub = stubPlanilla(respuesta(sesion({ filas: [row] })));
+    const fixture = await montar(stub);
+    expect(texto(fixture)).toContain('Comentarios');
+    expect(texto(fixture)).toContain('Observaciones');
+    expect(texto(fixture)).toContain(row.observations!);
+    (fixture.nativeElement.querySelector('.row-edit') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    escribir(fixture, 'textarea[aria-label="Comentarios"]', 'efectiva');
+    escribir(fixture, 'textarea[aria-label="Observaciones"]', '');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    boton(fixture, 'Guardar').click();
+    await fixture.whenStable();
+    expect(stub.editarFila.mock.calls[0][1]).toMatchObject({ comments: 'efectiva', observations: null, reps: 8, pesoKg: 45 });
+  });
+
+  it('no envía mientras escucha y libera el micrófono al salir de la pantalla', async () => {
+    const dictado = {
+      soportado: true, escuchando: signal(true), remainingSeconds: signal(32),
+      parcial: signal('última frase'), fallo: signal(null),
+      escuchar: vi.fn(), detener: vi.fn(), cancelar: vi.fn(),
+    };
+    const stub = stubPlanilla(respuesta(null));
+    const fixture = await montar(stub, dictado);
+    fixture.componentInstance.borradorCaptura.set('Press de banca 4 series');
+    fixture.detectChanges();
+    expect(boton(fixture, 'Enviar').disabled).toBe(true);
+    fixture.componentInstance.enviarCaptura();
+    expect(stub.capturarTexto).not.toHaveBeenCalled();
+    expect(texto(fixture)).toContain('32 s');
+    fixture.destroy();
+    expect(dictado.cancelar).toHaveBeenCalled();
+  });
+
   it('sin sesión muestra el aviso de dictar el primer ejercicio y no cuadrícula', async () => {
     const fixture = await montar(stubPlanilla(respuesta(null)));
 
-    expect(texto(fixture)).toContain('No tenés una carga en curso');
+    expect(texto(fixture)).toContain('Sin sesión activa');
     expect(fixture.nativeElement.querySelector('table.cuadricula')).toBeNull();
   });
 
@@ -257,6 +480,9 @@ describe('PlanillaPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
+    boton(fixture, 'Volver a la planilla').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
     const cuerpo = texto(fixture);
     expect(cuerpo).toContain('Planilla confirmada');
     expect(cuerpo).toContain('incompleta');
@@ -267,7 +493,7 @@ describe('PlanillaPage', () => {
     const stub = stubPlanilla(respuesta(sesion({ estado: 'EnCurso' })));
     const fixture = await montar(stub);
 
-    boton(fixture, '+ Agregar fila').click();
+    boton(fixture, 'Agregar fila').click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -276,7 +502,7 @@ describe('PlanillaPage', () => {
     fixture.detectChanges();
 
     expect(stub.agregarFila).not.toHaveBeenCalled();
-    expect(texto(fixture)).toContain('La fila necesita las repeticiones.');
+    expect(texto(fixture)).toContain('La fila necesita las repeticiones antes de guardarse.');
     expect(texto(fixture)).toContain('La fila necesita el peso');
   });
 
@@ -287,27 +513,21 @@ describe('PlanillaPage', () => {
     });
     const fixture = await montar(stub);
 
-    boton(fixture, 'Editar').click();
+    (fixture.nativeElement.querySelector('.row-edit') as HTMLButtonElement).click();
     await fixture.whenStable();
     fixture.detectChanges();
 
     escribir(fixture, 'input[aria-label="Peso en kg"]', '42.5');
+    await fixture.whenStable();
+    fixture.detectChanges();
     boton(fixture, 'Guardar').click();
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(stub.editarFila).toHaveBeenCalledTimes(1);
-    const [filaId, comando] = stub.editarFila.mock.calls[0] as [number, ComandoEdicionFila];
-    expect(filaId).toBe(5);
-    expect(comando).toEqual({
-      ejercicioId: 11,
-      ejercicioCrudo: null,
-      nroSerie: 1,
-      reps: 8,
-      pesoKg: 42.5,
-      unidad: 'Kg',
-      tiempoSeg: null,
-    });
+    expect(stub.editarFila.mock.calls[0]).toMatchObject([5, { pesoKg: 42.5, ejercicioId: null, ejercicioCrudo: 'Press banca' }]);
+    expect(stub.bulkEdit).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('app-training-editor')).toBeNull();
     expect(texto(fixture)).toContain('42.5 kg');
   });
 
@@ -333,6 +553,8 @@ describe('PlanillaPage', () => {
       fallo: signal<string | null>(null),
       escuchar: vi.fn((callback: (texto: string) => void) => entregado.push(callback)),
       detener: vi.fn(),
+      cancelar: vi.fn(),
+      remainingSeconds: signal(60),
     };
     const stub = stubPlanilla(respuesta(null), {
       capturarTexto: vi.fn(() => of(RESPUESTA_CAPTURA)),
@@ -365,10 +587,12 @@ describe('PlanillaPage', () => {
       fallo: signal<string | null>(null),
       escuchar: vi.fn(),
       detener: vi.fn(),
+      cancelar: vi.fn(),
+      remainingSeconds: signal(60),
     };
     const fixture = await montar(stubPlanilla(respuesta(null)), dictado);
 
-    boton(fixture, 'Escuchando…').click();
+    boton(fixture, 'Detener').click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -379,7 +603,7 @@ describe('PlanillaPage', () => {
   it('un navegador sin dictado por voz enseña la ayuda del teclado y no el botón', async () => {
     const fixture = await montar(stubPlanilla(respuesta(null))); // jsdom: sin Web Speech
 
-    expect(texto(fixture)).toContain('Tu navegador no ofrece dictado por voz');
+    expect(texto(fixture)).toContain('Dictado por voz no disponible');
     const botones = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
     expect(botones.some((b) => (b.textContent ?? '').includes('Dictar'))).toBe(false);
   });

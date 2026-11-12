@@ -6,7 +6,8 @@ public sealed class GeminiOptions
 {
     public const string SectionName = "Gemini";
 
-    // GEMINI_API_KEY
+    // Gemini:ApiKey (user-secrets) / Gemini__ApiKey (entorno).
+    // GEMINI_API_KEY se acepta como alias si la sección no tiene clave.
     public string ApiKey { get; set; } = string.Empty;
 
     // Modelos flash VIGENTES para la key dev (probados 2026-10-23): la familia

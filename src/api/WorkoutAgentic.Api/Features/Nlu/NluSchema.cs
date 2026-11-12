@@ -30,6 +30,25 @@ internal static class NluSchema
         },
         "tiempo_segundos": { "type": "integer", "nullable": true },
         "descanso_segundos": { "type": "integer", "nullable": true },
+        "comentarios": { "type": "string", "nullable": true },
+        "observaciones": { "type": "string", "nullable": true },
+        "series": {
+          "type": "array",
+          "nullable": true,
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "properties": {
+              "serie": { "type": "integer", "minimum": 1 },
+              "repeticiones": { "type": "integer", "nullable": true },
+              "peso": { "type": "number", "nullable": true },
+              "unidad": { "type": "string", "enum": ["kg", "lb", "peso_corporal"], "nullable": true },
+              "comentarios": { "type": "string", "nullable": true },
+              "observaciones": { "type": "string", "nullable": true }
+            },
+            "required": ["serie"]
+          }
+        },
         "aclarar": {
           "type": "object",
           "nullable": true,

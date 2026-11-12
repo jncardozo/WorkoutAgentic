@@ -71,6 +71,22 @@ no expone endpoints ni las consulta. No se borran esos datos durante este cambio
 
 ## 5. SPA Angular 21 (`src/web`)
 
+El dictado mantiene una ventana de 60 segundos usando ciclos de reconocimiento
+no continuo (ADR-0028). Cada ciclo entrega su transcripción final una vez al
+terminar; las revisiones reemplazan el resultado pendiente y no se concatenan.
+
+La edición individual usa campos inline en la cuadrícula; «Editar entrenamiento»
+abre un editor vertical con tarjetas por serie, sin selección compartida ni
+checkbox corporal (ADR-0027/0029). Un PUT de filas por sesión guarda
+los cambios en una transacción con comprobación de valores originales. Las
+validaciones son compartidas con el PUT individual; no requiere migración.
+La especificación vigente está en [edicion-planilla.md](domain/edicion-planilla.md).
+
+La cuadrícula editable y la confirmada agrupan visualmente las series en tarjetas
+por ejercicio, con cabecera única y scroll horizontal limitado a cada tabla.
+La SPA comparte los tokens Energy Orange entre acciones y estados de confirmación
+(ADR-0032). Esta presentación no modifica contratos ni datos persistidos.
+
 La SPA abre directamente la captura por texto/voz y la cuadrícula editable con
 confirmación. En este MVP usa internamente el alumno de prueba #1, sin pedir al
 alumno que ingrese un número. La voz usa la API de reconocimiento del navegador y

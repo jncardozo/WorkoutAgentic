@@ -1,0 +1,23 @@
+<dialog #exampleDialog class="command-example-dialog" aria-labelledby="command-example-title" tabindex="-1"
+  (click)="closeOnBackdrop($event)" (keydown.escape)="close()">
+  <div class="example-content">
+    <header class="example-header">
+      <h2 id="command-example-title"><span aria-hidden="true">💡</span> Comando de ejemplo</h2>
+      <button type="button" class="example-close" aria-label="Cerrar comando de ejemplo" (click)="close()" autofocus>
+        <span aria-hidden="true">×</span>
+      </button>
+    </header>
+    <p class="example-intro">Podés dictar un ejercicio completo así:</p>
+    <blockquote class="example-command">
+      <p><strong>Sillón de cuádriceps, 4 series:</strong></p>
+      <p>Primera serie de aproximación con 12 repeticiones y 40 kg.</p>
+      <p>Segunda serie de aproximación con 10 repeticiones y 50 kg.</p>
+      <p>Tercera serie efectiva con 12 repeticiones y 70 kg.</p>
+      <p>Cuarta serie efectiva con 12 repeticiones y 75 kg.</p>
+    </blockquote>
+    <aside class="example-tip">
+      <strong>Antes de pasar al siguiente ejercicio</strong>
+      <p>Completá todas las series del ejercicio. La barra llegará al <strong>100%</strong> cuando hayas cargado los datos de todas sus series.</p>
+    </aside>
+  </div>
+</dialog>

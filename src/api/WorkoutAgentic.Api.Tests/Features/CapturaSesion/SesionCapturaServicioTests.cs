@@ -10,9 +10,8 @@ namespace WorkoutAgentic.Api.Tests.Features.CapturaSesion;
 // Máquina de estados del diálogo de captura sobre SQLite temporal con el
 // esquema REAL por migraciones y el catálogo sembrado. Los análisis son
 // sintéticos (el slice NLU ya los cubre): no se llama a proveedores externos.
-// Regla del dictado vigente (ADR-0013): EJERCICIO + SERIES ⇒ filas con solo
-// ejercicio y número de serie; lo que el alumno diga encima de eso se ignora;
-// fuera de la regla → guía única, sin tocar el estado ni el ejercicio activo.
+// ADR-0025: datos comunes y por serie; identidad libre ADR-0016 y
+// avance solo después de completar el lote anterior (ADR-0020).
 public class SesionCapturaServicioTests : IDisposable
 {
 
@@ -58,7 +57,7 @@ public class SesionCapturaServicioTests : IDisposable
         Assert.Equal(1, await _db.Alumnos.CountAsync());
         var sesion = await _db.SesionesCaptura.SingleAsync();
         Assert.Equal(EstadoSesionCaptura.EnCurso, sesion.Estado);
-        Assert.Equal(1, sesion.EjercicioActivoId);
+        Assert.Null(sesion.EjercicioActivoId);
         Assert.Equal(5, sesion.OrdenSerieSiguiente);
         Assert.Equal(respuesta.SesionId, sesion.Id);
 
@@ -67,7 +66,8 @@ public class SesionCapturaServicioTests : IDisposable
         Assert.Equal(new[] { 1, 2, 3, 4 }, filas.Select(f => f.NroSerie));
         Assert.All(filas, f =>
         {
-            Assert.Equal(1, f.EjercicioId);
+            Assert.Null(f.EjercicioId);
+            Assert.Equal("Sillón de cuadríceps", f.EjercicioCanonico);
             Assert.Equal("sillón", f.EjercicioCrudo);
             Assert.Null(f.Reps);
             Assert.Null(f.PesoKg);
@@ -78,13 +78,14 @@ public class SesionCapturaServicioTests : IDisposable
         });
         Assert.Equal(0, await _db.AclaracionesPendientes.CountAsync());
         Assert.Contains("Anotadas 4 series de Sillón de cuadríceps (1 a 4)", respuesta.MensajeAlumno);
-        Assert.Contains("pasame el dato de cada serie", respuesta.MensajeAlumno);
+        Assert.Contains("Revisá los datos", respuesta.MensajeAlumno);
     }
 
     [Fact]
     public async Task LoteRepetido_ContinuaLaNumeracionDelEjercicio()
     {
         await AplicarAltaBase();
+        await CompletePreviousBatch();
         Refrescar();
 
         var respuesta = await Aplicar(AnalisisCargaEjercicio(
@@ -93,7 +94,7 @@ public class SesionCapturaServicioTests : IDisposable
         var filas = await _db.RegistrosParciales.OrderBy(f => f.NroSerie).ToListAsync();
         Assert.Equal(7, filas.Count);
         Assert.Equal(new[] { 5, 6, 7 }, filas.Skip(4).Select(f => f.NroSerie).ToArray());
-        Assert.All(filas, f => Assert.Null(f.PesoKg));
+        Assert.All(filas.Skip(4), f => Assert.Null(f.PesoKg));
         Assert.Equal(8, (await _db.SesionesCaptura.SingleAsync()).OrdenSerieSiguiente);
         Assert.Contains("Anotadas 3 series de Sillón de cuadríceps (5 a 7)", respuesta.MensajeAlumno);
     }
@@ -106,12 +107,12 @@ public class SesionCapturaServicioTests : IDisposable
 
         var fila = await _db.RegistrosParciales.SingleAsync();
         Assert.Equal(3, fila.NroSerie);
-        Assert.Equal(1, fila.EjercicioId);
+        Assert.Null(fila.EjercicioId);
         Assert.Equal("sillón", fila.EjercicioCrudo);
         Assert.Null(fila.Reps);
         Assert.Null(fila.PesoKg);
         Assert.Equal(4, (await _db.SesionesCaptura.SingleAsync()).OrdenSerieSiguiente);
-        Assert.Contains("Serie 3 de Sillón de cuadríceps anotada", respuesta.MensajeAlumno);
+        Assert.Contains("Sillón de cuadríceps (3 a 3)", respuesta.MensajeAlumno);
     }
 
     // ─── Dictado fuera de la regla: guía única, sin tocar nada ──────────────────
@@ -141,7 +142,7 @@ public class SesionCapturaServicioTests : IDisposable
     }
 
     [Fact]
-    public async Task DatosExtraDelDictado_SeIgnoran_NoSeGuardan()
+    public async Task DatosComunesDelDictado_SeAplicanATodasLasSeries()
     {
         var respuesta = await Aplicar(AnalisisCargaEjercicio(
             "sillón 4 series y 12 repeticiones con 45 kg",
@@ -152,15 +153,15 @@ public class SesionCapturaServicioTests : IDisposable
         Assert.Equal(4, filas.Count);
         Assert.All(filas, f =>
         {
-            Assert.Null(f.Reps);
-            Assert.Null(f.PesoKg);
-            Assert.Null(f.Unidad);
+            Assert.Equal(12, f.Reps);
+            Assert.Equal(45m, f.PesoKg);
+            Assert.Equal(Unidad.Kg, f.Unidad);
             Assert.Null(f.TiempoSeg);
             Assert.False(f.PendienteAclaracion);
         });
         Assert.Equal(0, await _db.AclaracionesPendientes.CountAsync());
         Assert.DoesNotContain("45", respuesta.MensajeAlumno);
-        Assert.Contains("pasame el dato de cada serie", respuesta.MensajeAlumno);
+        Assert.Contains("Revisá los datos", respuesta.MensajeAlumno);
     }
 
     [Fact]
@@ -171,7 +172,7 @@ public class SesionCapturaServicioTests : IDisposable
             cantidad: SesionCapturaServicio.MaxSeriesLote + 1));
 
         Assert.Empty(await _db.RegistrosParciales.ToListAsync());
-        Assert.Equal(TextosBot.FueraDeRegla, respuesta.MensajeAlumno);
+        Assert.Contains("No pude asignar los datos", respuesta.MensajeAlumno);
     }
 
     // ─── Regla 2: datos de serie sin ejercicio nombrado (ADR-0014) ───────────────
@@ -333,7 +334,7 @@ public class SesionCapturaServicioTests : IDisposable
         Assert.False(filas[4].PendienteAclaracion); // con dato deja de esperar al bot
         for (var i = 0; i < 4; i++)
         {
-            Assert.Null(filas[i].Reps); // las series del lote viejo no se tocan
+            Assert.Equal(10, filas[i].Reps); // las series completas del lote viejo no se tocan
         }
 
         // La pregunta del ejercicio sigue viva, sin reintentos quemados.
@@ -341,7 +342,7 @@ public class SesionCapturaServicioTests : IDisposable
         Assert.Equal(0, aclaracion.Reintento);
         Assert.Equal(EstadoSesionCaptura.EsperandoAclaracion, (await _db.SesionesCaptura.SingleAsync()).Estado);
         Assert.Contains("Serie 1", respuesta.MensajeAlumno);
-        Assert.Contains("me sigue faltando el ejercicio", respuesta.MensajeAlumno);
+        Assert.Contains("me sigue faltando aclarar la variante del ejercicio", respuesta.MensajeAlumno);
     }
 
     [Fact]
@@ -369,6 +370,7 @@ public class SesionCapturaServicioTests : IDisposable
     public async Task DatosDeSerie_DespuesDeOtroLote_TargeteanLaUltimaFilaCreada()
     {
         await AplicarAltaBase();
+        await CompletePreviousBatch();
 
         // Segundo lote RESUELTO directo (Match) de otro ejercicio del catálogo.
         await Aplicar(AnalisisCargaEjercicio(
@@ -383,10 +385,11 @@ public class SesionCapturaServicioTests : IDisposable
         var press = filas.Skip(4).ToList();
         Assert.Equal(5, press[1].Reps);
         Assert.Equal(10m, press[1].PesoKg);
-        Assert.Equal(3, press[1].EjercicioId); // Press de pecho en máquina
+        Assert.Null(press[1].EjercicioId);
+        Assert.Equal("Press de pecho en máquina", press[1].EjercicioCanonico);
 
-        Assert.Null(filas[1].Reps); // la serie 2 del lote VIEJO (sillón) queda intacta
-        Assert.Null(filas[1].PesoKg);
+        Assert.Equal(10, filas[1].Reps); // lote previo intacto
+        Assert.Equal(20m, filas[1].PesoKg);
         Assert.Contains("Press de pecho en máquina", respuesta.MensajeAlumno);
     }
 
@@ -406,7 +409,7 @@ public class SesionCapturaServicioTests : IDisposable
         var aclaracion = await _db.AclaracionesPendientes.SingleAsync();
         Assert.Equal(0, aclaracion.Reintento); // una falla del LLM NO es una respuesta errónea
         Assert.Equal(EstadoSesionCaptura.EsperandoAclaracion, (await _db.SesionesCaptura.SingleAsync()).Estado);
-        Assert.All(await _db.RegistrosParciales.ToListAsync(), f => Assert.Null(f.Reps));
+        Assert.All(await _db.RegistrosParciales.Where(f => f.EjercicioCrudo == "el pecho").ToListAsync(), f => Assert.Null(f.Reps));
         Assert.Equal(TextosBot.FalloLectura, respuesta.MensajeAlumno);
     }
 
@@ -454,19 +457,20 @@ public class SesionCapturaServicioTests : IDisposable
         Assert.Equal(filas.Select(f => f.Id), ExtraerRegistroIds(aclaracion.Contexto));
         Assert.Equal(EstadoSesionCaptura.EsperandoAclaracion, (await _db.SesionesCaptura.SingleAsync()).Estado);
         Assert.True(respuesta.AclaracionCreada);
-        Assert.Contains("1) Press de pecho en máquina", respuesta.MensajeAlumno);
+        Assert.Contains("¿Qué variante del ejercicio hiciste?", respuesta.MensajeAlumno);
 
         Refrescar();
-        var eleccion = await Aplicar(AnalisisLibre("2"));
+        var eleccion = await Aplicar(AnalisisCargaEjercicio("Cruces en polea", "Cruces en polea"));
 
         var sesion = await _db.SesionesCaptura.SingleAsync();
         Assert.Equal(EstadoSesionCaptura.EnCurso, sesion.Estado);
-        Assert.Equal(4, sesion.EjercicioActivoId);
+        Assert.Null(sesion.EjercicioActivoId);
         Assert.Equal(5, sesion.OrdenSerieSiguiente);
         filas = await _db.RegistrosParciales.OrderBy(f => f.Id).ToListAsync();
         Assert.All(filas, f =>
         {
-            Assert.Equal(4, f.EjercicioId);
+            Assert.Null(f.EjercicioId);
+            Assert.Equal("Cruces en polea", f.EjercicioCanonico);
             Assert.Equal("el pecho", f.EjercicioCrudo); // el texto del alumno queda para auditar
             Assert.False(f.PendienteAclaracion);
             Assert.Null(f.Reps);
@@ -477,7 +481,7 @@ public class SesionCapturaServicioTests : IDisposable
     }
 
     [Fact]
-    public async Task EjercicioSinMatch_OtroDejaLasFilasComoTextoLibre()
+    public async Task EjercicioAmbiguo_OtroConfirmaElTextoLibre()
     {
         await Aplicar(AnalisisCargaEjercicio(
             "movimiento raro 3 series", "movimiento raro", SinMatch(), cantidad: 3));
@@ -500,14 +504,14 @@ public class SesionCapturaServicioTests : IDisposable
         {
             Assert.Null(f.EjercicioId);
             Assert.Equal("movimiento raro", f.EjercicioCrudo);
-            Assert.True(f.DescripcionPendiente);
+            Assert.False(f.DescripcionPendiente);
             Assert.False(f.PendienteAclaracion);
         });
         Assert.Contains("Anotado como texto", segundo.MensajeAlumno);
     }
 
     [Fact]
-    public async Task ReintentoDePregunta_RePreguntaConLaMismaLista()
+    public async Task ReintentoDePregunta_RepitePreguntaAbierta()
     {
         await Aplicar(AnalisisCargaEjercicio(
             "el pecho 4 series", "el pecho",
@@ -516,7 +520,7 @@ public class SesionCapturaServicioTests : IDisposable
 
         var reintento = await Aplicar(AnalisisLibre("si jeje"));
 
-        Assert.Contains("1) Press de pecho en máquina", reintento.MensajeAlumno);
+        Assert.Contains("¿Qué variante del ejercicio hiciste?", reintento.MensajeAlumno);
         var aclaracion = await _db.AclaracionesPendientes.SingleAsync();
         Assert.Equal(1, aclaracion.Reintento);
     }
@@ -536,7 +540,7 @@ public class SesionCapturaServicioTests : IDisposable
 
         Assert.Equal(0, await _db.AclaracionesPendientes.CountAsync());
 
-        var filasPendientes = await _db.RegistrosParciales.Where(f => f.EjercicioId == null).ToListAsync();
+        var filasPendientes = await _db.RegistrosParciales.Where(f => f.EjercicioCrudo == "el pecho").ToListAsync();
         Assert.All(filasPendientes, f =>
         {
             Assert.True(f.DescripcionPendiente); // queda marcada para la planilla
@@ -580,7 +584,7 @@ public class SesionCapturaServicioTests : IDisposable
         var sesion = await _db.SesionesCaptura.SingleAsync();
         Assert.Equal(EstadoSesionCaptura.Lista, sesion.Estado);
         Assert.Equal(0, await _db.AclaracionesPendientes.CountAsync());
-        var filasPendientes = await _db.RegistrosParciales.Where(f => f.EjercicioId == null).ToListAsync();
+        var filasPendientes = await _db.RegistrosParciales.Where(f => f.EjercicioCrudo == "el pecho").ToListAsync();
         Assert.All(filasPendientes, f => Assert.True(f.DescripcionPendiente)); // las filas quedan, marcadas
         Assert.Contains("planilla", cierre.MensajeAlumno);
     }
@@ -589,6 +593,7 @@ public class SesionCapturaServicioTests : IDisposable
     public async Task LoteBaseConSesionLista_ReabreYAplica()
     {
         await AplicarAltaBase();
+        await CompletePreviousBatch();
         Refrescar();
         await Aplicar(AnalisisTexto("terminé", IntentoCaptura.Cierre));
         Refrescar();
@@ -598,10 +603,10 @@ public class SesionCapturaServicioTests : IDisposable
 
         var sesion = await _db.SesionesCaptura.SingleAsync();
         Assert.Equal(EstadoSesionCaptura.EnCurso, sesion.Estado);
-        Assert.Equal(9, sesion.EjercicioActivoId);
+        Assert.Null(sesion.EjercicioActivoId);
         Assert.Equal(5, sesion.OrdenSerieSiguiente);
 
-        var nuevas = await _db.RegistrosParciales.Where(f => f.EjercicioId == 9).OrderBy(f => f.NroSerie).ToListAsync();
+        var nuevas = await _db.RegistrosParciales.Where(f => f.EjercicioCanonico == "Dominadas").OrderBy(f => f.NroSerie).ToListAsync();
         Assert.Equal(new[] { 1, 2, 3, 4 }, nuevas.Select(f => f.NroSerie));
         Assert.All(nuevas, f =>
         {
@@ -712,6 +717,17 @@ public class SesionCapturaServicioTests : IDisposable
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+    private async Task CompletePreviousBatch()
+    {
+        foreach (var row in await _db.RegistrosParciales.ToListAsync())
+        {
+            row.Reps = 10;
+            row.PesoKg = 20m;
+            row.Unidad = Unidad.Kg;
+        }
+        await _db.SaveChangesAsync();
+    }
+
     // Alta base = primer dictado en regla: "sillón 4 series".
     private async Task<CapturaRespuesta> AplicarAltaBase() =>
         await Aplicar(AnalisisCargaEjercicio("sillón 4 series", "sillón", Match(1, "Sillón de cuadríceps"), cantidad: 4));
@@ -720,6 +736,7 @@ public class SesionCapturaServicioTests : IDisposable
     private async Task AbrirPendienteDeEjercicio()
     {
         await AplicarAltaBase();
+        await CompletePreviousBatch();
         Refrescar();
 
         // Un minuto después: el lote pendiente es el «lote vivo» (último creado).
@@ -803,7 +820,9 @@ public class SesionCapturaServicioTests : IDisposable
         new(
             texto,
             Clasif(intento),
-            new EntidadesNlu(ejercicio, serie, cantidad, reps, pesoKg, unidad, tiempoSeg, null, null, null),
+            new EntidadesNlu(ejercicio, serie, cantidad, reps, pesoKg, unidad, tiempoSeg, null,
+                resolucion is { Estado: not EstadoResolucion.Matcheado } ? "ejercicio" : null,
+                null, resolucion?.EjercicioCanonico ?? ejercicio),
             resolucion);
 
     private static ResultadoResolucionEjercicio Match(int id, string canonico) =>

@@ -140,7 +140,7 @@ public class PlanillaApiMutacionesTests : IDisposable
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("Datos de serie inválidos", problem.GetProperty("title").GetString());
-        Assert.Contains("necesita el peso", problem.GetProperty("detail").GetString());
+        Assert.Contains("repeticiones y peso", problem.GetProperty("detail").GetString());
         Assert.Equal(0, await ContarFilasDeHablanteAsync(alumnoId));
     }
 
@@ -177,20 +177,13 @@ public class PlanillaApiMutacionesTests : IDisposable
     }
 
     [Fact]
-    public async Task AgregarFila_ByTiempoExercise_StoresTiempoSeg()
+    public async Task AgregarFila_OnlyTimeWithoutRepsAndLoad_Returns400()
     {
         var (alumnoId, planchaId) = await SeedPlanchaAsync(EstadoSesionCaptura.EnCurso);
-
         var response = await PostAsync("/api/planillas/filas",
             new ComandoNuevaFila(alumnoId, planchaId, 1, Reps: null, PesoKg: null, Unidad: null, TiempoSeg: 60));
-        var body = await DeserializarSesionAsync(response);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var fila = Assert.Single(body.Sesion!.Filas);
-        Assert.Equal(60, fila.TiempoSeg);
-        Assert.Equal("Tiempo", fila.Unidad);
-        Assert.Null(fila.Reps);
-        Assert.Null(fila.PesoKg);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, await ContarFilasDeHablanteAsync(alumnoId));
     }
 
     // ─── Editar fila (PUT /filas/{id}) ──────────────────────────────────────────
@@ -253,7 +246,7 @@ public class PlanillaApiMutacionesTests : IDisposable
         var fila = Assert.Single(body.Sesion!.Filas);
         Assert.Null(fila.EjercicioId);
         Assert.Equal("maquina desconocida", fila.EjercicioCrudo);
-        Assert.True(fila.DescripcionPendiente);
+        Assert.False(fila.DescripcionPendiente);
         Assert.Equal(8, fila.Reps);
     }
 
@@ -301,17 +294,14 @@ public class PlanillaApiMutacionesTests : IDisposable
     }
 
     [Fact]
-    public async Task Confirmar_WithEnCursoSession_Returns409Problem()
+    public async Task Confirmar_WithEnCursoSession_CreatesSnapshot()
     {
         var (alumnoId, _) = await SeedBaseAsync(
             EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conPrensa: true);
-
         var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(alumnoId));
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("La sesión no está lista para confirmar", problem.GetProperty("title").GetString());
-        Assert.Contains("EnCurso", problem.GetProperty("detail").GetString());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var snapshot = await response.Content.ReadFromJsonAsync<PlanillaConfirmadaVista>(JsonOptions);
+        Assert.Single(snapshot!.Filas);
     }
 
     [Fact]
@@ -377,7 +367,7 @@ public class PlanillaApiMutacionesTests : IDisposable
         Assert.Equal(60, fila.TiempoSeg);
         Assert.Equal("Tiempo", fila.Unidad);
         Assert.Null(fila.Reps);
-        Assert.False(fila.Incompleta);
+        Assert.True(fila.Incompleta); // ADR-0020: faltan reps y carga declarada.
     }
 
     [Fact]
@@ -395,6 +385,87 @@ public class PlanillaApiMutacionesTests : IDisposable
         Assert.Equal("maquina que no conozco", fila.EjercicioCanonical);
         Assert.True(fila.Incompleta);
     }
+
+    [Fact]
+    public async Task BulkEdit_ValidRows_CommitsTogetherAndPreservesCreationTime()
+    {
+        var (studentId, _) = await SeedBaseAsync(EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conFilaPendiente: true, conPrensa: true);
+        var session = (await ReadSession(studentId)).Sesion!;
+        var changes = session.Filas.Select(row => new BulkRowEdit(row.Id, Original(row), Original(row) with { Reps = 9, PesoKg = 60, Comments = "efectiva" })).ToArray();
+        var response = await PutAsync($"/api/planillas/sesion-actual/{studentId}/filas", new BulkEditRequest(session.Id, changes));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var saved = (await DeserializarSesionAsync(response)).Sesion!;
+        Assert.All(saved.Filas, row => { Assert.Equal(9, row.Reps); Assert.Equal(60m, row.PesoKg); Assert.Equal("efectiva", row.Comments); });
+        Assert.Equal(session.Filas.Select(r => r.CreadoUtc), saved.Filas.Select(r => r.CreadoUtc));
+    }
+
+    [Fact]
+    public async Task BulkEdit_InvalidSecondRow_DoesNotPersistFirstRow()
+    {
+        var (studentId, _) = await SeedBaseAsync(EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conFilaPendiente: true, conPrensa: true);
+        var session = (await ReadSession(studentId)).Sesion!;
+        var changes = session.Filas.Select((row, index) => new BulkRowEdit(row.Id, Original(row), Original(row) with { PesoKg = index == 0 ? 80 : -1 })).ToArray();
+        var response = await PutAsync($"/api/planillas/sesion-actual/{studentId}/filas", new BulkEditRequest(session.Id, changes));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var current = (await ReadSession(studentId)).Sesion!;
+        Assert.Equal(session.Filas.Select(r => r.PesoKg), current.Filas.Select(r => r.PesoKg));
+    }
+
+    [Theory]
+    [InlineData(EstadoSesionCaptura.Confirmada)]
+    [InlineData(EstadoSesionCaptura.Expirada)]
+    [InlineData(EstadoSesionCaptura.EsperandoAclaracion)]
+    public async Task BulkEdit_NonEditableSession_RejectsChanges(EstadoSesionCaptura state)
+    {
+        var (studentId, _) = await SeedBaseAsync(EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conPrensa: true);
+        var session = (await ReadSession(studentId)).Sesion!;
+        await ConDbAsync(async db => await db.SesionesCaptura.Where(s => s.Id == session.Id).ExecuteUpdateAsync(set => set.SetProperty(s => s.Estado, state)));
+        var row = session.Filas[0];
+        var response = await PutAsync($"/api/planillas/sesion-actual/{studentId}/filas", new BulkEditRequest(session.Id, [new(row.Id, Original(row), Original(row) with { PesoKg = 80 })]));
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(45m, await ConDbAsync(async db => (await db.RegistrosParciales.SingleAsync(r => r.Id == row.Id)).PesoKg));
+    }
+
+    [Theory]
+    [InlineData("stale")]
+    [InlineData("foreign")]
+    [InlineData("missing")]
+    [InlineData("session")]
+    public async Task BulkEdit_ConflictingTarget_RejectsWholeBatch(string kind)
+    {
+        var (studentId, _) = await SeedBaseAsync(EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conFilaPendiente: true, conPrensa: true);
+        var session = (await ReadSession(studentId)).Sesion!;
+        var first = session.Filas[0]; var second = session.Filas[1];
+        var secondId = second.Id;
+        if (kind == "foreign")
+        {
+            await SeedAsync(db => db.Alumnos.Add(new Alumno { Nombre = "Otro alumno", Sesiones = [new SesionCaptura { UltimaActividadUtc = DateTime.UtcNow, Registros = [new RegistroParcial { NroSerie = 1, CreadoUtc = DateTime.UtcNow }] }] }));
+            secondId = await ConDbAsync(async db => await db.RegistrosParciales.Where(r => r.Sesion!.AlumnoId != studentId).Select(r => r.Id).SingleAsync());
+        }
+        if (kind == "missing") secondId = int.MaxValue;
+        var originalSecond = Original(second);
+        if (kind == "stale") originalSecond = originalSecond with { Reps = 999 };
+        var response = await PutAsync($"/api/planillas/sesion-actual/{studentId}/filas", new BulkEditRequest(kind == "session" ? int.MaxValue : session.Id,
+            [new(first.Id, Original(first), Original(first) with { PesoKg = 80 }), new(secondId, originalSecond, originalSecond with { PesoKg = 90 })]));
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(session.Filas.Select(r => r.PesoKg), (await ReadSession(studentId)).Sesion!.Filas.Select(r => r.PesoKg));
+    }
+
+    [Fact]
+    public async Task BulkEdit_DuplicateIds_Returns400()
+    {
+        var (studentId, _) = await SeedBaseAsync(EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conPrensa: true);
+        var session = (await ReadSession(studentId)).Sesion!;
+        var row = session.Filas[0]; var change = new BulkRowEdit(row.Id, Original(row), Original(row) with { PesoKg = 80 });
+        var response = await PutAsync($"/api/planillas/sesion-actual/{studentId}/filas", new BulkEditRequest(session.Id, [change, change]));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private async Task<RespuestaSesionActual> ReadSession(int studentId) =>
+        await DeserializarSesionAsync(await Client().GetAsync($"/api/planillas/sesion-actual/{studentId}"));
+
+    private static ComandoEdicionFila Original(FilaParcialVista row) => new(row.EjercicioId, row.EjercicioCrudo,
+        row.NroSerie, row.Reps, row.PesoKg, row.Unidad, row.TiempoSeg, row.Comments, row.Observations);
 
     // ─── Ayudas ────────────────────────────────────────────────────────────────
 

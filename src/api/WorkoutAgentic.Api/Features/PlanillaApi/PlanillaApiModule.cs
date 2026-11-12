@@ -47,6 +47,12 @@ internal static class PlanillaApiModule
             .WithName("EditarFilaParcial")
             .WithSummary("Reemplaza los campos de una fila de la cuadrícula");
 
+        group.MapPut("/sesion-actual/{alumnoId:int}/filas", async (
+                int alumnoId, BulkEditRequest request, IPlanillaMutaciones mutations, CancellationToken cancellationToken) =>
+            ARespuesta(await mutations.BulkEditAsync(alumnoId, request, cancellationToken)))
+            .WithName("BulkEditRows")
+            .WithSummary("Guarda conjuntamente las filas editadas de la sesión actual");
+
         group.MapDelete("/filas/{filaId:int}", async (int filaId, IPlanillaMutaciones mutaciones, CancellationToken cancellationToken) =>
             {
                 var resultado = await mutaciones.EliminarFilaAsync(filaId, cancellationToken);

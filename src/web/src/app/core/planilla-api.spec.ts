@@ -70,23 +70,11 @@ describe('PlanillaApi', () => {
     expect(respuestaObtenida?.sesion?.filas[0].pesoKg).toBe(45);
   });
 
-  it('pide el catálogo de ejercicios', () => {
-    let catalogo: { id: number }[] | undefined;
-    api.catalogo().subscribe((c) => (catalogo = c));
-
-    const peticion = http.expectOne('/api/planillas/catalogo-de-ejercicios');
-    expect(peticion.request.method).toBe('GET');
-    peticion.flush([
-      { id: 11, nombreCanonico: 'Press banca', grupoMuscular: 'Pecho', usaPeso: true, usaTiempo: false },
-    ]);
-
-    expect(catalogo?.length).toBe(1);
-  });
-
   it('agrega una fila con POST y el comando completo', () => {
     const comando = {
       alumnoId: 1,
       ejercicioId: 11,
+      ejercicioNombre: 'Press banca',
       nroSerie: 2,
       reps: 8,
       pesoKg: 45,

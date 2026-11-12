@@ -13,7 +13,17 @@ internal static class NluCapturaModule
 
     public static IServiceCollection AddNluCaptura(this IServiceCollection services)
     {
-        services.AddOptions<GeminiOptions>().BindConfiguration(GeminiOptions.SectionName);
+        services.AddOptions<GeminiOptions>()
+            .BindConfiguration(GeminiOptions.SectionName)
+            .PostConfigure<Microsoft.Extensions.Configuration.IConfiguration>((options, configuration) =>
+            {
+                // Alias documentado para instalaciones que usan GEMINI_API_KEY.
+                // La clave de la sección (user-secrets o Gemini__ApiKey) tiene prioridad.
+                if (string.IsNullOrWhiteSpace(options.ApiKey))
+                {
+                    options.ApiKey = configuration["GEMINI_API_KEY"] ?? string.Empty;
+                }
+            });
         // Los modelos con thinking pueden exceder el default de HttpClient
         // (100 s) en payloads grandes; el cliente de captura tolera llamadas
         // de hasta ~170 s, así que el timeout del proveedor va por debajo.

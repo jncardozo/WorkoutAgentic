@@ -1,0 +1,67 @@
+:host { display: block; min-width: 0; margin-top: 20px; }
+
+.progress-panel {
+  padding: 16px;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 12px;
+  background: var(--panel-inset);
+}
+
+.progress-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  color: var(--texto);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.progress-caption strong {
+  flex-shrink: 0;
+  color: var(--acento-suave);
+  font: 600 20px var(--tipografia-numeros);
+}
+
+.progress-caption small { margin-left: 2px; font-size: 12px; }
+
+.progress-track {
+  height: 16px;
+  overflow: hidden;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 999px;
+  background: #263244;
+  box-shadow: inset 0 2px 4px #0005;
+}
+
+.progress-fill {
+  position: relative;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--acento-fondo), var(--acento-suave));
+  transition: width 450ms ease;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(115deg, transparent 0 10px, #fff2 10px 20px);
+  animation: progress-flow 1.2s linear 3;
+}
+
+.complete .progress-fill::after { display: none; }
+.complete .progress-track { border-color: var(--acento); }
+.progress-complete { display: flex; gap: 6px; margin: 10px 0 0; color: var(--ok-suave); font-size: 12px; }
+
+@keyframes progress-flow {
+  to { background-position: 44px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill { transition: none; }
+  .progress-fill::after { animation: none; }
+}

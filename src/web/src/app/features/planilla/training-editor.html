@@ -1,0 +1,53 @@
+<section class="editor" [style.height.px]="viewportHeight()" aria-labelledby="editor-title">
+  <header class="editor-header">
+    <h1 id="editor-title">Editar entrenamiento</h1>
+    <p>Revisá las series y guardá todos los cambios juntos.</p>
+  </header>
+  <main class="editor-content">
+    @if (failure(); as message) { <p class="banner banner-peligro" role="alert">{{ message }}</p><button class="btn" type="button" (click)="cancel()">Volver a la planilla actual</button> }
+    <fieldset [disabled]="saving()">
+      @for (group of groups(); track group.key) {
+        <section class="exercise-group">
+          <button class="group-toggle" type="button" (click)="toggleGroup(group.key)" [attr.aria-expanded]="expanded().has(group.key)">
+            <span>{{ group.name }}</span><span>{{ group.rows.length }} series {{ expanded().has(group.key) ? '▾' : '▸' }}</span>
+          </button>
+          @if (expanded().has(group.key)) {
+            @for (row of group.rows; track row.id) {
+              <article class="series-card" [class.has-error]="errors()[row.id]" [id]="'edit-row-' + row.id">
+                <h2>Serie {{ row.number }}</h2>
+                @if (errors()[row.id]; as message) { <p role="alert" class="row-error">{{ message }}</p> }
+                <div class="numbers">
+                  <label class="campo">Repeticiones<input inputmode="numeric" [value]="row.reps" (input)="update(row.id, 'reps', $any($event.target).value)" /></label>
+                  <label class="campo">Peso (kg)<input inputmode="decimal" [value]="row.weight" (input)="update(row.id, 'weight', $any($event.target).value)" /></label>
+                </div>
+                @if (row.original.unidad === 'PesoCorporal' && !row.weight.trim()) {
+                  <p class="registered-load">Carga registrada: al cuerpo</p>
+                }
+                <details class="notes">
+                  <summary>Notas @if (row.comments || row.observations) { <span> · {{ row.comments || row.observations }}</span> }</summary>
+                  <label class="campo">Comentarios<textarea rows="2" [value]="row.comments" (input)="update(row.id, 'comments', $any($event.target).value)"></textarea></label>
+                  <label class="campo">Observaciones<textarea rows="3" [value]="row.observations" (input)="update(row.id, 'observations', $any($event.target).value)"></textarea></label>
+                </details>
+                <details class="identity">
+                  <summary>Ejercicio y número de serie</summary>
+                  <label class="campo">Ejercicio<input [value]="row.name" (input)="update(row.id, 'name', $any($event.target).value)" /></label>
+                  <label class="campo">Número de serie<input inputmode="numeric" [value]="row.number" (input)="update(row.id, 'number', $any($event.target).value)" /></label>
+                </details>
+              </article>
+            }
+          }
+        </section>
+      }
+    </fieldset>
+  </main>
+  <footer class="editor-footer">
+    <button class="btn" type="button" [disabled]="saving()" (click)="cancel()">Cancelar</button>
+    <button class="btn-enviar" type="button" [disabled]="saving() || changes().length === 0" (click)="save()">{{ saving() ? 'Guardando…' : 'Guardar cambios (' + changes().length + ' series)' }}</button>
+  </footer>
+</section>
+<dialog #leaveDialog aria-labelledby="discard-title" (cancel)="$event.preventDefault(); resolveLeave(false)">
+  <h2 id="discard-title">¿Descartar los cambios?</h2>
+  <p>Tus modificaciones todavía no están guardadas.</p>
+  <button class="btn" type="button" (click)="resolveLeave(false)">Seguir editando</button>
+  <button class="btn-enviar" type="button" (click)="resolveLeave(true)">Descartar cambios</button>
+</dialog>

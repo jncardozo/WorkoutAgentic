@@ -21,7 +21,9 @@ internal static class VistaPlanilla
                 f.PesoKg,
                 f.Unidad?.ToString(),
                 f.TiempoSeg,
-                f.Incompleta))]);
+                f.Incompleta,
+                f.Comments,
+                f.Observations))]);
 
     public static RespuestaSesionActual Armar(
         int alumnoId,
@@ -59,5 +61,7 @@ internal static class VistaPlanilla
         fila.Unidad?.ToString(),
         fila.TiempoSeg,
         fila.PendienteAclaracion,
-        fila.CreadoUtc);
+        fila.CreadoUtc,
+        fila.Comments,
+        fila.Observations);
 }

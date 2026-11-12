@@ -3,7 +3,7 @@
   min-height: 100dvh;
 }
 
-/* Header idéntico al del prototipo Stitch: sticky, blur y punto lima con brillo. */
+/* Header Stitch con marca adaptada a Energy Orange. */
 .cabeza {
   position: sticky;
   top: 0;
@@ -25,6 +25,7 @@
 }
 
 .marca-logo {
+  filter: hue-rotate(230deg) saturate(1.4);
   display: block;
   width: 260px;
   max-width: 100%;

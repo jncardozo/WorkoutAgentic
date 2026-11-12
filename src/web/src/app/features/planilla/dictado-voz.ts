@@ -69,89 +69,166 @@ export function fabricaDelNavegador(): ReconocedorDictado | null {
  */
 @Injectable({ providedIn: 'root' })
 export class DictadoVoz {
-  /** El pipeline NLU es español rioplatense (docs/domain/nlu-captura.md). */
-  private static readonly IDIOMA = 'es-AR';
-
-  private readonly fabrica = inject(FABRICA_RECONOCEDOR);
-  private readonly reconocedor: ReconocedorDictado | null = this.fabrica();
+  private static readonly MAX_DURATION_MS = 60_000;
+  private readonly reconocedor = inject(FABRICA_RECONOCEDOR)();
   private readonly destructor = inject(DestroyRef);
   private alTextoFinal: ((texto: string) => void) | null = null;
+  private continueListening = false;
+  private running = false;
+  private deadline = 0;
+  private cycleFinal = '';
+  private acceptingCycle = false;
+  private limitTimer: ReturnType<typeof setTimeout> | null = null;
+  private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  private finishTimer: ReturnType<typeof setTimeout> | null = null;
+  private countdownTimer: ReturnType<typeof setInterval> | null = null;
 
-  /** ¿El navegador puede reconocer voz? Se resuelve una vez, al inyectar. */
-  readonly soportado: boolean;
+  readonly soportado = this.reconocedor !== null;
   readonly escuchando = signal(false);
-  /** Lo dicho pero todavía no confirmado por el reconocedor: solo se muestra. */
+  readonly remainingSeconds = signal(60);
   readonly parcial = signal('');
   readonly fallo = signal<string | null>(null);
 
   constructor() {
-    this.soportado = this.reconocedor !== null;
-    if (this.reconocedor === null) {
-      return;
-    }
-
-    const reconocedor = this.reconocedor;
-    reconocedor.lang = DictadoVoz.IDIOMA;
-    reconocedor.interimResults = true;
-    reconocedor.continuous = false; // un dictado por click; lo dicho queda revisable en el borrador
-
-    reconocedor.onresult = (evento) => this.procesar(evento);
-    reconocedor.onerror = (evento) => this.procesarError(evento);
-    reconocedor.onend = () => this.escuchando.set(false);
-
-    this.destructor.onDestroy(() => this.reconocedor?.abort());
+    const recognizer = this.reconocedor;
+    if (!recognizer) return;
+    recognizer.lang = 'es-AR';
+    recognizer.interimResults = true;
+    // One final utterance per cycle, restarted inside the original 60 s window.
+    recognizer.continuous = false;
+    recognizer.onresult = (event) => this.procesar(event);
+    recognizer.onerror = (event) => this.procesarError(event);
+    recognizer.onend = () => this.handleEnd();
+    const onVisibility = () => { if (document.hidden) this.cancelar(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    this.destructor.onDestroy(() => {
+      this.cancelar();
+      recognizer.onresult = recognizer.onerror = recognizer.onend = null;
+      document.removeEventListener('visibilitychange', onVisibility);
+    });
   }
 
-  /** Empieza a escuchar; el transcript final se entrega por `alTextoFinal`. */
   escuchar(alTextoFinal: (texto: string) => void): void {
-    if (this.reconocedor === null || this.escuchando()) {
-      return;
-    }
-
+    if (!this.reconocedor || this.escuchando()) return;
     this.fallo.set(null);
     this.parcial.set('');
+    this.remainingSeconds.set(60);
     this.alTextoFinal = alTextoFinal;
+    this.continueListening = true;
+    this.deadline = Date.now() + DictadoVoz.MAX_DURATION_MS;
+    this.escuchando.set(true);
+    this.limitTimer = setTimeout(() => this.detener(), DictadoVoz.MAX_DURATION_MS);
+    this.countdownTimer = setInterval(() => {
+      this.remainingSeconds.set(Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000)));
+    }, 250);
+    this.startRecognition();
+  }
+
+  private startRecognition(): void {
+    if (!this.continueListening || Date.now() >= this.deadline) {
+      this.finish();
+      return;
+    }
+    this.cycleFinal = '';
+    this.acceptingCycle = true;
     try {
-      this.reconocedor.start();
-      this.escuchando.set(true);
+      this.running = true;
+      this.reconocedor?.start();
     } catch {
       this.fallo.set('No se pudo abrir el micrófono; volvé a intentar.');
+      this.cancelar();
     }
   }
 
-  /** Para de escuchar: al stop() el reconocedor entrega el último trozo final. */
+  /** Conserva el último resultado final de stop; Enviar espera al evento end. */
   detener(): void {
-    if (this.escuchando()) {
-      this.reconocedor?.stop();
+    if (!this.escuchando() || !this.continueListening) return;
+    this.continueListening = false;
+    this.clearTimers();
+    this.remainingSeconds.set(0);
+    if (!this.running) {
+      this.finish();
+      return;
     }
+    this.finishTimer = setTimeout(() => this.cancelar(), 1500);
+    try {
+      this.reconocedor?.stop();
+    } catch {
+      this.cancelar();
+    }
+  }
+
+  /** Salida de pantalla: no deja callbacks ni micrófono activos. */
+  cancelar(): void {
+    const wasRunning = this.running;
+    this.finish();
+    if (wasRunning) this.reconocedor?.abort();
+  }
+
+  private handleEnd(): void {
+    if (!this.acceptingCycle) return;
+    this.acceptingCycle = false;
+    this.commitFinal();
+    this.running = false;
+    this.parcial.set('');
+    if (this.continueListening && Date.now() < this.deadline) {
+      if (this.restartTimer !== null) clearTimeout(this.restartTimer);
+      this.restartTimer = setTimeout(() => {
+        this.restartTimer = null;
+        this.startRecognition();
+      }, 250);
+    } else {
+      this.finish();
+    }
+  }
+
+  private clearTimers(): void {
+    if (this.limitTimer !== null) clearTimeout(this.limitTimer);
+    if (this.restartTimer !== null) clearTimeout(this.restartTimer);
+    if (this.finishTimer !== null) clearTimeout(this.finishTimer);
+    if (this.countdownTimer !== null) clearInterval(this.countdownTimer);
+    this.limitTimer = this.restartTimer = this.finishTimer = this.countdownTimer = null;
+  }
+
+  private commitFinal(): void {
+    const text = this.cycleFinal;
+    this.cycleFinal = '';
+    if (text) this.alTextoFinal?.(text);
+  }
+
+  private finish(): void {
+    this.acceptingCycle = false;
+    this.commitFinal();
+    this.continueListening = false;
+    this.running = false;
+    this.clearTimers();
+    this.escuchando.set(false);
+    this.parcial.set('');
+    this.alTextoFinal = null;
   }
 
   private procesar(evento: EventoReconocimientos): void {
-    let final = '';
-    let parcial = '';
-
-    for (let posicion = evento.resultIndex; posicion < evento.results.length; posicion++) {
-      const trozo = evento.results[posicion];
-      const texto = trozo?.[0]?.transcript ?? '';
-      if (trozo?.isFinal) {
-        final += `${texto} `;
-      } else {
-        parcial += texto;
+    if (!this.escuchando() || !this.running) return;
+    const interim: string[] = [];
+    // Revisions are not deltas. Non-continuous recognition produces one final
+    // utterance per start. Keep its latest snapshot until end, even if a mobile
+    // engine re-emits it under a different result index.
+    for (let index = evento.resultIndex; index < evento.results.length; index++) {
+      const result = evento.results[index];
+      const text = result?.[0]?.transcript?.trim() ?? '';
+      if (result?.isFinal) {
+        if (text) this.cycleFinal = text;
+      } else if (text) {
+        interim.push(text);
       }
     }
-
-    if (parcial.length > 0) {
-      this.parcial.set(parcial);
-    }
-
-    const finalLimpio = final.trim();
-    if (finalLimpio.length > 0) {
-      this.parcial.set('');
-      this.alTextoFinal?.(finalLimpio);
-    }
+    this.parcial.set(interim.join(' '));
   }
 
   private procesarError(evento: EventoErrorDictado): void {
+    // Silence is recoverable only inside the original one-minute window.
+    if (evento.error === 'no-speech' && this.continueListening && Date.now() < this.deadline) return;
+    if (evento.error === 'aborted' && !this.continueListening) return;
     const mensajes: Record<string, string> = {
       'not-allowed': 'El micrófono está bloqueado: habilitá el permiso en el navegador y volvé a dictar.',
       'service-not-allowed': 'El navegador no dejó usar el micrófono en este sitio.',
@@ -160,5 +237,6 @@ export class DictadoVoz {
       network: 'Fallo de red del reconocedor: probá otra vez.',
     };
     this.fallo.set(mensajes[evento.error] ?? `El dictado falló (${evento.error}); probá otra vez.`);
+    this.cancelar();
   }
 }

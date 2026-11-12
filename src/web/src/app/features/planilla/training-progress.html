@@ -1,0 +1,14 @@
+<div class="progress-panel" [class.complete]="progress().completas === progress().total && progress().total > 0">
+  <div class="progress-caption">
+    <span>{{ progress().completas }} de {{ progress().total }} series completadas</span>
+    <strong>{{ progress().porcentaje }}<small>%</small></strong>
+  </div>
+  <div class="progress-track" role="progressbar" aria-label="Progreso de series completas"
+    aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progress().porcentaje"
+    [attr.aria-valuetext]="progress().completas + ' de ' + progress().total + ' series completadas'">
+    <span class="progress-fill" [style.width.%]="progress().porcentaje"></span>
+  </div>
+  @if (progress().completas === progress().total && progress().total > 0) {
+    <p class="progress-complete" role="status"><span aria-hidden="true">✓</span> Todas las series completas</p>
+  }
+</div>

@@ -1,6 +1,4 @@
-/* ─── Tokens del diseño: prototipo Stitch (docs/design/prototipo-stitch.html) ───
-   Paleta 1 a 1 del prototipo: fondo #080c10, tarjetas #0f141c, bordes
-   #1e2633, acento lima #a3e635, verde esmeralda para estados «ok».            */
+/* Tokens Energy Orange (ADR-0032), sobre superficies oscuras Stitch. */
 
 :root {
   --bg: #080c10;
@@ -12,7 +10,7 @@
   --panel-cabeza: #121822; /* encabezado de tabla */
   --panel-inset: #0a0d13;  /* textarea, fondo de tabla */
   --panel-bajo: #090d14;   /* barra de confirmación */
-  --panel-ok: #0e1d15;     /* banner de sesión cerrada */
+  --panel-ok: #24170f;     /* banner de sesión cerrada */
 
   --borde: #1e2633;
   --borde-fuerte: #2a3649;
@@ -21,18 +19,18 @@
   --texto-2: #94a3b8;
   --texto-3: #64748b;
   --texto-fuerte: #ffffff;
-  --texto-invertido: #020617; /* texto sobre lima (slate-950) */
+  --texto-invertido: #020617; /* texto sobre naranja */
 
-  --acento: #a3e635;         /* lima-400: acción primaria */
-  --acento-suave: #bef264;   /* lima-300: hover */
-  --acento-fondo: #84cc16;   /* lima-500: active */
-  --brillo-acento: 0 0 12px rgba(163, 230, 53, 0.3);
+  --acento: #ff6a00;         /* Energy Orange: acción primaria */
+  --acento-suave: #ffab66;   /* naranja claro: hover */
+  --acento-fondo: #e85d00;   /* naranja oscuro: active */
+  --brillo-acento: 0 0 12px rgba(255, 106, 0, 0.3);
 
-  --ok: #34d399;             /* esmeralda-400 */
-  --ok-suave: #6ee7b7;       /* esmeralda-300 */
-  --ok-texto: #a7f3d0;       /* esmeralda-200 */
-  --ok-invertido: #022c22;   /* esmeralda-950: texto sobre gradiente confirmar */
-  --brillo-ok: 0 0 15px rgba(34, 197, 94, 0.25);
+  --ok: #ff9340;             /* naranja: estado completo */
+  --ok-suave: #ffb780;       /* naranja claro */
+  --ok-texto: #ffd0ad;       /* naranja pálido */
+  --ok-invertido: #261000;   /* texto oscuro sobre gradiente confirmar */
+  --brillo-ok: 0 0 15px rgba(255, 106, 0, 0.25);
 
   --aviso: #fcd34d;
   --aviso-fondo: #fbbf24;
@@ -135,6 +133,8 @@ h3 {
 /* ─── Piezas comunes: tarjetas, botones, campos, badges, banners ────────────── */
 
 .tarjeta {
+  min-width: 0;
+  max-width: 100%;
   position: relative;
   background: var(--panel);
   border: 1px solid var(--borde);
@@ -226,7 +226,7 @@ h3 {
   color: var(--peligro-suave);
 }
 
-/* Botón de acción principal del prototipo (lima con brillo) */
+/* Botón de acción principal Energy Orange */
 .btn-enviar {
   display: inline-flex;
   align-items: center;
@@ -292,6 +292,7 @@ h3 {
 }
 
 .encabezado-planilla h1 {
+  overflow-wrap: anywhere;
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.025em;
@@ -408,8 +409,8 @@ h3 {
 
 .badge-ok {
   color: var(--ok-suave);
-  border-color: rgba(34, 197, 94, 0.4);
-  background: rgba(6, 40, 30, 0.6);
+  border-color: rgba(255, 106, 0, 0.4);
+  background: rgba(55, 27, 8, 0.6);
 }
 
 .badge-aviso {
@@ -482,6 +483,8 @@ h3 {
 /* ─── Banners de estado ─────────────────────────────────────────────────────── */
 
 .banner {
+  min-width: 0;
+  overflow-wrap: anywhere;
   border-radius: 8px;
   border: 1px solid var(--borde);
   padding: 14px;
@@ -508,9 +511,9 @@ h3 {
 }
 
 .banner-ok {
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: rgba(255, 106, 0, 0.35);
   background: var(--panel-ok);
-  color: rgba(110, 231, 183, 0.95);
+  color: var(--ok-suave);
 }
 
 .banner-ok strong {
@@ -549,7 +552,12 @@ h3 {
 /* ─── Cuadrícula (tabla del prototipo) ──────────────────────────────────────── */
 
 .envoltorio-tabla {
+  // Mantiene las etiquetas accesibles absolutas dentro del área desplazable.
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--borde) 90%, transparent);
   background: var(--panel-inset);
@@ -669,3 +677,8 @@ h3 {
     transform: translateY(0);
   }
 }
+
+body:has(app-training-editor) app-root > .cabeza { display: none !important; }
+body:has(app-training-editor) app-root > .contenido { padding: 0 !important; max-width: none !important; }
+
+body:has(dialog.command-example-dialog[open]) { overflow: hidden; }

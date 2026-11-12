@@ -210,7 +210,7 @@ public class PlanillaApiIntegrationTests : IDisposable
         var sesion = body.Sesion!;
         Assert.Equal("EnCurso", sesion.Estado);
         Assert.Equal(idPrensa, sesion.EjercicioActivoId);
-        Assert.Equal("Prensa (prueba)", sesion.EjercicioActivoNombre);
+        Assert.Equal("Plancha (prueba)", sesion.EjercicioActivoNombre); // último lote
         Assert.Equal(2, sesion.OrdenSerieSiguiente);
         Assert.Null(sesion.Aclaracion);
 

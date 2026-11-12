@@ -10,26 +10,24 @@
 El alumno escribe o dicta en el navegador. El reconocimiento de voz ocurre en
 la web y la API recibe únicamente el texto final mediante
 `POST /api/capturas/{alumnoId}/texto` (ADR-0018). El texto pasa por el NLU y la
-sesión de captura aplica las reglas de interpretación de ADR-0013.
+sesión de captura aplica las reglas de interpretación de ADR-0025.
 
 - El alumno puede iniciar carga dictando o escribiendo en español. Todo entra al
   mismo pipeline con texto crudo. Los mensajes es-419/"gym español"
   coloquiales son válidos ("cargá", "anoté", "hice").
-- **Regla base del dictado (ADR-0013)**: un mensaje de carga es
-  `EJERCICIO + SERIES` ("press de banca 4 series") o
-  `EJERCICIO + SERIE PUNTUAL` ("sillón, tercera serie"). Crea las filas con
-  ejercicio y número de serie SOLAMENTE; los datos quedan `null` y todo dato
-  extra que el alumno diga en este paso se ignora.
-- **Regla de datos por serie (ADR-0014)**: `Nº DE SERIE + REPS y/o PESO`
-  ("primera serie 12 repeticiones con 20 kilos", "segunda serie con 30",
-  "tercera serie 10 al cuerpo"), SIN nombrar ejercicio. Llena la fila de ese
-  ordinal del **LOTE VIVO** (las filas del último paso 1 creado, que comparten
-  `CreadoUtc` — incluye lotes de texto libre resueltos como «otro»; la SPA lo
-  muestra en «Estás cargando»): solo se escriben los valores dichos, repetir
-  un valor lo sobrescribe (último dictado gana) y si la fila de esa serie no
-  existe en el lote se avisa — jamás se crea la fila. Peso: kg por defecto,
-  "en libras" se convierte a kg (×0,45359237), "al cuerpo" marca
-  `PesoCorporal`. El TIEMPO se retiró del MVP: ya no se dicta ni se pide.
+- **Dictado de varias series (ADR-0025)**: ejercicio + cantidad de series crea
+  filas con los valores comunes y particulares expresados. Una sola frase puede
+  contener repeticiones, pesos distintos, comentarios y observaciones por serie.
+  El flujo de crear filas vacías y completarlas después sigue disponible.
+- **Actualizaciones por ordinal (ADR-0025)**: una o varias series con datos/notas
+  actualizan filas existentes. Sin nombre usan el lote vivo; con ejercicio exigen
+  coincidencia inequívoca de nombre y ordinal. Ninguna actualización crea filas.
+  Se valida todo antes de aplicar: un destino inexistente o ambiguo impide cambios
+  parciales. Los valores omitidos no borran datos previos.
+- **Notas distintas**: Comentarios almacena el propósito de la serie (aproximación,
+  entrada en calor, calentamiento, efectiva); Observaciones almacena sensaciones
+  e incidentes del alumno. Son opcionales y nunca se deducen. Se conservan al
+  confirmar, consultar el historial y exportar PDF/Excel.
 - **Regla para avanzar de ejercicio (ADR-0020)**: cada serie debe tener
   repeticiones y peso antes de iniciar el siguiente ejercicio. El peso puede ser
   una carga numérica en kg o «al cuerpo». Reps y peso se pueden completar en
@@ -39,8 +37,8 @@ sesión de captura aplica las reglas de interpretación de ADR-0013.
   valores sigue permitido.
 - Regla madre: **no inventar**. El NLU normaliza el nombre del ejercicio a
   texto libre; solo pregunta por la variante cuando es realmente ambigua y lo
-  hace sin opciones cerradas. No hay preguntas de peso/reps/tiempo:
-  el dato llega por dictado (regla de datos) o por edición de la SPA, con
+  hace sin opciones cerradas. Si un valor o su alcance es ambiguo, se pide
+  aclararlo sin aplicar el mensaje; si simplemente falta, el dato llega por dictado (regla de datos) o por edición de la SPA, con
   `null` explícito mientras tanto (nunca un `null` disfrazado de dato real).
 - **Fuera de la regla** (series sin ejercicio, ejercicio sin series, datos
   sin ordinal o sin filas en la sesión): respuesta de guía única, SIN tocar
@@ -61,9 +59,20 @@ sesión de captura aplica las reglas de interpretación de ADR-0013.
 
 ## 2. Planilla y confirmación (SPA)
 
-- La planilla en curso muestra los `RegistroParcial` en cuadrícula: ejercicio, serie,
-  repeticiones y peso. **La columna/campo TIEMPO se retiró de la cuadrícula y de
-  los formularios (ADR-0014)** — el dato sigue existiendo a nivel API pero ya no
+- **Edición de entrenamiento (ADR-0027):** la grilla es la vista de consulta y
+  ofrece «Editar» inline por fila y «Editar entrenamiento» en un editor vertical
+  por ejercicio. Este último permite corregir tarjetas y guardarlas juntas, sin
+  selección de valores compartidos ni checkbox corporal (ADR-0029).
+  Se editan únicamente los valores intervenidos; borrar notas es explícito. Los
+  borradores no se persisten hasta guardar y se conservan si falla el envío.
+  Cambios concurrentes se informan sin sobrescribirlos. Ver el contrato y la
+  interacción en [edicion-planilla.md](edicion-planilla.md).
+
+- La planilla en curso muestra los `RegistroParcial` en tarjetas por ejercicio,
+  con nombre único en la cabecera y filas con serie, repeticiones, peso,
+  comentarios y observaciones (ADR-0032). La agrupación es visual y también aplica
+  al snapshot confirmado; no cambia datos ni el orden persistido. **La columna/campo TIEMPO
+  se retiró de la cuadrícula y de los formularios (ADR-0014)** — el dato sigue existiendo a nivel API pero ya no
   se captura ni exige. Se puede editar, eliminar filas individuales, eliminar
   todos los registros parciales de la sesión y agregar filas antes de confirmar
   (ADR-0015).
@@ -100,8 +109,9 @@ sesión de captura aplica las reglas de interpretación de ADR-0013.
   - **Única pregunta viva: la variante del ejercicio cuando es ambigua**. El
     nombre se normaliza como texto libre y no depende de catálogo ni de una
     lista de apodos; la aclaración es abierta (ADR-0016).
-  - No se abre una aclaración de chat para peso o reps: llegan por la regla de
-    datos del paso 2 (ADR-0014) o por edición de la SPA. Si faltan, se bloquea
+  - Las ambigüedades de peso, reps o serie se preguntan en la SPA sin aplicar
+    el mensaje ni abrir otra aclaración persistida. Los datos simplemente ausentes
+    llegan por dictado (ADR-0025) o por edición de la SPA. Si faltan, se bloquea
     el ejercicio siguiente hasta que estén completos (ADR-0020).
   - Dictado fuera de la regla → guía que enseña ambas reglas; nada se crea
     ni se pregunta por números sueltos.

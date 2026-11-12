@@ -17,7 +17,9 @@ public sealed record FilaParcialVista(
     string? Unidad,
     int? TiempoSeg,
     bool PendienteAclaracion,
-    DateTime CreadoUtc);
+    DateTime CreadoUtc,
+    string? Comments = null,
+    string? Observations = null);
 
 // Pregunta viva de captura, respondida desde la misma SPA.
 public sealed record AclaracionVista(string Campo, int Reintento);
@@ -57,7 +59,9 @@ public sealed record ComandoNuevaFila(
     decimal? PesoKg,
     string? Unidad,
     int? TiempoSeg,
-    string? EjercicioNombre = null);
+    string? EjercicioNombre = null,
+    string? Comments = null,
+    string? Observations = null);
 
 // PUT /api/planillas/filas/{filaId}: reemplazo completo de los campos. Con
 // EjercicioId = null la fila queda como descripción libre (EjercicioCrudo).
@@ -68,7 +72,9 @@ public sealed record ComandoEdicionFila(
     int? Reps,
     decimal? PesoKg,
     string? Unidad,
-    int? TiempoSeg);
+    int? TiempoSeg,
+    string? Comments = null,
+    string? Observations = null);
 
 // POST /api/planillas/confirmar: abre el snapshot (write-once) cuando la
 // sesión está en LISTA (regla de negocio §2).
@@ -92,4 +98,6 @@ public sealed record FilaConfirmadaVista(
     decimal? PesoKg,
     string? Unidad,
     int? TiempoSeg,
-    bool Incompleta);
+    bool Incompleta,
+    string? Comments = null,
+    string? Observations = null);

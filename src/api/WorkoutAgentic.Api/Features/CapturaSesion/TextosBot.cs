@@ -60,7 +60,8 @@ internal static class TextosBot
     // Guía de la regla (ADR-0013 + ADR-0014): cualquier dictado fuera de las
     // dos reglas responde esto y no toca el estado ni usa el ejercicio activo.
     public static string FueraDeRegla =>
-        "Para anotar tus series, decime en un solo mensaje el ejercicio y las series. Ej.: \"press de banca 4 series\". Después pasale el dato a cada una: \"primera serie 12 repeticiones con 20 kilos\".";
+        "Decime ejercicio + series, por ejemplo: \"press de banca 4 series de 10 con 40 kg\". Podés indicar pesos, comentarios y observaciones por serie en el mismo mensaje, o completar después: \"primera serie 12 repeticiones con 20 kilos\".";
+
 
     // Anota solo el ejercicio (rama defensiva: aclaración sin filas asociadas).
     public static string EjercicioAnotado(string canonico) =>
@@ -104,10 +105,7 @@ internal static class TextosBot
         "Acá anoto tus series 🙂 Probame con: \"press de banca 4 series\", \"primera serie 12 con 20\" o \"terminé\" cuando cierres.";
 
     public static string Ayuda =>
-        "Te anoto tu entrenamiento por acá. La carga va en dos pasos.\n" +
-        "• PASO 1 · ejercicio + series en un mismo mensaje: \"press de banca 4 series\" (arma 4 filas) o \"sillón, segunda serie\".\n" +
-        "• PASO 2 · completá repeticiones y peso (o \"al cuerpo\") de cada serie: \"primera serie 12 repeticiones con 20 kilos\". No podés cargar otro ejercicio hasta completar todas.\n" +
-        "• \"terminé\" cierra la carga; \"seguir\" la retoma después de una pausa.";
+        FueraDeRegla + " Completá repeticiones y peso (o al cuerpo) de cada serie antes de cargar otro ejercicio. Decí ‘terminé’ para cerrar o ‘seguir’ para retomar.";
 
     public static string FalloLectura =>
         "No pude leer bien esos datos 🙂 ¿Me los pasás de nuevo?";

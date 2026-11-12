@@ -12,6 +12,18 @@ namespace WorkoutAgentic.Api.Tests.Features.Nlu;
 // garantiza UNA llamada del LLM para las dos etapas del mismo texto.
 public class GeminiNluTests
 {
+    [Theory]
+    [InlineData("[null]")]
+    [InlineData("[{\"serie\":2,\"peso\":40,\"unidad\":\"piedras\"}]")]
+    public async Task Extract_InvalidSeriesContract_FailsWithoutInventingUnits(string details)
+    {
+        var handler = new RecordingHandler(_ => Json(Respuesta(
+            "{\"intent\":\"CARGA_SERIE\",\"confianza\":1,\"series\":" + details + "}")));
+        var result = await Crear(handler).ExtraerAsync("segunda serie con 40", default);
+        Assert.False(result.Exito);
+        Assert.Null(result.Entidades);
+    }
+
     // helper: respuesta de generateContent con la salida JSON embebida en text.
     // El texto va codificado con JsonSerializer (escapa comillas/newlines: la
     // salida del LLM es JSON dentro de un string JSON).

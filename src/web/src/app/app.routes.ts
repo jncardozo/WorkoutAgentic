@@ -1,3 +1,4 @@
+import type { PlanillaPage } from './features/planilla/planilla-page';
 import type { Routes } from '@angular/router';
 
 // Identidad de prueba temporal. El login futuro resolverá este id desde la
@@ -9,6 +10,7 @@ export const routes: Routes = [
     path: 'alumno/:alumnoId/planilla',
     loadComponent: () => import('./features/planilla/planilla-page').then((m) => m.PlanillaPage),
     title: 'WorkoutAgentic · Planilla',
+    canDeactivate: [(component: PlanillaPage) => component.canLeave()],
   },
   {
     path: '',
