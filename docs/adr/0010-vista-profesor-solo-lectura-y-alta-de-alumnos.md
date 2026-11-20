@@ -9,6 +9,9 @@
 
 ## S1 — Alta explícita de alumnos: `POST /api/alumnos`
 
+> Actualización: ADR-0038 reemplaza el alta por nombre por autorregistro de cuenta
+> y alumno con nombre, email y contraseña. El módulo de profesor no se reactiva.
+
 **Decisión:** el alta de una cuenta de alumno es una acción explícita del
 profesor (o del seed de demo), con `Nombre` y `TelefonoWa` opcional. Sin canal
 habilitado, ya no existe «alta por primer contacto».

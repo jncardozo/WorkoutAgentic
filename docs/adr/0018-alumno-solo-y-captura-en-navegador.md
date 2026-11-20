@@ -1,6 +1,8 @@
 # ADR 0018 — Sprint de alumno: captura desde navegador y sin módulo de profesor
 
 - **Estado:** Aceptado (2026-10-24)
+- **Actualización:** ADR-0038 agrega autenticación y autorregistro del alumno;
+  se mantiene retirado el módulo de profesor y WhatsApp.
 - **Contexto:** el reconocimiento de voz ya se ejecuta en el navegador y la SPA
   entrega texto a la API. El webhook, el envío y la descarga de audio de
   WhatsApp ya no tienen un flujo de producto. En este sprint se trabajará solo

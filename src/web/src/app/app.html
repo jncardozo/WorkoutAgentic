@@ -3,8 +3,35 @@
     <img class="marca-logo" src="brand/logo-horizontal.png" alt="" aria-hidden="true" />
     <span class="marca-nombre sr-solo">WorkoutAgentic</span>
   </a>
+  @if (auth.account(); as account) {
+    <details #accountMenu class="account-menu">
+      <summary class="account-trigger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <circle cx="12" cy="8" r="3.5" />
+          <path d="M5 21v-2a7 7 0 0 1 14 0v2" stroke-linecap="round" />
+        </svg>
+        <span>Mi cuenta</span>
+        <svg class="account-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </summary>
+      <div class="account-panel">
+        <p class="account-name">{{ account.name }}</p>
+        <p class="account-email">{{ account.email }}</p>
+        <a class="account-agreement" routerLink="/acuerdo-qa" (click)="closeAccountMenu()">Acuerdo de confidencialidad</a>
+        <button class="account-logout" type="button" (click)="logout()" [disabled]="signingOut()" title="Cierra tus sesiones en todos los dispositivos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M9 4H5v16h4m5-12 4 4-4 4m-5-4h12" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          {{ signingOut() ? 'Cerrando sesión…' : 'Cerrar sesión' }}
+        </button>
+      </div>
+    </details>
+  }
+  <app-pwa-install />
 </header>
 
 <main class="contenido">
+  @if (logoutError()) { <p role="alert">{{ logoutError() }}</p> }
   <router-outlet />
 </main>

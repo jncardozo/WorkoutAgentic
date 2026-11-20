@@ -80,21 +80,29 @@
       <section class="seccion-detalle" aria-labelledby="titulo-detalle">
         <header class="encabezado-seccion"><h2 id="titulo-detalle">Detalle de la sesión</h2><span>{{ ejercicios() }} EJERCICIOS · {{ filas().length }} SERIES</span></header>
         @for (grupo of grupos(); track grupo.nombre; let indice = $index) {
-          <article class="grupo-ejercicio">
-            <header><span class="numero-grupo">{{ (indice + 1).toString().padStart(2, '0') }}</span><strong>{{ grupo.nombre }}</strong><small>{{ grupo.filas.length }} {{ grupo.filas.length === 1 ? 'serie registrada' : 'series registradas' }}</small></header>
-            <div class="filas-ejercicio">
-              @for (fila of grupo.filas; track fila.orden) {
-                <div class="fila-ejercicio">
-                  <span class="serie-label">Serie {{ fila.nroSerie }}</span>
-                  <span>{{ fila.reps === null ? '—' : fila.reps + ' reps' }}</span>
-                  <strong>{{ pesoTexto(fila) }}</strong>
-                  @if (fila.comments) { <p class="series-note">Comentarios: {{ fila.comments }}</p> }
-                  @if (fila.observations) { <p class="series-note">Observaciones: {{ fila.observations }}</p> }
-                  @if (fila.incompleta) { <span class="badge-incompleta">INCOMPLETA</span> }
-                </div>
-              }
+          <details class="grupo-ejercicio" open>
+            <summary class="report-toggle" [id]="'report-exercise-' + indice">
+              <span class="numero-grupo">{{ (indice + 1).toString().padStart(2, '0') }}</span><strong>{{ grupo.nombre }}</strong><small>{{ grupo.filas.length }} {{ grupo.filas.length === 1 ? 'serie registrada' : 'series registradas' }}</small>
+              <svg class="report-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </summary>
+            <div class="series-scroll" role="region" tabindex="0" [attr.aria-labelledby]="'report-exercise-' + indice">
+              <table class="series-table" [attr.aria-labelledby]="'report-exercise-' + indice">
+                <colgroup><col class="col-series" /><col class="col-reps" /><col class="col-weight" /><col class="col-comments" /><col /></colgroup>
+                <thead><tr><th scope="col">Serie</th><th scope="col">Reps</th><th scope="col">Peso</th><th scope="col">Comentarios</th><th scope="col">Observaciones</th></tr></thead>
+                <tbody>
+                  @for (fila of grupo.filas; track fila.orden) {
+                    <tr>
+                      <th scope="row" class="serie-label">Serie {{ fila.nroSerie }}@if (fila.incompleta) { <span class="badge-incompleta">INCOMPLETA</span> }</th>
+                      <td class="series-reps">{{ fila.reps ?? '—' }}</td>
+                      <td class="series-weight">{{ pesoTexto(fila) }}</td>
+                      <td class="series-note">{{ fila.comments || '—' }}</td>
+                      <td class="series-note">{{ fila.observations || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
             </div>
-          </article>
+          </details>
         }
       </section>
 

@@ -29,6 +29,7 @@ import { TrainingEditor } from './training-editor';
 import { TrainingProgress } from './training-progress';
 import { CommandExample } from './command-example';
 import { groupExerciseRows } from './exercise-groups';
+import { TrainingHistory } from './training-history';
 import { DictadoVoz } from './dictado-voz';
 import { ReportePreview, FormatoVistaPrevia } from './reporte-preview';
 import { ReporteWorkspace, ModoReporte } from './reporte-workspace';
@@ -56,13 +57,12 @@ const INTERVALO_ENCUESTA_MS = 10_000;
  * ADR-0007/0017: solo mientras la sesión admite edición; se puede confirmar
  * desde EnCurso o Lista cuando no hay una aclaración pendiente.
  *
- * La identificación usa el alumno de prueba configurado en la ruta raíz hasta
- * AuthApi; mientras tanto los dispositivos de prueba comparten su historial.
+ * La identidad se resuelve desde la cuenta autenticada (ADR-0038).
  */
 @Component({
   selector: 'app-planilla-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, ReportePreview, ReporteWorkspace, TrainingEditor, TrainingProgress, CommandExample],
+  imports: [DatePipe, ReportePreview, ReporteWorkspace, TrainingEditor, TrainingProgress, CommandExample, TrainingHistory],
   templateUrl: './planilla-page.html',
   styleUrl: './planilla-page.scss',
 })
@@ -70,7 +70,7 @@ export class PlanillaPage {
   private readonly planillaApi = inject(PlanillaApi);
   readonly dictado = inject(DictadoVoz);
 
-  /** Viene de la ruta `alumno/:alumnoId/planilla` (input binding de rutas). */
+  /** Resuelto por el router desde la cuenta autenticada. */
   readonly alumnoId = input.required<number>();
   readonly trainingEditorOpen = signal(false);
   private readonly trainingEditor = viewChild(TrainingEditor);
@@ -748,6 +748,10 @@ export class PlanillaPage {
     if (this.historialAbierto() && this.fallaHistorial()) {
       this.cargarHistorial(this.alumnoId());
     }
+  }
+
+  retryHistory(): void {
+    if (!this.cargandoHistorial()) this.cargarHistorial(this.alumnoId());
   }
 
   verPlanillaHistorial(planilla: PlanillaConfirmadaVista): void {

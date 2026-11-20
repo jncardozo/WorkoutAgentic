@@ -32,47 +32,6 @@
   text-align: center;
   font-size: 13px;
 }
-.panel-historial {
-  margin-bottom: 28px;
-}
-.cabecera-historial,
-.fila-historial {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.cabecera-historial {
-  margin-bottom: 16px;
-}
-.cabecera-historial h2,
-.fila-historial h3 {
-  margin: 0;
-}
-.fila-historial h3 {
-  font-size: 14px;
-}
-.fila-historial p,
-.estado-historial {
-  margin: 5px 0 0;
-  color: var(--texto-2);
-  font-size: 12px;
-  line-height: 1.5;
-}
-.lista-historial {
-  display: grid;
-  gap: 8px;
-}
-.fila-historial {
-  min-height: 64px;
-  padding: 12px 14px;
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  background: var(--panel-bajo);
-}
-.estado-historial {
-  margin-top: 0;
-}
 .panel-captura {
   overflow: hidden;
   margin-bottom: 28px;
@@ -109,7 +68,7 @@
 }
 .captura {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
   position: relative;
@@ -153,39 +112,36 @@
   pointer-events: none;
 }
 .acciones-captura {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: stretch;
   gap: 10px;
 }
-.ejemplos-rapidos {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 12px;
+.acciones-captura:not(:has(.btn-mic)) {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
-.etiqueta-ejemplos {
-  margin-right: 3px;
-  color: var(--texto-3);
-  font-family: var(--tipografia-numeros);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
+.acciones-captura .btn-mic, .acciones-captura .btn-enviar {
+  min-height: 48px;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1.3;
 }
 .ejemplo-rapido {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 44px;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
   border: 1px solid var(--borde);
-  border-radius: 6px;
-  padding: 5px 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
   background: var(--panel-2);
   color: var(--texto-2);
   font-family: var(--tipografia-texto);
-  font-size: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
   cursor: pointer;
   transition:
     border-color 0.15s ease,
@@ -234,7 +190,23 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .acciones-captura {
-    flex-direction: row;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+  .acciones-captura:not(:has(.btn-mic)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .acciones-captura .btn-mic {
+    min-width: 0;
+    padding: 10px;
+    white-space: normal;
+  }
+  .acciones-captura .btn-enviar {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .ejemplo-rapido {
+    font-size: 12px;
+    padding: 10px;
   }
   .entrada-captura {
     min-height: 56px;
@@ -619,17 +591,6 @@
   margin: 20px 0 0;
 }
 
-@media (max-width: 560px) {
-  .cabecera-historial,
-  .fila-historial {
-    align-items: flex-start;
-  }
-
-  .fila-historial {
-    flex-direction: column;
-  }
-}
-
 /* ─── Toast (aviso flotante del prototipo) ─────────────────────────────────── */
 
 .toast {
@@ -686,12 +647,6 @@
 }
 .campos-alta textarea { width: 100%; resize: vertical; }
 
-@media (max-width: 640px) {
-  .ejemplo-rapido {
-    flex-shrink: 0;
-  }
-}
-
 .row-edit { appearance: none; background: none; border: none; color: inherit; font: inherit; text-align: left; padding: 8px 0; min-height: 44px; cursor: pointer; }
 .row-edit:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 
@@ -746,7 +701,16 @@
   border-radius: 10px 10px 0 0;
   border-bottom: 1px solid var(--borde);
   background: var(--panel-cabeza);
+  min-height: 56px;
+  cursor: pointer;
+  list-style: none;
 }
+
+.exercise-card-header::-webkit-details-marker { display: none; }
+.exercise-card-header:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+.exercise-card:not([open]) > .exercise-card-header { border-bottom: 0; border-radius: 10px; }
+.exercise-chevron { width: 18px; height: 18px; flex-shrink: 0; color: var(--texto-2); transform: rotate(-90deg); }
+.exercise-card[open] .exercise-chevron { transform: none; }
 
 .exercise-card-header h3 {
   display: flex;
@@ -757,6 +721,7 @@
   color: var(--texto-fuerte);
   font-size: 14px;
   overflow-wrap: anywhere;
+  flex: 1;
 }
 
 .exercise-card-header > span {

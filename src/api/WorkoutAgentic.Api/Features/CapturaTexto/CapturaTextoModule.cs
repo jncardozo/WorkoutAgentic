@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WorkoutAgentic.Api.Features.Auth;
 using WorkoutAgentic.Api.Data;
 using WorkoutAgentic.Api.Features.CapturaSesion;
 using WorkoutAgentic.Api.Features.Nlu;
@@ -19,7 +20,8 @@ internal static class CapturaTextoModule
 {
     public static IEndpointRouteBuilder MapCapturaTexto(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/capturas").WithTags("Captura");
+        var group = endpoints.MapGroup("/api/capturas").WithTags("Captura")
+            .RequireAuthorization().AddEndpointFilter<StudentAccessFilter>();
 
         group.MapPost("/{alumnoId:int}/texto", Capturar)
             .WithName("CapturarTexto")

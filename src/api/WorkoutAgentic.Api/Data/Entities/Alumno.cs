@@ -8,10 +8,10 @@ public class Alumno
     // Nombre visible del alumno.
     public string Nombre { get; set; } = string.Empty;
 
-    // Email de login SPA (S6), si ya existe.
+    // Correo del alta; las credenciales se gestionan en ApplicationUser.
     public string? Email { get; set; }
 
-    // Estado de la cuenta; el slice AuthApi (S6) define el set de valores.
+    // Solo los alumnos ACTIVO pueden acceder a sus entrenamientos.
     public string Estado { get; set; } = "ACTIVO";
 
     public List<SesionCaptura> Sesiones { get; set; } = [];

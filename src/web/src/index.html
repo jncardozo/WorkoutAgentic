@@ -7,19 +7,100 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080c10">
   <meta name="color-scheme" content="dark">
+  <meta name="referrer" content="no-referrer">
   <link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
   <link rel="icon" type="image/png" sizes="32x32" href="brand/favicon-orange-32.png">
   <link rel="icon" type="image/png" sizes="48x48" href="brand/favicon-orange-48.png">
   <link rel="apple-touch-icon" sizes="180x180" href="brand/apple-touch-icon-orange.png">
-  <style>html, body { margin: 0; background: #080c10; color: #e2e8f0; }</style>
+  <!-- Crítico: la presentación se dibuja y anima antes de descargar Angular. -->
+  <style>
+    html, body { margin: 0; background: #080c10; color: #e2e8f0; }
+    body.startup-active { overflow: hidden; }
+    #startup-screen { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: auto; box-sizing: border-box; padding: max(28px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)); background: #080c10; color: #fafafa; font-family: Inter, system-ui, sans-serif; text-align: center; transition: opacity .24s ease; }
+    #startup-screen .startup-aura { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    #startup-screen .startup-aura::before { content: ''; position: absolute; top: 13%; left: calc(50% - 250px); width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, #f973162e, #f973160c 42%, transparent 68%); animation: startup-breathe 3.2s ease-in-out infinite alternate; }
+    #startup-screen .startup-orbit { position: absolute; top: 50%; left: 50%; width: min(82vw, 360px); aspect-ratio: 1; border: 1px solid #f973160d; border-radius: 50%; transform: translate(-50%, -50%); }
+    #startup-screen .startup-orbit::after { content: ''; position: absolute; inset: 25px; border: 1px solid #f9731609; border-radius: 50%; }
+    #startup-screen .startup-center { position: relative; width: 100%; max-width: 380px; margin: auto 0; padding: 28px 0; }
+    #startup-screen .startup-kicker { margin: 0 0 28px; color: #b6a292; font-size: 9px; font-weight: 600; letter-spacing: .2em; }
+    #startup-screen .startup-symbol { display: block; width: min(72vw, 250px); height: 142px; margin: 0 auto 22px; overflow: visible; filter: drop-shadow(0 0 14px #f9731655); }
+    #startup-screen .startup-eq { transform-box: fill-box; transform-origin: center; animation: startup-equalize 1.15s ease-in-out infinite alternate; }
+    #startup-screen .startup-eq:nth-child(2) { animation-delay: -.4s; animation-duration: .95s; }
+    #startup-screen .startup-eq:nth-child(3) { animation-delay: -.7s; animation-duration: 1.35s; }
+    #startup-screen .startup-eq:nth-child(4) { animation-delay: -.2s; animation-duration: 1.05s; }
+    #startup-screen .startup-eq:nth-child(5) { animation-delay: -.55s; animation-duration: 1.25s; }
+    #startup-screen .startup-wordmark { margin: 0; color: #fafafa; font-size: clamp(27px, 7vw, 36px); font-weight: 750; letter-spacing: -.055em; line-height: 1.2; }
+    #startup-screen .startup-wordmark span { color: #fb923c; }
+    #startup-screen .startup-tagline { margin: 12px 0 0; color: #a1a1aa; font-size: 8px; letter-spacing: .2em; }
+    #startup-screen .startup-motto { margin: 36px 0 0; color: #d4d4d8; font-size: 14px; letter-spacing: -.01em; }
+    #startup-screen .startup-loading { max-width: 280px; margin: 28px auto 0; }
+    #startup-status { min-height: 36px; margin: 0; color: #a1a1aa; font-size: 11px; line-height: 1.6; }
+    #startup-screen .startup-track { position: relative; height: 2px; margin-top: 12px; overflow: hidden; border-radius: 4px; background: #ffffff0d; }
+    #startup-screen .startup-track::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, #f97316, #fbbf24, transparent); animation: startup-scan 1.6s ease-in-out infinite; }
+    #startup-screen .startup-actions { height: 48px; margin-top: 22px; }
+    #startup-continue { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 10px 18px; border: 1px solid #f9731640; border-radius: 24px; background: #f973160d; color: #fdba74; font: 600 12px/1.5 Inter, system-ui, sans-serif; cursor: pointer; }
+    #startup-continue[hidden] { display: none; }
+    #startup-continue svg { width: 16px; height: 16px; }
+    #startup-screen .startup-footer { position: relative; flex-shrink: 0; color: #71717a; font-size: 8px; letter-spacing: .2em; }
+    #startup-screen .startup-retry { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 5px; color: #a1a1aa; font-size: 10px; letter-spacing: 0; text-underline-offset: 4px; }
+    #startup-screen a:focus-visible, #startup-continue:focus-visible { outline: 2px solid #fb923c; outline-offset: 4px; }
+    #startup-screen.startup-ready .startup-track::after { animation-duration: 2.4s; }
+    #startup-screen.startup-failed .startup-track { display: none; }
+    #startup-screen.startup-failed .startup-eq, #startup-screen.startup-failed .startup-aura::before { animation-play-state: paused; }
+    #startup-screen.startup-failed #startup-status { color: #fda4af; }
+    #startup-screen.startup-leaving { opacity: 0; pointer-events: none; }
+    @keyframes startup-equalize { from { transform: scaleY(.4); } to { transform: scaleY(1.12); } }
+    @keyframes startup-breathe { from { transform: scale(.8); opacity: .55; } to { transform: scale(1.2); opacity: 1; } }
+    @keyframes startup-scan { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+    @media (max-height: 600px) { #startup-screen .startup-symbol { height: 85px; margin-bottom: 12px; } #startup-screen .startup-center { padding: 12px 0; } #startup-screen .startup-kicker { margin-bottom: 10px; } #startup-screen .startup-motto { margin-top: 18px; } #startup-screen .startup-loading { margin-top: 16px; } }
+    @media (prefers-reduced-motion: reduce) { #startup-screen, #startup-screen *, #startup-screen *::before, #startup-screen *::after { animation: none !important; transition: none !important; } }
+  </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Tipografías del diseño según prototipo Stitch (docs/design): Inter + JetBrains Mono -->
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    rel="stylesheet">
+    rel="stylesheet" media="print" onload="this.media='all'">
 </head>
-<body>
-  <app-root></app-root>
+<body class="startup-active">
+  <section id="startup-screen" aria-label="Iniciando WorkoutAgentic" aria-busy="true">
+    <div class="startup-aura" aria-hidden="true"><div class="startup-orbit"></div></div>
+    <div class="startup-center">
+      <p class="startup-kicker">TU PRÓXIMA SERIE EMPIEZA ACÁ</p>
+      <svg class="startup-symbol" viewBox="0 0 360 180" fill="none" aria-hidden="true">
+        <defs><linearGradient id="startup-energy" x1="30" y1="90" x2="330" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#f97316"/><stop offset=".55" stop-color="#fdba74"/><stop offset="1" stop-color="#f97316"/></linearGradient></defs>
+        <g stroke="url(#startup-energy)" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M32 90h296" stroke-width="5" opacity=".7"/>
+          <path d="M56 66v48m24-72v96m200-96v96m24-72v48" stroke-width="12"/>
+          <g stroke-width="7">
+            <path class="startup-eq" d="M124 65v50"/>
+            <path class="startup-eq" d="M152 48v84"/>
+            <path class="startup-eq" d="M180 25v130"/>
+            <path class="startup-eq" d="M208 42v96"/>
+            <path class="startup-eq" d="M236 62v56"/>
+          </g>
+        </g>
+      </svg>
+      <h1 class="startup-wordmark">Workout<span>Agentic</span></h1>
+      <p class="startup-tagline">INTELIGENCIA VOCAL Y CINÉTICA</p>
+      <p class="startup-motto">Menos escribir. Más entrenar.</p>
+      <div class="startup-loading">
+        <p id="startup-status" role="status">Preparando tu espacio de entrenamiento…</p>
+        <div class="startup-track" aria-hidden="true"></div>
+      </div>
+      <div class="startup-actions">
+        <button id="startup-continue" type="button" hidden>
+          Empezar entrenamiento
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+    <footer class="startup-footer">VOZ · FUERZA · PROGRESO<a class="startup-retry" href="">¿Tarda demasiado? Volver a cargar</a></footer>
+  </section>
+  <app-root id="app-content" inert aria-hidden="true"></app-root>
+  <noscript>
+    <style>#startup-screen { display: none; } body.startup-active { overflow: auto; }</style>
+    <p>Activá JavaScript para abrir WorkoutAgentic y registrar tu entrenamiento.</p>
+  </noscript>
 </body>
 </html>

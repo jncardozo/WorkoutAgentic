@@ -43,68 +43,35 @@
   @if (sesion(); as espacio) {
     <!-- Encabezado y contexto del atleta -->
     <header class="encabezado-planilla">
-      <div>
+      <div class="planilla-identity">
         <h1>Planilla de {{ espacio.alumno.nombre || 'entrenamiento' }}</h1>
-        @if (sesionViva(); as viva) {
-          <p class="meta-planilla">
-            <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-            </svg>
-            <span>Actualizada {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}</span>
-          </p>
-        }
+        <div class="planilla-meta">
+          <span class="badge {{ chipEstado().clase }}">
+            <span class="pulso" aria-hidden="true"></span>
+            {{ chipEstado().texto }}
+          </span>
+          @if (sesionViva(); as viva) {
+            <p class="meta-planilla">
+              <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+              <span>Actualizada {{ viva.ultimaActividadUtc | date: 'dd MMM, HH:mm' }}</span>
+            </p>
+          }
+        </div>
       </div>
       <div class="encabezado-lado">
-        <span class="badge {{ chipEstado().clase }}">
-          <span class="pulso" aria-hidden="true"></span>
-          {{ chipEstado().texto }}
-        </span>
-        <button
-          type="button"
-          class="btn"
-          (click)="alternarHistorial()"
-          [attr.aria-expanded]="historialAbierto()"
-        >
-          {{ historialAbierto() ? 'Cerrar historial' : 'Historial' }}
-        </button>
-        <button type="button" class="btn" (click)="recargar()" title="Actualizar datos desde la app">
+        <app-training-history [entries]="historialPlanillas()" [isOpen]="historialAbierto()" [loading]="cargandoHistorial()"
+          [error]="fallaHistorial()?.detalle ?? fallaHistorial()?.titulo ?? null" (opened)="alternarHistorial()"
+          (closed)="historialAbierto.set(false)" (selected)="verPlanillaHistorial($event)" (retry)="retryHistory()" />
+        <button type="button" class="btn refresh-training" (click)="recargar()" aria-label="Actualizar entrenamiento" title="Actualizar datos desde la app">
           <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
           </svg>
-          Actualizar
+          <span class="refresh-label">Actualizar</span>
         </button>
       </div>
     </header>
-
-    @if (historialAbierto()) {
-      <section class="tarjeta panel-historial" aria-labelledby="titulo-historial">
-        <header class="cabecera-historial">
-          <div>
-            <h2 id="titulo-historial">Historial de planillas</h2>
-            <p class="meta-captura">Tus entrenamientos confirmados siguen guardados.</p>
-          </div>
-        </header>
-        @if (cargandoHistorial()) {
-          <p class="estado-historial">Cargando tus planillas…</p>
-        } @else if (fallaHistorial(); as falla) {
-          <p class="estado-historial mensaje-error" role="alert">{{ falla.detalle ?? falla.titulo }}</p>
-        } @else if (historialPlanillas().length === 0) {
-          <p class="estado-historial">Todavía no confirmaste ninguna planilla.</p>
-        } @else {
-          <div class="lista-historial">
-            @for (planilla of historialPlanillas(); track planilla.id) {
-              <article class="fila-historial">
-                <div>
-                  <h3>Planilla #{{ planilla.id }}</h3>
-                  <p>{{ planilla.confirmadaUtc | date: 'dd MMM yyyy, HH:mm' }} · {{ planilla.filas.length }} {{ planilla.filas.length === 1 ? 'serie' : 'series' }}</p>
-                </div>
-                <button type="button" class="btn" (click)="verPlanillaHistorial(planilla)">Ver reporte</button>
-              </article>
-            }
-          </div>
-        }
-      </section>
-    }
 
     <!-- Panel de dictado (ADR-0009): siempre disponible; tras una confirmación,
          el primer mensaje dictado abre una carga nueva y saca la vista congelada. -->
@@ -132,6 +99,10 @@
           <span class="ayuda-enter" aria-hidden="true">Enter para enviar</span>
         </div>
         <div class="acciones-captura">
+          <button type="button" class="ejemplo-rapido" aria-haspopup="dialog"
+            [disabled]="capturaEnCurso() || dictado.escuchando()" (click)="commandExample.open()">
+            <span aria-hidden="true">💡</span> <span>Comando de ejemplo</span>
+          </button>
           @if (dictado.soportado) {
             <button
               type="button"
@@ -173,13 +144,6 @@
           Cargando tus series en la cuadrícula…
         </p>
       }
-      <div class="ejemplos-rapidos" aria-label="Ejemplos rápidos de captura">
-        <span class="etiqueta-ejemplos">EJEMPLOS RÁPIDOS</span>
-        <button type="button" class="ejemplo-rapido" aria-haspopup="dialog"
-          [disabled]="capturaEnCurso() || dictado.escuchando()" (click)="commandExample.open()">
-          <span aria-hidden="true">💡</span> Comando de ejemplo
-        </button>
-      </div>
       <app-command-example #commandExample />
       @if (dictado.escuchando()) {
         <p class="parcial-dictado" aria-live="polite">
@@ -242,11 +206,12 @@
         </div>
 
         @for (group of confirmedExerciseGroups(); track group.key) {
-          <section class="exercise-card" [attr.aria-labelledby]="'confirmed-exercise-' + group.key">
-            <header class="exercise-card-header">
+          <details class="exercise-card" open [attr.aria-labelledby]="'confirmed-exercise-' + group.key">
+            <summary class="exercise-card-header">
               <h3 [id]="'confirmed-exercise-' + group.key"><span class="punto-ejercicio" aria-hidden="true"></span>{{ group.name }}</h3>
               <span>{{ group.rows.length }} {{ group.rows.length === 1 ? 'serie' : 'series' }}</span>
-            </header>
+              <svg class="exercise-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </summary>
             <div class="envoltorio-tabla">
               <table class="cuadricula" [attr.aria-labelledby]="'confirmed-exercise-' + group.key">
                 <thead>
@@ -280,7 +245,7 @@
               </table>
             </div>
 
-          </section>
+          </details>
         }
 
         <section class="panel-exportacion" aria-labelledby="titulo-exportacion">
@@ -440,11 +405,12 @@
             <p class="vacia">Todavía no hay series.</p>
           } @else {
             @for (group of exerciseGroups(); track group.key) {
-              <section class="exercise-card" [attr.aria-labelledby]="'exercise-' + group.key">
-                <header class="exercise-card-header">
+              <details class="exercise-card" open [attr.aria-labelledby]="'exercise-' + group.key">
+                <summary class="exercise-card-header">
                   <h3 [id]="'exercise-' + group.key"><span class="punto-ejercicio" aria-hidden="true"></span>{{ group.name }}</h3>
                   <span>{{ group.rows.length }} {{ group.rows.length === 1 ? 'serie' : 'series' }}</span>
-                </header>
+                  <svg class="exercise-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </summary>
                 <div class="envoltorio-tabla">
                   <table class="cuadricula" [attr.aria-labelledby]="'exercise-' + group.key">
                     <thead>
@@ -588,7 +554,7 @@
                     </tbody>
                   </table>
                 </div>
-              </section>
+              </details>
             }
           }
 

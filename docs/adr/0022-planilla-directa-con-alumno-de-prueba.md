@@ -1,6 +1,8 @@
 # ADR 0022 — Inicio directo en la planilla con alumno de prueba
 
 - **Estado:** Aceptado (2026-10-27)
+- **Vigencia:** el ID fijo y el acceso compartido se sustituyen por cuenta
+  autenticada y planilla propia en ADR-0038.
 - **Contexto:** ADR-0008 S1, ADR-0018, prueba de la SPA con alumnos invitados.
 
 ## Decisión

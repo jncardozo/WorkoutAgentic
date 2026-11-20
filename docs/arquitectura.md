@@ -23,9 +23,9 @@ Alumno
 ```
 
 El navegador envía texto reconocido o escrito. No se sube audio a la API.
-La aplicación no expone login, roles ni vistas de profesor en este sprint. La
-SPA abre directamente la planilla y usa temporalmente el alumno de prueba #1;
-los dispositivos comparten ese historial hasta implementar autenticación.
+La aplicación ofrece registro, login y recuperación mediante ASP.NET Core Identity
+y cookies (ADR-0038). La SPA resuelve el alumno autenticado; cada cuenta accede solo
+a sus propios datos. Las vistas de profesor siguen fuera del alcance.
 
 ## 2. Backend
 
@@ -35,7 +35,7 @@ los dispositivos comparten ese historial hasta implementar autenticación.
 | `Nlu` | Clasificar intención y extraer entidades; normalizar el ejercicio como texto libre. |
 | `CapturaSesion` | Mantener estados de sesión, crear filas y pedir aclaraciones abiertas cuando haga falta. |
 | `PlanillaApi` | Leer la sesión y el historial de planillas confirmadas, editar/agregar/eliminar parciales, congelar snapshots y exportar/enviar planillas. |
-| `Alumnos` | Dar de alta explícitamente una cuenta de alumno por nombre. |
+| `Auth` | Autorregistro explícito de cuenta y alumno, sesión, recuperación y control de pertenencia. |
 | `Data` | Persistir con EF Core y SQLite. |
 
 El NLU no usa catálogo para aceptar ejercicios. Si la interpretación falla, la
@@ -87,9 +87,9 @@ por ejercicio, con cabecera única y scroll horizontal limitado a cada tabla.
 La SPA comparte los tokens Energy Orange entre acciones y estados de confirmación
 (ADR-0032). Esta presentación no modifica contratos ni datos persistidos.
 
-La SPA abre directamente la captura por texto/voz y la cuadrícula editable con
-confirmación. En este MVP usa internamente el alumno de prueba #1, sin pedir al
-alumno que ingrese un número. La voz usa la API de reconocimiento del navegador y
+La SPA abre la captura por texto/voz y la cuadrícula editable con confirmación
+después de autenticar. El alumno se obtiene de la cuenta, sin ID compartido ni
+selector de identidad. La voz usa la API de reconocimiento del navegador y
 el resultado final se agrega al mismo borrador que el texto manual. El backend
 recibe solo texto.
 

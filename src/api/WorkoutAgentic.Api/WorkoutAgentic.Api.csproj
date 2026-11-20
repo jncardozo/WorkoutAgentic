@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -19,6 +20,10 @@
   <!-- Los tests del slice validan los internals (firma, cola). -->
   <ItemGroup>
     <InternalsVisibleTo Include="WorkoutAgentic.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../../docs/legal/condiciones-prueba-app-v1.txt" LogicalName="WorkoutAgentic.Agreement.v1.txt" />
   </ItemGroup>
 
 </Project>

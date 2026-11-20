@@ -42,10 +42,7 @@ public sealed record SesionActualVista(
 // normal, no un error (404 queda reservado a alumno inexistente).
 public sealed record RespuestaSesionActual(AlumnoVista Alumno, SesionActualVista? Sesion);
 
-// Encabezado mínimo de la cuenta. La identificación del alumno es provisional
-// (id por ruta) hasta AuthApi (arquitectura S6: cookie + roles por email).
-// El nombre viene del alta explícita (ADR-0010); el teléfono es opcional
-// hasta que se incorpore autenticación.
+// Encabezado mínimo del alumno vinculado a la identidad autenticada (ADR-0038).
 public sealed record AlumnoVista(int Id, string Nombre);
 
 // ─── Comandos del CRUD de parciales (antes de confirmar) ──────────────────────
@@ -77,7 +74,7 @@ public sealed record ComandoEdicionFila(
     string? Observations = null);
 
 // POST /api/planillas/confirmar: abre el snapshot (write-once) cuando la
-// sesión está en LISTA (regla de negocio §2).
+// sesión está en EnCurso o Lista (ADR-0017).
 public sealed record ComandoConfirmar(int AlumnoId);
 
 // ─── Respuesta de confirmación (snapshot congelado) ──────────────────────────

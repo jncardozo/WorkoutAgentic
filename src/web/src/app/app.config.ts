@@ -1,7 +1,8 @@
 import { registerLocaleData } from '@angular/common';
 import localeEs from '@angular/common/locales/es';
 import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { sessionInterceptor } from './core/auth-api';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 
 import { routes } from './app.routes';
@@ -13,7 +14,7 @@ registerLocaleData(localeEs, 'es');
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([sessionInterceptor])),
     provideRouter(routes, withComponentInputBinding()),
     { provide: LOCALE_ID, useValue: 'es' },
     // Dictado por voz (ADR-0011): el reconocedor real del navegador; en specs

@@ -58,6 +58,16 @@ Automated tests use controlled provider responses. Passing them is evidence abou
 
 ## Current limits and candidate next work
 
-The root SPA route uses demo student #1, and the API has no authentication or per-student authorization. Multi-user access control is a prerequisite for production deployment. Email requires separately configured SMTP. Web-app metadata supports installation but does not implement offline capture.
+Student accounts now use ASP.NET Core Identity and same-origin cookies (ADR-0038).
+The root SPA route resolves the signed-in student's identity. API filters enforce
+ownership across capture, rows, history and reports; client IDs are never proof
+of identity. Antiforgery tokens protect mutations, including login and registration.
+Identity tables are added without assigning historical demo records to new accounts.
+Registration is open for testing and email ownership is not yet verified. Password
+recovery requires SMTP and Auth:PublicOrigin. Cookie keys must persist with the deployment.
+Web-app metadata supports installation but does not implement offline capture.
 
-Useful next increments include authenticated student ownership, a larger Spanish interpretation evaluation corpus, provider quality/latency measurement, real-device dictation/install checks, and deployment preparation. These are proposed directions, not features claimed as complete or a committed release schedule. Automated routine generation remains outside the capture MVP.
+Useful next increments include email verification, evaluating MFA and registration
+abuse controls, a larger Spanish interpretation evaluation corpus, provider
+quality/latency measurement, real-device dictation/install checks, and deployment
+preparation. Automated routine generation remains outside the capture MVP.

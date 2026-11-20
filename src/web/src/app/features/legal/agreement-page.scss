@@ -1,0 +1,36 @@
+:host { display: block; }
+.agreement-page { max-width: 800px; margin: 0 auto; }
+.eyebrow { color: var(--acento-suave); font-size: 12px; letter-spacing: .12em; font-weight: 700; }
+h1 { font-size: clamp(24px, 5vw, 36px); line-height: 1.2; margin: 12px 0; }
+.intro, .acceptance-note { color: var(--texto-2); }
+.document-toolbar, .actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.document-toolbar { justify-content: space-between; margin: 28px 0 12px; font-size: 13px; color: var(--texto-2); }
+.agreement-text {
+  padding: clamp(16px, 4vw, 32px);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 16px;
+  background: var(--panel);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.acceptance { margin-top: 24px; padding: 24px; border: 1px solid var(--borde-fuerte); border-radius: 16px; background: var(--panel); }
+.account-identity { margin-top: 0; overflow-wrap: anywhere; }
+.consent { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.consent input { flex-shrink: 0; width: 22px; height: 22px; margin: 2px 0; accent-color: var(--acento); }
+.acceptance-note { font-size: 13px; }
+button, .continue-link { min-height: 44px; padding: 12px 18px; border-radius: 10px; font: 600 14px/1.4 var(--tipografia-texto); cursor: pointer; }
+.primary { background: var(--acento); color: var(--texto-invertido); border: 1px solid var(--acento); }
+.secondary { background: var(--panel-2); color: var(--texto); border: 1px solid var(--borde-fuerte); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--acento-suave); outline-offset: 4px; }
+a { color: var(--acento-suave); }
+.continue-link { display: inline-flex; margin-top: 16px; text-decoration: none; }
+.acceptance-status { border-left: 3px solid var(--acento); padding: 4px 16px 16px; margin-top: 24px; }
+.error { color: var(--peligro-suave); margin: 16px 0; }
+nav.actions { margin-top: 24px; }
+@media (max-width: 480px) {
+  .acceptance { padding: 16px; }
+  .actions button { width: 100%; }
+}

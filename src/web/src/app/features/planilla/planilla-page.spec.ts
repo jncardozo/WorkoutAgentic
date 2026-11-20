@@ -171,6 +171,27 @@ function escribir(fixture: ComponentFixture<PlanillaPage>, selector: string, val
 }
 
 describe('PlanillaPage', () => {
+  it('abre el historial modal sin desplazar ni reemplazar el borrador de captura', async () => {
+    const stub = stubPlanilla(respuesta(sesion()), { historial: vi.fn(() => of([PLANILLA_CONFIRMADA])) });
+    const fixture = await montar(stub);
+    const host = fixture.nativeElement as HTMLElement;
+    escribir(fixture, 'textarea.entrada-captura', 'Mi entrenamiento pendiente');
+    const capture = host.querySelector('.panel-captura');
+    const dialog = host.querySelector<HTMLDialogElement>('dialog.training-history-dialog')!;
+    dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
+    dialog.close = vi.fn(() => { dialog.removeAttribute('open'); dialog.dispatchEvent(new Event('close')); });
+    boton(fixture, 'Mis entrenamientos').click();
+    await fixture.whenStable();
+    expect(dialog.open).toBe(true);
+    expect(host.querySelector('.panel-historial')).toBeNull();
+    expect(host.querySelector('.panel-captura')).toBe(capture);
+    dialog.querySelector<HTMLButtonElement>('.history-close')!.click();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.historialAbierto()).toBe(false);
+    expect(fixture.componentInstance.borradorCaptura()).toBe('Mi entrenamiento pendiente');
+    expect(stub.capturarTexto).not.toHaveBeenCalled();
+  });
+
   it('la ayuda del comando no reemplaza el borrador ni envía una captura', async () => {
     const stub = stubPlanilla(respuesta(sesion()));
     const fixture = await montar(stub);

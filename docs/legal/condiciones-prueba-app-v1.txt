@@ -1,0 +1,66 @@
+ACUERDO DE CONFIDENCIALIDAD Y CONDICIONES DE PRUEBA
+WorkoutAgentic · Versión {{Version}}
+
+1. Responsable y participante
+
+El responsable de la prueba es {{OwnerName}}, con domicilio en {{OwnerAddress}} y correo de contacto {{ContactEmail}}. El participante es la persona identificada por el nombre y el correo de la cuenta con la que acepta estas condiciones. La aceptación queda vinculada a esa cuenta y se registra con fecha y hora.
+
+2. Objeto y autorización de uso
+
+El responsable ofrece acceso personal, limitado, no transferible y revocable a una versión de evaluación de WorkoutAgentic. El participante puede probar desde el navegador la carga de entrenamientos por texto o dictado, revisar y confirmar planillas y comunicar errores. No se entrega acceso al repositorio, código fuente del backend, bases de datos, infraestructura ni credenciales de proveedores.
+
+Se permite la descarga y ejecución de los recursos necesarios para utilizar la web y su inspección con las herramientas del navegador dentro de las pruebas autorizadas. Esto no autoriza su redistribución ni su reutilización fuera de la evaluación. Las pruebas de carga, destructivas o de seguridad fuera del uso normal requieren autorización escrita previa.
+
+3. Información confidencial y excepciones
+
+El participante debe mantener en reserva la información no pública recibida para esta evaluación cuyo carácter confidencial se indique o resulte razonablemente reconocible por su contenido y contexto. Comprende funcionalidades no publicadas, documentación y explicaciones internas, casos de prueba, planes de producto y comunicaciones privadas. También comprende reportes, capturas, grabaciones y exportaciones en la medida en que revelen esa información, así como credenciales y datos no públicos vistos accidentalmente.
+
+Se excluye la información que el participante pueda acreditar que era pública o se hizo pública sin incumplimiento de una obligación de reserva; que ya conocía legítimamente sin tal obligación; que obtuvo lícitamente de un tercero facultado para compartirla; o que desarrolló de forma independiente sin utilizar información confidencial. La publicación de una funcionalidad no libera otra información interna que siga siendo confidencial. No se concede exclusividad sobre ideas generales, conocimientos públicos ni habilidades profesionales.
+
+4. Uso limitado, reserva y comunicación de errores
+
+El participante utilizará la información confidencial únicamente para evaluar la aplicación y reportar resultados al responsable. Adoptará cuidados razonables para protegerla, no compartirá su cuenta ni permitirá el acceso de terceros y no publicará capturas, grabaciones, reportes o materiales en redes sociales, portfolios, comunidades, repositorios u otros espacios sin autorización escrita previa.
+
+Tampoco utilizará información confidencial para desarrollar, encargar o favorecer un producto propio o de terceros. Esta obligación se limita al uso de esa información y no impide trabajar para otros clientes ni desarrollar soluciones de forma independiente.
+
+Los errores e incidentes se comunicarán de forma privada al correo del responsable. Otros canales, colaboradores o servicios externos, incluidos asistentes de IA, requieren su autorización escrita antes de recibir información confidencial. Los reportes deben ocultar contraseñas, cookies, tokens y datos ajenos. Ante una exposición accidental, se debe detener la exploración, informar sin demora indebida y colaborar razonablemente para contenerla.
+
+Si una autoridad competente exige divulgar información, el participante podrá cumplir el requerimiento, limitando la entrega a lo exigido y avisando previamente al responsable cuando la ley lo permita. Estas condiciones no impiden denuncias o comunicaciones protegidas por normas imperativas.
+
+5. Datos de prueba y funcionamiento del MVP
+
+Se utilizarán datos ficticios en entrenamientos y casos de prueba. No se cargarán datos reales de terceros ni información de salud real para reproducir casos. El nombre y correo utilizados para identificar al participante deben corresponderle.
+
+WorkoutAgentic es una versión en evaluación y puede contener errores o interrupciones. El participante deberá revisar los resultados antes de confirmarlos. Estas condiciones no reemplazan un aviso de privacidad ni las obligaciones legales sobre datos personales y tampoco fijan honorarios o condiciones de contratación del servicio de QA, que deberán acordarse por separado.
+
+6. Propiedad intelectual y sugerencias
+
+El acceso no transfiere derechos sobre el software, los materiales o la información del proyecto, que continúan perteneciendo a sus respectivos titulares. El participante autoriza de manera no exclusiva al responsable a utilizar los reportes y sugerencias que entregue voluntariamente para evaluar, corregir y mejorar WorkoutAgentic, incluso en versiones comerciales, sin contraprestación adicional por ese uso. Esto no modifica honorarios pactados por separado ni autoriza a publicar sus datos personales.
+
+El participante no incorporará información confidencial de otros clientes ni materiales de terceros que no esté autorizado a compartir. Sus herramientas y materiales previos conservan su titularidad. Los encargos de código o automatizaciones con cesión de derechos requieren un acuerdo específico.
+
+7. Finalización y eliminación de materiales
+
+La evaluación comienza al aceptar estas condiciones. Cualquiera de las partes puede finalizarla mediante aviso escrito al correo de la otra. El responsable puede suspender o revocar el acceso por razones de seguridad o incumplimiento, sin perjuicio de las obligaciones legales aplicables.
+
+Al finalizar o a requerimiento escrito, el participante cesará el uso y, dentro de diez días corridos, devolverá o eliminará la información confidencial bajo su control, incluidas copias locales, capturas, grabaciones y exportaciones. A solicitud, confirmará por escrito esas acciones.
+
+Podrá conservar una copia de estas condiciones y la evidencia mínima necesaria para cumplir una obligación legal o ejercer su defensa. Las copias en respaldos automáticos que no puedan eliminarse selectivamente permanecerán sin uso ordinario, sujetas a reserva y se eliminarán conforme al ciclo habitual de esos respaldos. Esto no permite crear nuevas copias ni reutilizar la información.
+
+8. Duración de la confidencialidad
+
+Las obligaciones de reserva y uso limitado rigen durante la evaluación y por tres años desde su finalización. Para información que reúna los requisitos legales de secreto comercial, se mantendrán mientras subsistan esas condiciones. Las excepciones de la cláusula 3 y las autorizaciones escritas de divulgación continuarán siendo aplicables.
+
+9. Incumplimientos y ley aplicable
+
+La parte afectada por un incumplimiento podrá solicitar el cese, las medidas judiciales que correspondan y la reparación de los daños conforme a la ley. No se fijan multas automáticas ni se presume la existencia o el monto de un perjuicio.
+
+Se aplican las leyes de la República Argentina y la competencia judicial que corresponda conforme a esas leyes, sin renunciar a derechos ni competencias inderogables.
+
+10. Aceptación y copia
+
+El responsable pone estas condiciones a disposición al ofrecer la evaluación. El participante manifiesta su aceptación mediante la casilla y el botón «Aceptar y continuar», luego de poder consultar el texto completo. No se presume aceptación por registrarse, iniciar sesión o navegar. Si no está de acuerdo, puede salir sin acceder a los entrenamientos.
+
+El sistema conserva el texto exacto, su versión, una huella del documento, la cuenta y su nombre y correo al momento de aceptar, y la fecha y hora UTC generadas en el servidor, para documentar la aceptación y atender consultas o controversias. Esta constancia es de acceso restringido; puede solicitarse al correo del responsable. No incluye contraseñas, cookies ni tokens. El plazo de conservación deberá limitarse a la evaluación y al tiempo necesario para cumplir obligaciones legales y atender posibles reclamos conforme a la normativa aplicable. El participante puede solicitar acceso, rectificación o supresión de sus datos por ese mismo correo, sujeto a las obligaciones de conservación que correspondan.
+
+Esta acción no se presenta como firma digital certificada ni verifica por sí misma la identidad del titular del correo. El participante puede descargar el texto y su constancia de aceptación desde la aplicación. Los cambios en estas condiciones se presentarán como una nueva versión que requiere una nueva aceptación antes de continuar.

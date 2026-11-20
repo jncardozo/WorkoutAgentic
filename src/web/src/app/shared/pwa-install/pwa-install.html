@@ -1,0 +1,52 @@
+@if (visible()) {
+  <div class="install-hint" aria-label="Instalación de la app">
+    <button #installButton class="install-trigger" type="button" (click)="install()"
+      [disabled]="busy()" [attr.aria-haspopup]="busy() ? null : 'dialog'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      {{ busy() ? 'Abriendo…' : 'Instalar' }}
+    </button>
+    <button class="dismiss-hint" type="button" (click)="dismiss()" [disabled]="busy()" aria-label="Ocultar sugerencia de instalación">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="m7 7 10 10M17 7 7 17" stroke-linecap="round" />
+      </svg>
+    </button>
+  </div>
+  @if (error()) { <p class="install-error" role="alert">{{ error() }}</p> }
+}
+
+<dialog #help class="install-help" aria-labelledby="install-help-title" aria-describedby="install-help-description"
+  (close)="restoreFocus()">
+  <img class="app-icon" src="brand/app-icon-orange-192.png" alt="" width="56" height="56" />
+  <h2 id="install-help-title">Instalá WorkoutAgentic</h2>
+  <p id="install-help-description">Agregá la app a tu pantalla de inicio para tener tu entrenamiento más a mano.</p>
+  @if (platform() === 'ios') {
+    @if (!iosSafari()) {
+      <p>Abrí esta misma página en <strong>Safari</strong> y seguí estos pasos:</p>
+    }
+    <ol>
+      <li>Tocá <strong>Compartir</strong>
+        <svg class="share-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="Ícono de compartir" role="img">
+          <path d="M12 16V3m-4 4 4-4 4 4M7 10H4v11h16V10h-3" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        en el menú de Safari. Según tu versión, puede estar dentro de <strong>Más (…)</strong>.
+      </li>
+      <li>Elegí <strong>Agregar a pantalla de inicio</strong>. Si no aparece, buscala en <strong>Editar acciones</strong>.</li>
+      <li>Si aparece <strong>Abrir como app web</strong>, dejalo activado y tocá <strong>Agregar</strong>.</li>
+    </ol>
+  } @else if (platform() === 'android') {
+    <p class="help-note" role="status">{{ availabilityMessage() }}</p>
+    <ol>
+      <li>Abrí esta misma página en <strong>Chrome</strong>, si estás usando otro navegador o la app Google.</li>
+      <li>Tocá el menú de <strong>tres puntos (⋮)</strong>, junto a la dirección.</li>
+      <li>Buscá <strong>Instalar y crear acceso directo → Instalar</strong>. Según tu versión, puede llamarse <strong>Instalar app</strong> o <strong>Agregar a pantalla principal</strong>.</li>
+      <li>Si aparece la opción de instalar, confirmá la instalación.</li>
+    </ol>
+    <p class="help-note">Si esa opción tampoco aparece, el navegador aún no permite instalar desde este enlace. Un acceso directo puede abrir la página en el navegador.</p>
+  } @else {
+    <p>En Android, abrí la página en <strong>Chrome</strong> y buscá <strong>Instalar</strong> en el menú de tres puntos. En iPhone o iPad, abrila en <strong>Safari</strong> y elegí <strong>Compartir → Agregar a pantalla de inicio</strong>.</p>
+  }
+  <p class="help-note">Después de instalarla, abrí WorkoutAgentic desde su ícono.</p>
+  <button class="btn btn-primario" type="button" (click)="closeHelp()">Entendido</button>
+</dialog>

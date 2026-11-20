@@ -59,13 +59,11 @@ public class PlanillaApiIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task SesionActual_WithUnknownAlumno_Returns404Problem()
+    public async Task SesionActual_WithForeignAlumno_Returns403Problem()
     {
-        var response = await Client().GetAsync("/api/planillas/sesion-actual/4242");
+        var response = await (await Client()).GetAsync("/api/planillas/sesion-actual/4242");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        Assert.Equal("Alumno inexistente", problem.GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -74,7 +72,7 @@ public class PlanillaApiIntegrationTests : IDisposable
         await SeedAsync(db => db.Alumnos.Add(new Alumno { Nombre = "Alumno de prueba" }));
         var alumnoId = await AlumnoIdSeedAsync();
 
-        var response = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
+        var response = await (await Client()).GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -96,7 +94,7 @@ public class PlanillaApiIntegrationTests : IDisposable
         });
         var alumnoId = await AlumnoIdSeedAsync();
 
-        var response = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
+        var response = await (await Client()).GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -125,7 +123,7 @@ public class PlanillaApiIntegrationTests : IDisposable
             await db.SesionesCaptura.AsNoTracking()
                 .SingleAsync(s => s.Estado == EstadoSesionCaptura.EnCurso));
 
-        var response = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
+        var response = await (await Client()).GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.NotNull(body.Sesion);
@@ -202,7 +200,7 @@ public class PlanillaApiIntegrationTests : IDisposable
             return (prensa.Id, plancha.Id);
         });
 
-        var response = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
+        var response = await (await Client()).GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -269,7 +267,7 @@ public class PlanillaApiIntegrationTests : IDisposable
         var filaId = await ConDbAsync(async db =>
             (await db.RegistrosParciales.AsNoTracking().SingleAsync()).Id);
 
-        var response = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
+        var response = await (await Client()).GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.NotNull(body.Sesion);
@@ -315,7 +313,7 @@ public class PlanillaApiIntegrationTests : IDisposable
         });
         var alumnoId = await AlumnoIdSeedAsync();
 
-        var response = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
+        var response = await (await Client()).GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.NotNull(body.Sesion);
@@ -329,7 +327,7 @@ public class PlanillaApiIntegrationTests : IDisposable
 
     // ─── Ayudas ────────────────────────────────────────────────────────────────
 
-    private HttpClient Client() => _factory.CreateClient();
+    private Task<HttpClient> Client() => AuthTestClient.ForSeededStudent(_factory);
 
     private async Task SeedAsync(Action<CapturasDbContext> seed)
     {

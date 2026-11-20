@@ -1,0 +1,45 @@
+<button #historyTrigger class="history-trigger" type="button" aria-haspopup="dialog" aria-controls="training-history-dialog"
+  [attr.aria-expanded]="isOpen()" (click)="opened.emit()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 7M3 4v7h7m2-4v5l3 2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+  <span>Mis entrenamientos</span>
+  @if (!loading() && !error()) { <span class="history-count">{{ entries().length }}<span class="sr-solo"> {{ entries().length === 1 ? 'guardado' : 'guardados' }}</span></span> }
+</button>
+
+<dialog #historyDialog id="training-history-dialog" class="training-history-dialog" aria-labelledby="training-history-title" tabindex="-1"
+  (click)="closeOnBackdrop($event)" (keydown.escape)="close($event)" (cancel)="close($event)" (close)="onClosed()">
+  <span class="sheet-handle" aria-hidden="true"></span>
+  <header class="history-header">
+    <div>
+      <p class="history-eyebrow">TU PROGRESO, GUARDADO</p>
+      <h2 id="training-history-title">Mis entrenamientos</h2>
+      @if (!loading() && !error()) {
+        <p class="history-subtitle">{{ entries().length }} {{ entries().length === 1 ? 'entrenamiento confirmado' : 'entrenamientos confirmados' }}</p>
+      }
+    </div>
+    <button class="history-close" type="button" aria-label="Cerrar historial de entrenamientos" (click)="close()" autofocus>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" stroke-linecap="round" /></svg>
+    </button>
+  </header>
+  <div class="history-content" [attr.aria-busy]="loading()">
+    @if (loading()) {
+      <p class="history-state" role="status">Cargando tus entrenamientos…</p>
+    } @else if (error(); as message) {
+      <div class="history-state"><p class="history-error" role="alert">{{ message }}</p><button class="history-retry" type="button" (click)="retry.emit()">Volver a intentar</button></div>
+    } @else if (entries().length === 0) {
+      <div class="history-state"><h3>Tu próximo entrenamiento empieza acá</h3><p>Cuando confirmes una planilla, podrás volver a verla desde este historial.</p></div>
+    } @else {
+      <ul class="history-list" aria-label="Entrenamientos confirmados">
+        @for (entry of orderedEntries(); track entry.id) {
+          <li>
+            <button class="history-entry" type="button" (click)="select(entry)"
+              [attr.aria-label]="'Ver reportes del ' + date(entry.confirmadaUtc) + ', ' + time(entry.confirmadaUtc) + ', planilla ' + entry.id">
+              <span class="entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18m-12 4h2" stroke-linecap="round" /></svg></span>
+              <span class="entry-text"><strong>{{ date(entry.confirmadaUtc) }}</strong><span>{{ entry.filas.length }} {{ entry.filas.length === 1 ? 'serie' : 'series' }} · {{ time(entry.confirmadaUtc) }}</span><small>Planilla #{{ entry.id }}</small></span>
+              <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</dialog>

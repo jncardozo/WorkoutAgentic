@@ -275,25 +275,21 @@ h3 {
 /* ─── Encabezado de página (compartido por las vistas) ─────────────────────── */
 
 .encabezado-planilla {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 336px);
+  align-items: end;
   gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
-@media (min-width: 768px) {
-  .encabezado-planilla {
-    flex-direction: row;
-    align-items: center;
-  }
-}
+.planilla-identity { min-width: 0; }
+.planilla-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+.planilla-meta .meta-planilla { margin: 0; font-size: 12px; }
 
 .encabezado-planilla h1 {
   overflow-wrap: anywhere;
-  font-size: 30px;
+  font-size: clamp(24px, 6vw, 30px);
+  line-height: 1.25;
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--texto-fuerte);
@@ -324,10 +320,30 @@ h3 {
 }
 
 .encabezado-lado {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
   gap: 10px;
-  flex-wrap: wrap;
+  min-width: 0;
+}
+.encabezado-lado .refresh-training {
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.refresh-training svg { width: 20px; height: 20px; }
+@media (max-width: 767px) {
+  .encabezado-planilla { grid-template-columns: minmax(0, 1fr); }
+  .encabezado-lado { width: 100%; }
+}
+@media (max-width: 359px) {
+  .encabezado-lado { grid-template-columns: minmax(0, 1fr) 48px; }
+  .encabezado-lado .refresh-training { padding: 0; }
+  .refresh-label { display: none; }
 }
 
 /* Paneles de falla y alta compartidos */
@@ -679,6 +695,9 @@ h3 {
 }
 
 body:has(app-training-editor) app-root > .cabeza { display: none !important; }
+body:has(app-training-editor) app-pwa-install { display: none; }
 body:has(app-training-editor) app-root > .contenido { padding: 0 !important; max-width: none !important; }
 
 body:has(dialog.command-example-dialog[open]) { overflow: hidden; }
+body:has(dialog.install-help[open]) { overflow: hidden; }
+body:has(dialog.training-history-dialog[open]) { overflow: hidden; }

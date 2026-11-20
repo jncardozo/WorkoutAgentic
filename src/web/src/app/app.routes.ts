@@ -1,23 +1,31 @@
-import type { PlanillaPage } from './features/planilla/planilla-page';
+import { inject } from '@angular/core';
 import type { Routes } from '@angular/router';
-
-// Identidad de prueba temporal. El login futuro resolverá este id desde la
-// identidad autenticada; por ahora todos los dispositivos usan el alumno #1.
-const ALUMNO_ID_DE_PRUEBA = 1;
+import { AuthApi, requireAccount } from './core/auth-api';
+import type { PlanillaPage } from './features/planilla/planilla-page';
 
 export const routes: Routes = [
   {
-    path: 'alumno/:alumnoId/planilla',
-    loadComponent: () => import('./features/planilla/planilla-page').then((m) => m.PlanillaPage),
+    path: 'legal/confidencialidad', data: { preview: true }, title: 'WorkoutAgentic · Acuerdo',
+    loadComponent: () => import('./features/legal/agreement-page').then(m => m.AgreementPage),
+  },
+  {
+    path: 'acuerdo-qa', canActivate: [requireAccount], data: { allowWithoutAgreement: true },
+    title: 'WorkoutAgentic · Acuerdo',
+    loadComponent: () => import('./features/legal/agreement-page').then(m => m.AgreementPage),
+  },
+  ...([
+    ['login', 'login'], ['registro', 'register'], ['recuperar-clave', 'forgot'], ['restablecer-clave', 'reset'],
+  ] as const).map(([path, mode]) => ({
+    path, data: { mode }, title: 'WorkoutAgentic · Cuenta',
+    loadComponent: () => import('./features/auth/auth-page').then(m => m.AuthPage),
+  })),
+  {
+    path: '', pathMatch: 'full', canActivate: [requireAccount],
+    resolve: { alumnoId: () => inject(AuthApi).account()!.studentId },
+    loadComponent: () => import('./features/planilla/planilla-page').then(m => m.PlanillaPage),
     title: 'WorkoutAgentic · Planilla',
     canDeactivate: [(component: PlanillaPage) => component.canLeave()],
   },
-  {
-    path: '',
-    pathMatch: 'full',
-    loadComponent: () => import('./features/planilla/planilla-page').then((m) => m.PlanillaPage),
-    title: 'WorkoutAgentic · Planilla',
-    data: { alumnoId: ALUMNO_ID_DE_PRUEBA },
-  },
+  { path: 'alumno/:alumnoId/planilla', redirectTo: '' },
   { path: '**', redirectTo: '' },
 ];

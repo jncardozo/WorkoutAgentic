@@ -24,6 +24,15 @@ tarjetas por ejercicio aprobadas en ADR-0032.
   corrige en un campo adicional. «Editar entrenamiento» conserva el editor
   múltiple con ejercicios colapsados. Ver `docs/domain/edicion-planilla.md`.
 
+## Tarjetas plegables y detalle alineado (ADR-0045)
+
+Las tarjetas de sesión editable, planilla confirmada y detalle de reporte se
+pueden plegar desde el encabezado (ADR-0045). Conservan nombre, cantidad de series
+y flecha visibles; cada una funciona de manera independiente y mantiene los
+borradores de edición al cerrarse. El detalle del reporte comparte columnas de
+Serie, Reps, Peso, Comentarios y Observaciones con anchos estables. En móvil se
+desplaza la tabla dentro de la tarjeta, manteniendo visible su encabezado.
+
 ## Progreso y acciones (ADR-0033)
 
 La sesión separa progreso y acciones (ADR-0033): panel con conteo, porcentaje y
@@ -35,7 +44,10 @@ series no confirma la planilla. El componente vive en `training-progress.*`.
 
 ## Ayuda de captura (ADR-0034)
 
-«Ejemplos rápidos» contiene una única card «💡 Comando de ejemplo». Abre un
+«💡 Comando de ejemplo» comparte fila con «Dictar», con igual altura mínima de
+48 px (ADR-0039); se retira el rótulo «Ejemplos rápidos». En móvil, «Enviar»
+queda debajo a todo el ancho; en escritorio las tres acciones comparten fila.
+La card abre un
 popup de lectura con el ejercicio Sillón de cuádriceps y cuatro series, separadas
 en párrafos. Un aviso explica que se deben completar todas antes de pasar al
 siguiente ejercicio y relaciona esa completitud con el 100% de progreso.
@@ -43,6 +55,45 @@ siguiente ejercicio y relaciona esa completitud con el 100% de progreso.
 La ayuda no modifica el borrador ni envía texto. Se cierra mediante la X, un toque
 fuera o Escape. Conserva foco modal, devuelve el foco a la card y permite scroll
 interno en pantallas pequeñas. Implementación: `command-example.*`.
+
+## Cuenta en el encabezado (ADR-0039)
+
+«Mi cuenta», con ícono de usuario, abre un desplegable a la derecha con nombre,
+correo y «Cerrar sesión». Sustituye el nombre truncado y el botón de salida
+permanente. Usa superficies oscuras, acento naranja, foco visible y objetivos
+táctiles de al menos 44 px. Se cierra al tocar fuera o con Escape, devolviendo
+el foco en este último caso. Los nombres y correos largos se ajustan al panel.
+
+## Historial de entrenamientos (ADR-0046)
+
+«Mis entrenamientos» usa ícono de reloj, borde naranja, fondo cálido y contador
+real. Abre un panel inferior en móvil y un modal centrado en escritorio. La lista
+se desplaza dentro del panel y prioriza fecha, series y hora. X, Escape o tocar
+fuera cierran la consulta y devuelven el foco al acceso; el formulario conserva
+su lugar. Se mantienen carga, vacío, error con reintento y acceso a reportes.
+
+El encabezado separa estado/última actualización de las acciones (ADR-0047).
+«Mis entrenamientos» y «Actualizar» comparten una fila y 48 px de altura; en
+pantallas menores de 360 px Actualizar usa un ícono con nombre accesible.
+
+## Acceso de alumnos (ADR-0043)
+
+Login, registro y recuperación
+usan tarjeta obsidiana, aura naranja/ámbar y ondas SVG. Los botones principales
+tienen gradientes en movimiento continuo mediante CSS `@keyframes`, `transform`
+y opacidad, sin dependencias adicionales. El control «Pausar animación» congela
+todos los efectos y la preferencia de movimiento reducido los desactiva.
+
+## Presentación de arranque (ADR-0044)
+
+La referencia Stitch «Splash Screen & Loader Animado (Frecuencia Cinética)» se
+presenta desde el HTML inicial: mancuerna/ecualizador SVG, aura naranja y línea
+indeterminada animados mediante CSS. Se conserva el fondo `#080c10` del arranque
+nativo y se actualiza el ícono estático a la misma familia de mancuerna/voz.
+El controlador muestra al menos 2,2 segundos visibles de presentación mientras
+Angular carga en paralelo. Después de cargar permite «Empezar entrenamiento»
+o continúa automáticamente. Movimiento reducido omite esa espera. Los estados
+corresponden al arranque real y se ofrece recarga ante demora o error.
 
 ## Íconos y arranque de la app instalada (ADR-0035)
 

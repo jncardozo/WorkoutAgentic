@@ -1,0 +1,69 @@
+:host { display: none; }
+:host:has(.install-hint) {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.install-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--acento);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 4px 16px #0005;
+}
+.install-hint::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 20px;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--acento);
+  border-left: 1px solid var(--acento);
+  background: var(--panel);
+  transform: rotate(45deg);
+}
+button { min-height: 44px; }
+button:focus-visible { outline: 2px solid var(--acento-suave); outline-offset: 4px; }
+.install-trigger, .dismiss-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--acento-suave);
+  font: 600 14px/1.3 var(--tipografia-texto);
+  cursor: pointer;
+}
+.install-trigger { padding: 10px 14px; border-radius: 13px 0 0 13px; }
+.dismiss-hint { width: 44px; padding: 10px; border-left: 1px solid var(--borde); border-radius: 0 13px 13px 0; color: var(--texto-2); }
+.install-trigger:hover, .dismiss-hint:hover { background: var(--panel-2-hover); }
+.install-trigger svg, .dismiss-hint svg { width: 18px; height: 18px; }
+button:disabled { opacity: .5; cursor: wait; }
+.install-error { flex-basis: 100%; margin: 8px 0 0; font-size: 13px; color: var(--peligro-suave); text-align: right; }
+.app-icon { border-radius: 12px; }
+.install-help {
+  width: min(440px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 24px;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 20px;
+  background: var(--panel);
+  color: var(--texto);
+  overflow-y: auto;
+}
+.install-help::backdrop { background: #000b; }
+.install-help h2 { margin-top: 16px; font-size: 22px; line-height: 1.3; }
+.install-help p, .install-help li { font-size: 14px; line-height: 1.6; }
+.install-help p { color: var(--texto-2); }
+.install-help ol { padding-left: 22px; }
+.install-help li { padding-left: 4px; margin-bottom: 16px; }
+.install-help li::marker { color: var(--acento); font-weight: 700; }
+.share-icon { width: 20px; height: 20px; vertical-align: middle; color: var(--acento-suave); }
+.install-help .help-note { font-size: 12px; }
+.install-help button { width: 100%; font-size: 14px; }
+@media print { :host:has(.install-hint) { display: none; } }

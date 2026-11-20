@@ -83,6 +83,10 @@ externa (ADR futuro).
 
 ## S6 — Autenticación y roles
 
+> Actualización: ADR-0038 implementa Identity y cookies para el alumno con
+> autorregistro. La invitación/vinculación con profesor de esta sección queda
+> como historial; ese módulo sigue retirado por ADR-0018.
+
 **Decisión:** autenticación por **cookie de sesión (HttpOnly)** para la SPA (mismo
 origen, servida por la API), con roles en claims (`ALUMNO`/`PROFESOR`). Login SPA:
 email + contraseña (usuarios creados por invitación del profesor; el alumno también

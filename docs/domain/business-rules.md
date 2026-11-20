@@ -97,6 +97,21 @@ sesión de captura aplica las reglas de interpretación de ADR-0025.
 
 ## 3. Alcance de cuentas
 
+- Antes de acceder a capturas o planillas, toda cuenta debe aceptar explícitamente
+  la versión vigente del acuerdo de confidencialidad y condiciones de prueba
+  (ADR-0049). La aceptación se guarda por cuenta en el servidor junto con el texto
+  exacto y fecha UTC; leer el acuerdo, registrarse o iniciar sesión no lo acepta.
+  Un cambio del documento requiere nueva aceptación. Se puede rechazar y cerrar
+  sesión, y consultar o descargar el acuerdo desde la SPA.
+
+- Cada alumno se registra explícitamente con nombre, correo y contraseña
+  (ADR-0038). La cuenta de acceso y el alumno se crean juntos, sin apropiarse de
+  datos históricos. La API exige sesión y verifica propiedad de sesiones,
+  registros y reportes en todas las operaciones. No se elige identidad por ID.
+- La SPA ofrece login, cierre de sesión y recuperación de contraseña. El cierre
+  revoca las sesiones de la cuenta en todos los dispositivos. El registro de
+  prueba es abierto y no exige verificación de email; no implica email verificado.
+
 - En este sprint solo se mantiene el flujo del alumno: abrir su planilla, capturar,
   editar, eliminar y confirmar registros. No hay interfaz ni endpoints del módulo
   de profesor (ADR-0018).

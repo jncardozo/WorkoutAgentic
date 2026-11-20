@@ -1,0 +1,61 @@
+<section class="agreement-page" aria-labelledby="agreement-title" [attr.aria-busy]="loading() || busy()">
+  <p class="eyebrow">WORKOUTAGENTIC · PRUEBA DEL MVP</p>
+  <h1 id="agreement-title">Acuerdo de confidencialidad y condiciones de prueba</h1>
+  @if (!preview && !auth.account()?.agreementAccepted) {
+    <p class="intro">Antes de abrir tu planilla, leé el acuerdo y aceptá las condiciones de esta prueba.</p>
+  } @else {
+    <p class="intro">Consultá las condiciones de uso y confidencialidad de la prueba.</p>
+  }
+
+  @if (loading()) { <p role="status">Cargando el acuerdo…</p> }
+  @if (error()) {
+    <div class="error" role="alert">
+      <p>{{ error() }}</p>
+      @if (!document()) { <button class="secondary" type="button" (click)="reload()">Volver a cargar el acuerdo</button> }
+    </div>
+  }
+  @if (!preview && !document() && !loading()) {
+    <button class="secondary" type="button" (click)="leave()" [disabled]="busy()">Salir</button>
+  }
+  @if (document(); as agreement) {
+    <div class="document-toolbar">
+      <span>Versión {{ agreement.version }}</span>
+      <button type="button" class="secondary" (click)="download()">Descargar texto</button>
+    </div>
+    <article class="agreement-text" aria-label="Texto completo del acuerdo">{{ agreement.text }}</article>
+    @if (!agreement.available) {
+      <p class="error" role="alert">El acuerdo todavía no está disponible para aceptar. Contactá al responsable de la prueba.</p>
+    }
+    @if (!preview && auth.account(); as account) {
+      @if (account.agreementAccepted) {
+        <div class="acceptance-status" role="status">
+          <p>Ya aceptaste la versión vigente de este acuerdo.</p>
+          <a href="/api/legal/receipt" download>Descargar mi constancia de aceptación</a>
+        </div>
+        <a class="primary continue-link" routerLink="/">Volver a mi planilla</a>
+      } @else {
+        <form class="acceptance" (ngSubmit)="accept()">
+          <p class="account-identity">Aceptás con la cuenta de <strong>{{ account.name }}</strong> ({{ account.email }}).</p>
+          <label class="consent" for="agreement-consent">
+            <input id="agreement-consent" name="consent" type="checkbox" [(ngModel)]="consent"
+              [disabled]="busy() || !agreement.available" required />
+            <span>Leí y acepto el acuerdo de confidencialidad y las condiciones de prueba, versión {{ agreement.version }}.</span>
+          </label>
+          <p class="acceptance-note">Guardaremos el texto aceptado, la cuenta y la fecha. Podrás descargar tu constancia desde Mi cuenta.</p>
+          <div class="actions">
+            <button class="primary" type="submit" [disabled]="!consent || busy() || !agreement.available">
+              {{ busy() ? 'Guardando…' : 'Aceptar y continuar' }}
+            </button>
+            <button class="secondary" type="button" (click)="leave()" [disabled]="busy()">No acepto, salir</button>
+          </div>
+        </form>
+      }
+    }
+  }
+  @if (preview) {
+    <nav class="actions" aria-label="Volver a la cuenta">
+      @if (auth.account()) { <a routerLink="/acuerdo-qa">Ver mi acuerdo</a> }
+      @else { <a routerLink="/login">Iniciar sesión</a><a routerLink="/registro">Crear cuenta</a> }
+    </nav>
+  }
+</section>

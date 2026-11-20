@@ -1,5 +1,9 @@
 # Product demo walkthrough
 
+Account update (ADR-0038): first open `/registro`, create a synthetic student
+account and sign in. `/` now opens that account's own worksheet. The screenshots
+below predate authentication and illustrate the unchanged workout flow.
+
 These screenshots show the running Angular SPA connected to the .NET API, using the explicitly created synthetic student **Alumno Demo** in a separate local SQLite database. They are application captures, not design mockups or evidence of real trainee data. The UI intentionally remains in Spanish.
 
 Follow the [setup guide](getting-started.md) first. This walkthrough uses one short live-model request and then exercises editing and confirmation without further interpretation calls. A configured Gemini key and accessible model are required for the initial capture; exact model wording can vary.

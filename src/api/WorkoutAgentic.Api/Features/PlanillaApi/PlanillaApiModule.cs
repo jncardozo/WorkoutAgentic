@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Mail;
+using WorkoutAgentic.Api.Features.Auth;
 using WorkoutAgentic.Api.Data;
 
 namespace WorkoutAgentic.Api.Features.PlanillaApi;
@@ -19,7 +20,8 @@ internal static class PlanillaApiModule
 
     public static IEndpointRouteBuilder MapPlanillaApi(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/planillas").WithTags("Planillas");
+        var group = endpoints.MapGroup("/api/planillas").WithTags("Planillas")
+            .RequireAuthorization().AddEndpointFilter<StudentAccessFilter>();
 
         group.MapGet("/sesion-actual/{alumnoId:int}", ObtenerSesionActual)
             .WithName("ObtenerSesionActual")
@@ -80,7 +82,7 @@ internal static class PlanillaApiModule
                 return Results.Ok(resultado.Vista);
             })
             .WithName("ConfirmarPlanilla")
-            .WithSummary("Confirma la planilla (solo sesión en Lista): snapshot congelado");
+            .WithSummary("Confirma la planilla en EnCurso o Lista: snapshot congelado");
 
         group.MapGet("/confirmadas/{planillaId:int}/excel", DescargarExcel)
             .WithName("DescargarPlanillaExcel")

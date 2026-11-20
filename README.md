@@ -6,6 +6,9 @@ WorkoutAgentic is an actively developed, student-only MVP built with Angular 21 
 
 ## Product flow
 
+Create a student account with your name, email, and password, then sign in. Each
+account has its own workout records and history. See [ADR-0038](docs/adr/0038-autorregistro-y-autenticacion-de-alumnos.md).
+
 1. Type a workout or dictate it using browser speech recognition.
 2. Review the recognized text before submitting it.
 3. The API interprets the text using Gemini structured output and applies domain rules.
@@ -17,6 +20,7 @@ For example, `Press de banca 3 series de 10 repeticiones con 40 kg` describes an
 ## Current capabilities
 
 - Text capture and browser dictation, with editable transcripts before submission.
+- Student self-registration, cookie-based login/logout, per-student API authorization, and password reset by configured SMTP.
 - Multiple sets per message, free-text exercise normalization, and set-specific updates and notes.
 - Clarifications and validation that preserve existing records when interpretation fails.
 - Inline editing, transactional bulk editing with conflict detection, and row deletion.
@@ -48,11 +52,18 @@ The central rule is to never invent workout data. Editable capture records and c
 
 ## Scope and next work
 
-This is a local-development MVP. Authentication and per-user authorization are not implemented; the root route temporarily selects student #1. Use synthetic data for evaluation. Browser speech support varies, and SMTP delivery requires separate configuration. Web-app installation metadata does not provide offline capture. WhatsApp and teacher features are outside the current runtime.
+This is a development MVP with ASP.NET Core Identity and cookie authentication.
+The root route opens the authenticated student's worksheet; historical demo data
+is not assigned to new accounts. Registration is open for testing and does not
+verify email ownership. Use synthetic data for evaluation. Share a single-origin
+HTTPS URL with testers and persist the database and Data Protection keys.
+Browser speech support varies. SMTP and a trusted public origin must be configured
+for password recovery; workout email also requires SMTP. Web-app installation
+metadata does not provide offline capture. WhatsApp and teacher features remain outside the runtime.
 
 Potential next work, subject to product prioritization:
 
-- Add authentication and enforce student ownership across API operations.
+- Add email verification and evaluate MFA and registration abuse controls before a public rollout.
 - Expand Spanish-language interpretation regression cases and evaluate model quality and latency.
 - Validate dictation and installation on real mobile devices.
 - Prepare deployment configuration and evaluate PostgreSQL when scaling requires it.

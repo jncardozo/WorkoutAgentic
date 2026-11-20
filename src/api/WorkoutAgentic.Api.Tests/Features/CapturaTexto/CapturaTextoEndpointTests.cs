@@ -69,7 +69,7 @@ public class CapturaTextoEndpointTests : IDisposable
     [Fact]
     public async Task CapturarTexto_WithEmptyText_Returns400AndDoesNotConsultNlu()
     {
-        var response = await Client().PostAsJsonAsync("/api/capturas/7/texto", new { texto = "   " }, JsonOptions);
+        var response = await (await Client()).PostAsJsonAsync("/api/capturas/1/texto", new { texto = "   " }, JsonOptions);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
@@ -79,17 +79,15 @@ public class CapturaTextoEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task CapturarTexto_WithUnknownAlumno_Returns404WithoutCreatingSession()
+    public async Task CapturarTexto_WithForeignAlumno_Returns403WithoutCreatingSession()
     {
         // Guion cargado a propósito: si el borde consultara el NLU, el test
         // fallaría (Consultas > 0).
         _nlu.Guion("prensa 8 con 45", AnalisisAlta(1, "Prensa de pierna", "prensa 8 con 45"));
 
-        var response = await Client().PostAsJsonAsync("/api/capturas/4242/texto", new { texto = "prensa 8 con 45" }, JsonOptions);
+        var response = await (await Client()).PostAsJsonAsync("/api/capturas/4242/texto", new { texto = "prensa 8 con 45" }, JsonOptions);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        Assert.Equal("Alumno inexistente", problem.GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         // No se consulta el NLU ni se deja estado: el borde valida primero.
         Assert.Equal(0, _nlu.Consultas);
         Assert.Equal(0, await SesionesEnDbAsync());
@@ -101,7 +99,7 @@ public class CapturaTextoEndpointTests : IDisposable
         var (alumnoId, ejercicioId, canonico) = await SeedAlumnoConEjercicioAsync("Prensa (prueba)");
         _nlu.Guion("prensa 4 series", AnalisisAlta(ejercicioId, canonico, texto: "prensa 4 series", cantidadSeries: 4));
 
-        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "prensa 4 series" }, JsonOptions);
+        var response = await (await Client()).PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "prensa 4 series" }, JsonOptions);
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -132,7 +130,7 @@ public class CapturaTextoEndpointTests : IDisposable
         var alumnoId = await SeedAlumnoAsync();
         _nlu.Guion("3 series de 12", AnalisisSeriesSinEjercicio("3 series de 12"));
 
-        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "3 series de 12" }, JsonOptions);
+        var response = await (await Client()).PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "3 series de 12" }, JsonOptions);
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -152,7 +150,7 @@ public class CapturaTextoEndpointTests : IDisposable
         var alumnoId = await SeedAlumnoAsync();
         _nlu.Guion("garabato", null); // null = etapa de análisis falló
 
-        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "garabato" }, JsonOptions);
+        var response = await (await Client()).PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "garabato" }, JsonOptions);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
@@ -171,7 +169,7 @@ public class CapturaTextoEndpointTests : IDisposable
             Entidades: null,
             ResolucionEjercicio: null));
 
-        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "no entiendo nada" }, JsonOptions);
+        var response = await (await Client()).PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "no entiendo nada" }, JsonOptions);
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -188,7 +186,7 @@ public class CapturaTextoEndpointTests : IDisposable
         // el intent queda inválido (no aplica) igual que en los tests de servicio.
         _nlu.Guion("seguir", AnalisisTexto("seguir", IntentoCaptura.Invalido));
 
-        var response = await Client().PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "seguir" }, JsonOptions);
+        var response = await (await Client()).PostAsJsonAsync($"/api/capturas/{alumnoId}/texto", new { texto = "seguir" }, JsonOptions);
         var body = Deserialize(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -200,7 +198,7 @@ public class CapturaTextoEndpointTests : IDisposable
 
     // ─── Ayudas ────────────────────────────────────────────────────────────────
 
-    private HttpClient Client() => _factory.CreateClient();
+    private Task<HttpClient> Client() => AuthTestClient.ForSeededStudent(_factory);
 
     private async Task<T> ConDbAsync<T>(Func<CapturasDbContext, Task<T>> read)
     {

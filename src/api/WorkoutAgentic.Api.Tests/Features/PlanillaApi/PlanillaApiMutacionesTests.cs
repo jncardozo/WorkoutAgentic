@@ -61,14 +61,12 @@ public class PlanillaApiMutacionesTests : IDisposable
     // ─── Agregar fila (POST /filas) ─────────────────────────────────────────────
 
     [Fact]
-    public async Task AgregarFila_WithUnknownAlumno_Returns404Problem()
+    public async Task AgregarFila_WithForeignAlumno_Returns403Problem()
     {
         var response = await PostAsync("/api/planillas/filas",
             new ComandoNuevaFila(999, 1, 1, Reps: 10, PesoKg: 40, Unidad: "Kg", TiempoSeg: null));
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal("Alumno inexistente", problem.GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -274,7 +272,7 @@ public class PlanillaApiMutacionesTests : IDisposable
             EstadoSesionCaptura.Lista, conFilaCompleta: true, conPrensa: true);
         var filaId = await IdUnicaFilaDeHablanteAsync(alumnoId);
 
-        var response = await Client().DeleteAsync($"/api/planillas/filas/{filaId}");
+        var response = await (await Client()).DeleteAsync($"/api/planillas/filas/{filaId}");
         var body = await DeserializarSesionAsync(response);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -284,13 +282,11 @@ public class PlanillaApiMutacionesTests : IDisposable
     // ─── Confirmar (POST /confirmar) ────────────────────────────────────────────
 
     [Fact]
-    public async Task Confirmar_WithUnknownAlumno_Returns404Problem()
+    public async Task Confirmar_WithForeignAlumno_Returns403Problem()
     {
         var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(4242));
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal("Alumno inexistente", problem.GetProperty("title").GetString());
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -345,7 +341,7 @@ public class PlanillaApiMutacionesTests : IDisposable
 
         // La sesión queda Confirmada: ya no se expone como hablante (el
         // próximo mensaje del chat abrirá sesión nueva).
-        var getResponse = await Client().GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
+        var getResponse = await (await Client()).GetAsync($"/api/planillas/sesion-actual/{alumnoId}");
         var getBody = await DeserializarSesionAsync(getResponse);
         Assert.Null(getBody.Sesion);
 
@@ -462,20 +458,20 @@ public class PlanillaApiMutacionesTests : IDisposable
     }
 
     private async Task<RespuestaSesionActual> ReadSession(int studentId) =>
-        await DeserializarSesionAsync(await Client().GetAsync($"/api/planillas/sesion-actual/{studentId}"));
+        await DeserializarSesionAsync(await (await Client()).GetAsync($"/api/planillas/sesion-actual/{studentId}"));
 
     private static ComandoEdicionFila Original(FilaParcialVista row) => new(row.EjercicioId, row.EjercicioCrudo,
         row.NroSerie, row.Reps, row.PesoKg, row.Unidad, row.TiempoSeg, row.Comments, row.Observations);
 
     // ─── Ayudas ────────────────────────────────────────────────────────────────
 
-    private HttpClient Client() => _factory.CreateClient();
+    private Task<HttpClient> Client() => AuthTestClient.ForSeededStudent(_factory);
 
-    private Task<HttpResponseMessage> PostAsync<TBody>(string url, TBody body) =>
-        Client().PostAsJsonAsync(url, body, JsonOptions);
+    private async Task<HttpResponseMessage> PostAsync<TBody>(string url, TBody body) =>
+        await (await Client()).PostAsJsonAsync(url, body, JsonOptions);
 
-    private Task<HttpResponseMessage> PutAsync<TBody>(string url, TBody body) =>
-        Client().PutAsJsonAsync(url, body, JsonOptions);
+    private async Task<HttpResponseMessage> PutAsync<TBody>(string url, TBody body) =>
+        await (await Client()).PutAsJsonAsync(url, body, JsonOptions);
 
     private async Task SeedAsync(Action<CapturasDbContext> seed)
     {

@@ -3,6 +3,62 @@
   min-height: 100dvh;
 }
 
+.account-menu { position: relative; flex-shrink: 0; }
+.account-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--texto);
+  font: 600 13px/1.3 var(--tipografia-texto);
+  list-style: none;
+  cursor: pointer;
+}
+.account-trigger::-webkit-details-marker { display: none; }
+.account-trigger svg, .account-logout svg { width: 20px; height: 20px; flex-shrink: 0; }
+.account-trigger .account-chevron { width: 14px; height: 14px; }
+.account-menu[open] .account-chevron { transform: rotate(180deg); }
+.account-trigger:hover, .account-menu[open] .account-trigger { border-color: var(--acento); color: var(--acento-suave); }
+.account-trigger:focus-visible, .account-logout:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+.account-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(288px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 16px 40px #0008;
+}
+.account-name { margin: 0; color: var(--texto-fuerte); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.account-email { margin: 4px 0 16px; color: var(--texto-2); font-size: 12px; overflow-wrap: anywhere; }
+.account-agreement { display: block; padding: 12px 0; margin-bottom: 8px; color: var(--acento-suave); font-size: 14px; }
+.account-agreement:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+.account-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--texto);
+  font: 500 14px/1.3 var(--tipografia-texto);
+  text-align: left;
+  cursor: pointer;
+}
+.account-logout svg { color: var(--acento); }
+.account-logout:hover:not(:disabled) { background: var(--panel-2-hover); border-color: var(--acento); }
+.account-logout:disabled { opacity: .5; cursor: wait; }
+
 /* Header Stitch con marca adaptada a Energy Orange. */
 .cabeza {
   position: sticky;
@@ -15,6 +71,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .marca {
@@ -38,16 +96,40 @@
   padding: 32px 32px 72px;
 }
 
+/* La entrada de cuenta comparte el encabezado real sobre el fondo de Stitch. */
+:host:has(app-auth-page) {
+  background: #09090b;
+
+  .cabeza {
+    position: relative;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 28px 4px 22px;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .marca-logo { width: 250px; }
+  .contenido { max-width: none; padding: 0 20px 32px; }
+}
+
 @media (max-width: 640px) {
   .cabeza {
     padding: 8px 16px;
   }
 
   .marca-logo {
-    width: 220px;
+    width: 160px;
   }
 
   .contenido {
     padding: 24px 16px 56px;
+  }
+
+  :host:has(app-auth-page) {
+    .cabeza { padding: 20px 24px; }
+    .marca-logo { width: 230px; }
+    .contenido { padding: 0 16px 24px; }
   }
 }
