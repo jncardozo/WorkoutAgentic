@@ -1,0 +1,25 @@
+:host { display: block; }
+:host(.report-email-selection) { margin: 20px 0 28px; }
+:host(.report-email-detail) { width: min(100% - 32px, 900px); margin: 20px auto; }
+.email-panel { padding: 20px; border: 1px solid var(--borde, #343b46); border-radius: 10px; background: var(--panel-bajo, #181d26); color: var(--texto, #e2e8f0); }
+h2 { margin: 0; font-size: 18px; }
+.email-entry { display: flex; justify-content: center; }
+.email-launch { display: inline-flex; justify-content: center; align-items: center; gap: 10px; width: min(100%, 320px); }
+.email-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.email-launch,.email-close,.email-recheck { background: transparent; color: var(--texto, #e2e8f0); }
+.email-close { flex: 0 0 44px; width: 44px; padding: 0; font-size: 24px; }
+.email-recheck { margin-top: 16px; }
+p { margin: 10px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+.email-context,.email-help { color: var(--texto-2, #aab3a0); font-size: 13px; }
+form { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin-top: 18px; }
+label { display: grid; gap: 8px; min-width: 0; font-size: 14px; }
+.recipient-field { flex: 1 1 220px; }
+input,select,button { box-sizing: border-box; min-height: 44px; border: 1px solid var(--borde, #343b46); border-radius: 8px; padding: 10px 12px; font: inherit; }
+input,select { width: 100%; background: var(--panel-inset, #0f131c); color: inherit; }
+button { color: var(--texto-invertido, #111); background: var(--acento, #ff6a00); font-weight: 650; cursor: pointer; }
+:disabled { opacity: .65; cursor: wait; }
+:focus-visible { outline: 2px solid var(--acento, #ff6a00); outline-offset: 3px; }
+.email-success { color: var(--ok, #a3e635); }
+.email-error { color: #fda4af; }
+@media (max-width: 480px) { label,button { flex: 1 1 100%; } .email-panel { padding: 16px; } }
+@media print { :host { display: none !important; } }

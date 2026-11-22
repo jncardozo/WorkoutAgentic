@@ -1,21 +1,23 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FormatoPlanillaExportable, PlanillaConfirmadaVista } from '../../core/planilla-api';
+import { ReportEmail } from './report-email';
 
 export type FormatoVistaPrevia = Extract<FormatoPlanillaExportable, 'pdf' | 'excel'>;
 
 @Component({
   selector: 'app-reporte-preview',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReportEmail],
   templateUrl: './reporte-preview.html',
   styleUrl: './reporte-preview.scss',
 })
 export class ReportePreview {
   readonly planilla = input.required<PlanillaConfirmadaVista>();
+  readonly studentId = input.required<number>();
   readonly formato = input.required<FormatoVistaPrevia>();
   readonly cerrar = output<void>();
   readonly descargar = output<FormatoPlanillaExportable>();
   readonly cambiarFormato = output<FormatoVistaPrevia>();
-
   readonly filas = computed(() => [...this.planilla().filas].sort((a, b) => a.orden - b.orden));
   readonly filasConCarga = computed(() => this.filas().filter((fila) => this.tieneCarga(fila)));
   readonly cargaMaxima = computed(() => {

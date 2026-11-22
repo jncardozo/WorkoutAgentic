@@ -43,7 +43,7 @@ button { border: 0; font: inherit; cursor: pointer; }
 .texto-opcion h2 { color: #f1f3ed; font: 600 18px 'Space Grotesk',sans-serif; }
 .texto-opcion p { margin: 6px 0 0; color: #9aa397; font-size: 12px; }
 .tipo-opcion { margin-top: 11px; color: #778274; font: 500 9px 'JetBrains Mono',monospace; }
-.opcion-reporte .boton-acento { min-height: 36px; margin-top: auto; }
+.opcion-reporte button { min-height: 44px; margin-top: 16px; }
 .volver-planilla { margin-top: 18px; padding: 6px 0; color: #a7b0a2; background: transparent; font-size: 11px; }
 .volver-planilla:hover { color: var(--report-accent); }
 
@@ -133,7 +133,7 @@ button { border: 0; font: inherit; cursor: pointer; }
   .estado-nav { justify-self: end; grid-column: 1; grid-row: 2; }
   .opciones-reporte,.tarjetas-resumen { grid-template-columns: 1fr; }
   .selector-reportes { margin-top: 42px; }
-  .barra-documento { padding: 7px 12px; }
+  .barra-documento { padding: 7px 12px; flex-wrap: wrap; }
   .estado-documento { flex-wrap: wrap; font-size: 8px; }
   .boton-secundario,.boton-acento { min-height: 30px; padding: 0 8px; font-size: 9px; }
   .documento-pdf,.vista-excel { width: calc(100% - 20px); margin-top: 18px; }

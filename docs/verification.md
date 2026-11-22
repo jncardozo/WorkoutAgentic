@@ -1,5 +1,74 @@
 # Verification record
 
+## Live PDF delivery reported by the operator — 2026-11-22
+
+- After configuring the verified sender and Brevo API key, the operator confirmed
+  receiving their training worksheet. Supplied screenshots show delivered events
+  in Brevo and `planilla-3.pdf` received in Gmail from WorkoutAgentic, with the
+  sender domain rewritten by Brevo.
+- This is operator-provided evidence of a real PDF email delivery to that mailbox,
+  rather than an automated test or an independently inspected inbox. Receipt of
+  a real Excel attachment, delivery to other recipients and Railway deployment
+  remain unverified. Earlier configuration/visual-review notes below describe
+  their respective point-in-time checks.
+
+## Single email action and missing-configuration diagnosis — 2026-11-22
+
+- Backend: 240 tests passed, zero failed/skipped (`dotnet test -c Release -m:1
+  -p:UseSharedCompilation=false`, outside the sandbox for testhost communication).
+  Tests include status responses without secrets, authentication/agreement
+  requirements and the existing SMTP/HTTPS delivery regressions.
+- Frontend: 129 tests passed across 14 files (`npm test -- --watch=false`).
+  `npm run lint` and the production `npm run build` passed without warnings.
+  Removing the repeated email actions also removed the previous CSS budget warning.
+- The report selector now has one centered email action before the format cards.
+  Each card retains only its preview action with explicit spacing after the series
+  count. Detail/print/confirmed views use the same self-contained email entry.
+- The authenticated configuration check runs before asking for recipient/format.
+  Missing configuration blocks submission, a failed check can be retried, and a
+  pending check cannot send. Tests cover these states and the single-button order.
+- Local checks inspected presence flags only, never secret values: Brevo provider,
+  API key and sender were absent, as were the SMTP host/credentials/sender. The
+  user confirmed they have no Brevo account yet. The observed 503 is explained by
+  incomplete provider configuration, before attempting external delivery.
+- No real email delivery has been enabled or certified. Account activation,
+  authorized sender, API key and inbox checks for both attachments remain needed;
+  see [email-setup.md](email-setup.md). Configuration status does not verify a
+  provider's credentials, quotas or delivery.
+- A temporary loopback server served the production frontend with synthetic review
+  data, without using real accounts or sending email. The in-app browser timed out
+  connecting to it, so visual review was not completed. The server was stopped.
+
+## Historical report email and HTTPS delivery — 2026-11-22
+
+- Backend: 237 tests passed, zero failed/skipped (`dotnet test -c Release -m:1
+  -p:UseSharedCompilation=false`). Release was used because the existing Debug
+  API process held its app host file. Test execution required leaving the sandbox
+  so vstest could connect to testhost; the existing development API was not stopped.
+- Frontend: 126 tests passed across 14 files (`npm test -- --watch=false`).
+  `npm run lint` and `npm run build` passed. The production build has a small
+  stylesheet budget warning for `reporte-workspace.scss` (under 0.1 kB over the
+  12 kB warning threshold); no budget limits were increased.
+- SMTP integration checks use a receiver bound to loopback, real account cookies
+  and CSRF. PDF and Excel attachments received via MIME match the selected
+  historical snapshot's download, while the active session and snapshot remain
+  intact. Missing configuration, rejected recipient, invalid inputs (including
+  null format), and foreign-sheet access are covered.
+- HTTPS delivery contract checks replace Brevo at the HTTP boundary. They verify
+  fixed HTTPS destination, API-key header, recipient, exact base64 attachment,
+  provider rejection/quota/network/timeout handling, and password recovery using
+  the same transport without attachments. No external emails were sent.
+- UI tests cover card/detail/print entry points, selected format, focus, validation,
+  in-flight duplicate suppression, preserved input on errors, reset on sheet
+  change and returning to history without losing the capture draft.
+- Windows visual review could not proceed: Computer Use could not determine the
+  Chrome URL confidently and stopped. Mobile/desktop visual verification is still
+  pending; no claim of a completed manual browser review is made.
+- No SMTP credentials were configured locally. Actual Brevo account activation,
+  authorized sender/API key, provider connectivity from the deployment, inbox
+  receipt and opening the received PDF/Excel remain to be verified. Railway
+  Free/Trial/Hobby block SMTP; use the HTTPS configuration documented in ADR-0051.
+
 ## QA agreement acceptance — 2026-11-19
 
 - Backend build passed (`dotnet build WorkoutAgentic.Api.Tests/WorkoutAgentic.Api.Tests.csproj

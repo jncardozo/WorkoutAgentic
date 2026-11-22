@@ -8,6 +8,7 @@
   @if (planillaConfirmada(); as planillaPrevia) {
     @if (vistaPrevia(); as formatoPrevia) {
       <app-reporte-preview
+        [studentId]="alumnoId()"
         [planilla]="planillaPrevia"
         [formato]="formatoPrevia"
         (cerrar)="cerrarPrevisualizacion()"
@@ -16,6 +17,7 @@
       />
     } @else {
       <app-reporte-workspace
+        [studentId]="alumnoId()"
         [planilla]="planillaPrevia"
         [modo]="modoReporte"
         (cerrar)="cerrarReportes()"
@@ -266,38 +268,13 @@
               <span aria-hidden="true">＋</span> Nuevo entrenamiento
             </button>
           </div>
-          <details class="envio-correo">
-            <summary>Enviar por correo</summary>
-            <form class="form-correo" (submit)="$event.preventDefault(); enviarPlanillaPorCorreo()">
-              <label class="campo campo-correo">
-                Correo electrónico
-                <input
-                  type="email"
-                  autocomplete="email"
-                  placeholder="jncardozo646@gmail.com"
-                  required
-                  [value]="correoDestino()"
-                  (input)="correoDestino.set($any($event.target).value)"
-                />
-              </label>
-              <label class="campo campo-formato">
-                Formato
-                <select [value]="formatoCorreo()" (change)="formatoCorreo.set($any($event.target).value)">
-                  <option value="excel">Excel</option>
-                  <option value="pdf">PDF</option>
-                </select>
-              </label>
-              <button type="submit" class="btn-enviar" [disabled]="exportacionEnCurso()">
-                {{ exportacionEnCurso() ? 'Procesando…' : 'Enviar por correo' }}
-              </button>
-            </form>
+          <app-report-email [plan]="congelada" [studentId]="alumnoId()" />
           @if (mensajeExportacion(); as mensaje) {
             <p class="mensaje-exportacion mensaje-exito" role="status">{{ mensaje }}</p>
           }
           @if (fallaExportacion(); as falla) {
             <p class="mensaje-exportacion mensaje-error" role="alert">{{ falla }}</p>
           }
-          </details>
         </section>
 
         <p class="pie-confirmada">

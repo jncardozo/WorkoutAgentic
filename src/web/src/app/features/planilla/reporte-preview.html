@@ -36,6 +36,8 @@
     </div>
   </div>
 
+  <app-report-email class="report-email-detail" [plan]="planilla()" [studentId]="studentId()" [initialFormat]="formato()" />
+
   @if (formato() === 'pdf') {
     <main class="area-documento">
       <article class="hoja-pdf" aria-label="Reporte PDF en formato A4">

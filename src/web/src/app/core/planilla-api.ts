@@ -213,6 +213,10 @@ export class PlanillaApi {
     );
   }
 
+  emailConfigurationStatus(): Observable<{ configured: boolean }> {
+    return this.http.get<{ configured: boolean }>(`${this.baseUrl}/correo/estado`);
+  }
+
   enviarPlanillaPorCorreo(
     planillaId: number,
     comando: { alumnoId: number; correo: string; formato: FormatoPlanillaExportable },

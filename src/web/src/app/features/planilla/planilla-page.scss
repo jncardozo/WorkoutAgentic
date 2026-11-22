@@ -516,56 +516,11 @@
   margin: 0;
 }
 
-.acciones-descarga,
-.form-correo {
+.acciones-descarga {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 14px 12px;
-}
-
-.envio-correo {
-  display: grid;
-  gap: 14px;
-  border-top: 1px solid color-mix(in srgb, var(--borde) 80%, transparent);
-  padding-top: 14px;
-}
-
-.envio-correo summary {
-  width: fit-content;
-  color: var(--texto);
-  font-weight: 600;
-  line-height: 1.5;
-  cursor: pointer;
-}
-
-.form-correo .campo {
-  gap: 8px;
-  line-height: 1.4;
-}
-
-.campo-correo {
-  flex: 1 1 240px;
-}
-
-.campo-formato {
-  flex: 0 1 140px;
-}
-
-.campo-correo input,
-.campo-formato select {
-  width: 100%;
-  min-height: 40px;
-  background: var(--panel-inset);
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-  color: var(--texto);
-  padding: 8px 10px;
-  font: inherit;
-}
-
-.form-correo .btn-enviar {
-  min-height: 40px;
 }
 
 .mensaje-exportacion {

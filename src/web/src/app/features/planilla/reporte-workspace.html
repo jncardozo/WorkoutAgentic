@@ -23,11 +23,16 @@
     </div>
   </header>
 
+  @if (modo() !== 'seleccion') {
+    <app-report-email class="report-email-detail" [plan]="planilla()" [studentId]="studentId()" [initialFormat]="modo() === 'excel' ? 'excel' : 'pdf'" />
+  }
+
   @if (modo() === 'seleccion') {
     <main class="selector-reportes">
       <p class="sobrelinea"><span class="punto-ok"></span> PLANILLA CONFIRMADA</p>
       <h1>¿Qué reporte querés consultar?</h1>
-      <p class="intro-selector">Elegí un formato para ver sus datos, imprimirlo o descargarlo.</p>
+      <p class="intro-selector">Elegí un formato para ver sus datos, imprimirlo, descargarlo o enviarlo por email.</p>
+      <app-report-email class="report-email-selection" [plan]="planilla()" [studentId]="studentId()" />
 
       <div class="opciones-reporte">
         <article class="opcion-reporte">

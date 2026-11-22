@@ -1,10 +1,8 @@
 using System.Globalization;
 using System.IO.Compression;
-using System.Net.Mail;
 using System.Text;
 using System.Xml;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using WorkoutAgentic.Api.Data;
 using WorkoutAgentic.Api.Data.Entities;
 
@@ -532,55 +530,10 @@ internal enum EstadoEnvioCorreo
     Fallo,
 }
 
-internal sealed class PlanillaCorreoSender(
-    IOptions<CorreoSmtpOptions> options,
-    ILogger<PlanillaCorreoSender> logger)
+internal sealed class PlanillaCorreoSender(EmailDeliverySender sender)
 {
-    public async Task<EstadoEnvioCorreo> EnviarAsync(
-        string destinatario,
-        PlanillaArchivo archivo,
-        CancellationToken cancellationToken)
-    {
-        var config = options.Value;
-        if (string.IsNullOrWhiteSpace(config.Host)
-            || config.Port is < 1 or > 65535
-            || string.IsNullOrWhiteSpace(config.FromAddress))
-        {
-            return EstadoEnvioCorreo.ConfiguracionIncompleta;
-        }
-
-        try
-        {
-            using var mensaje = new MailMessage
-            {
-                From = new MailAddress(config.FromAddress, config.FromName),
-                Subject = "Tu planilla de entrenamiento",
-                Body = "Adjuntamos la planilla confirmada desde WorkoutAgentic.",
-            };
-            mensaje.To.Add(new MailAddress(destinatario));
-            mensaje.Attachments.Add(new Attachment(
-                new MemoryStream(archivo.Contenido), archivo.Nombre, archivo.TipoContenido));
-
-            using var cliente = new SmtpClient(config.Host, config.Port)
-            {
-                EnableSsl = config.EnableSsl,
-                DeliveryMethod = SmtpDeliveryMethod.Network,
-                UseDefaultCredentials = false,
-            };
-            if (!string.IsNullOrWhiteSpace(config.UserName))
-            {
-                cliente.Credentials = new System.Net.NetworkCredential(config.UserName, config.Password);
-            }
-
-            await cliente.SendMailAsync(mensaje, cancellationToken);
-            return EstadoEnvioCorreo.Enviado;
-        }
-        catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException)
-        {
-            logger.LogError(ex, "Falló el envío de la planilla por correo.");
-            return EstadoEnvioCorreo.Fallo;
-        }
-    }
+    public Task<EstadoEnvioCorreo> EnviarAsync(string destinatario, PlanillaArchivo archivo, CancellationToken cancellationToken) =>
+        sender.SendAsync(destinatario, "Tu planilla de entrenamiento", "Adjuntamos la planilla confirmada desde WorkoutAgentic.", archivo, cancellationToken);
 }
 
 internal sealed record ComandoEnviarPlanillaCorreo(int AlumnoId, string Correo, string Formato);

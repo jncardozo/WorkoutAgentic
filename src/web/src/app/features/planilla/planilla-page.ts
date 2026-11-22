@@ -30,6 +30,7 @@ import { TrainingProgress } from './training-progress';
 import { CommandExample } from './command-example';
 import { groupExerciseRows } from './exercise-groups';
 import { TrainingHistory } from './training-history';
+import { ReportEmail } from './report-email';
 import { DictadoVoz } from './dictado-voz';
 import { ReportePreview, FormatoVistaPrevia } from './reporte-preview';
 import { ReporteWorkspace, ModoReporte } from './reporte-workspace';
@@ -62,7 +63,7 @@ const INTERVALO_ENCUESTA_MS = 10_000;
 @Component({
   selector: 'app-planilla-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, ReportePreview, ReporteWorkspace, TrainingEditor, TrainingProgress, CommandExample, TrainingHistory],
+  imports: [DatePipe, ReportePreview, ReporteWorkspace, TrainingEditor, TrainingProgress, CommandExample, TrainingHistory, ReportEmail],
   templateUrl: './planilla-page.html',
   styleUrl: './planilla-page.scss',
 })
@@ -110,8 +111,6 @@ export class PlanillaPage {
   readonly exportacionEnCurso = signal(false);
   readonly vistaPrevia = signal<FormatoVistaPrevia | null>(null);
   readonly pantallaReportes = signal<ModoReporte | null>(null);
-  readonly correoDestino = signal('');
-  readonly formatoCorreo = signal<FormatoPlanillaExportable>('excel');
   readonly mensajeExportacion = signal<string | null>(null);
   readonly fallaExportacion = signal<string | null>(null);
 
@@ -760,37 +759,6 @@ export class PlanillaPage {
     this.historialAbierto.set(false);
     this.pantallaReportes.set('seleccion');
     this.vistaPrevia.set(null);
-  }
-
-  enviarPlanillaPorCorreo(): void {
-    const planilla = this.planillaConfirmada();
-    const correo = this.correoDestino().trim();
-    if (!planilla || this.exportacionEnCurso()) {
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-      this.fallaExportacion.set('Escribí una dirección de correo válida.');
-      this.mensajeExportacion.set(null);
-      return;
-    }
-
-    this.exportacionEnCurso.set(true);
-    this.mensajeExportacion.set(null);
-    this.fallaExportacion.set(null);
-    this.planillaApi.enviarPlanillaPorCorreo(planilla.id, {
-      alumnoId: this.alumnoId(),
-      correo,
-      formato: this.formatoCorreo(),
-    }).subscribe({
-      next: (respuesta) => {
-        this.mensajeExportacion.set(respuesta.mensaje);
-        this.exportacionEnCurso.set(false);
-      },
-      error: (error: unknown) => {
-        this.fallaExportacion.set(fallaDe(error).detalle ?? fallaDe(error).titulo);
-        this.exportacionEnCurso.set(false);
-      },
-    });
   }
 
   // ─── Ayudas de presentación ────────────────────────────────────────────────

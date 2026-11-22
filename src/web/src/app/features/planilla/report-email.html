@@ -1,0 +1,42 @@
+@if (!isOpen()) {
+  <div class="email-entry">
+    <button #launchButton type="button" class="email-launch" (click)="open()">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 6 9 7 9-7" /></svg>
+      Enviar planilla por email
+    </button>
+  </div>
+} @else {
+  <section class="email-panel" aria-label="Enviar planilla por email">
+    <div class="email-heading">
+      <h2>Enviar planilla por email</h2>
+      <button type="button" class="email-close" [disabled]="sending()" (click)="close()" aria-label="Cerrar envío por email">×</button>
+    </div>
+    <p class="email-context">Planilla #{{ plan().id }} · {{ plan().confirmadaUtc | date:'dd/MM/yyyy HH:mm' }}</p>
+    @if (checkingConfiguration()) {
+      <p class="email-help" role="status">Comprobando el servicio de email…</p>
+    } @else if (configurationError()) {
+      <p class="email-error" role="alert">No pudimos comprobar el servicio de email. Intentá nuevamente.</p>
+      <button class="email-recheck" type="button" (click)="checkConfiguration()">Reintentar</button>
+    } @else if (configured() === false) {
+      <p class="email-help" role="status">El envío por email todavía no está habilitado en esta aplicación. El responsable debe configurar el servicio de correo. Mientras tanto, podés descargar el PDF o Excel.</p>
+      <button class="email-recheck" type="button" (click)="checkConfiguration()">Comprobar de nuevo</button>
+    } @else if (configured()) {
+      <p class="email-help">Elegí el destinatario y el formato del archivo adjunto.</p>
+      <form (submit)="$event.preventDefault(); send()" novalidate [attr.aria-busy]="sending()">
+        <label class="recipient-field">Correo electrónico
+          <input #recipientInput type="email" name="recipient" autocomplete="email" placeholder="nombre@ejemplo.com"
+            required maxlength="254" [disabled]="sending()" [value]="recipient()"
+            (input)="recipient.set($any($event.target).value)" />
+        </label>
+        <label>Formato
+          <select name="format" [disabled]="sending()" [value]="format()" (change)="format.set($any($event.target).value)">
+            <option value="pdf">PDF</option><option value="excel">Excel (.xlsx)</option>
+          </select>
+        </label>
+        <button type="submit" [disabled]="sending()">{{ sending() ? 'Enviando…' : 'Enviar' }}</button>
+      </form>
+    }
+    @if (message(); as status) { <p class="email-success" role="status">{{ status }}</p> }
+    @if (error(); as failure) { <p class="email-error" role="alert">{{ failure }}</p> }
+  </section>
+}

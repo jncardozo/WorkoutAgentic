@@ -59,6 +59,7 @@ public sealed class LegalAgreementTests : IDisposable
             {
                 (HttpMethod.Get, $"/api/planillas/sesion-actual/{account.StudentId}", null),
                 (HttpMethod.Get, $"/api/planillas/historial/{account.StudentId}", null),
+                (HttpMethod.Get, "/api/planillas/correo/estado", null),
                 (HttpMethod.Get, $"/api/planillas/confirmadas/1/pdf?alumnoId={account.StudentId}", null),
                 (HttpMethod.Get, $"/api/planillas/confirmadas/1/excel?alumnoId={account.StudentId}", null),
                 (HttpMethod.Post, $"/api/capturas/{account.StudentId}/texto", new { texto = "Press 3 series" }),

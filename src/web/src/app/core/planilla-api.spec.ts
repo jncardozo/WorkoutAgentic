@@ -58,6 +58,15 @@ describe('PlanillaApi', () => {
 
   afterEach(() => http.verify());
 
+  it('consulta si el correo está configurado antes de habilitar el envío', () => {
+    let configured: boolean | undefined;
+    api.emailConfigurationStatus().subscribe(status => configured = status.configured);
+    const request = http.expectOne('/api/planillas/correo/estado');
+    expect(request.request.method).toBe('GET');
+    request.flush({ configured: false });
+    expect(configured).toBe(false);
+  });
+
   it('pide la sesión actual del alumno', () => {
     let respuestaObtenida: RespuestaSesionActual | undefined;
     api.sesionActual(7).subscribe((r) => (respuestaObtenida = r));

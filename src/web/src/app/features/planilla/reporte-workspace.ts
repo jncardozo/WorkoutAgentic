@@ -1,22 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FormatoPlanillaExportable, PlanillaConfirmadaVista } from '../../core/planilla-api';
+import { ReportEmail } from './report-email';
 
 export type ModoReporte = 'seleccion' | 'pdf' | 'excel';
 
 @Component({
   selector: 'app-reporte-workspace',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReportEmail],
   templateUrl: './reporte-workspace.html',
   styleUrl: './reporte-workspace.scss',
 })
 export class ReporteWorkspace {
   readonly planilla = input.required<PlanillaConfirmadaVista>();
+  readonly studentId = input.required<number>();
   readonly modo = input.required<ModoReporte>();
   readonly cerrar = output<void>();
   readonly seleccionar = output<ModoReporte>();
   readonly imprimir = output<'pdf' | 'excel'>();
   readonly descargar = output<FormatoPlanillaExportable>();
-
   readonly filas = computed(() => [...this.planilla().filas].sort((a, b) => a.orden - b.orden));
   readonly grupos = computed(() => {
     const porEjercicio = new Map<string, PlanillaConfirmadaVista['filas']>();

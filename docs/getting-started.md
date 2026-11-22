@@ -65,7 +65,9 @@ The development proxy forwards `/api` to `http://localhost:5259`. If you change 
 | `GEMINI_API_KEY` | Fallback alias, used only when `Gemini:ApiKey` is empty |
 | `Gemini:ModeloNlu` / `Gemini__ModeloNlu` | Override the model ID |
 | `ConnectionStrings:Sqlite` / `ConnectionStrings__Sqlite` | SQLite connection string; default is `Data Source=workoutagentic.db;Cache=Shared` |
-| `CorreoSmtp:*` / `CorreoSmtp__*` | Email delivery for reports and password recovery |
+| `EmailDelivery:Provider` / `EmailDelivery__Provider` | `smtp` (default) or `brevo` (HTTPS) for reports and password recovery |
+| `EmailDelivery:ApiKey`, `FromAddress`, `FromName` / `EmailDelivery__*` | Brevo API credentials and authorized sender |
+| `CorreoSmtp:*` / `CorreoSmtp__*` | SMTP settings when the selected provider is `smtp` |
 | `Auth:PublicOrigin` / `Auth__PublicOrigin` | Trusted HTTPS origin for password reset links, e.g. `https://your-test-host.example` |
 | `Auth:DataProtectionKeysPath` / `Auth__DataProtectionKeysPath` | Persistent restricted directory for cookie/token keys; defaults to `auth-keys` alongside SQLite |
 
@@ -79,6 +81,27 @@ dotnet run --project WorkoutAgentic.Api --launch-profile http
 Run this from `src/api`. Relative database paths resolve under the API content root (`src/api/WorkoutAgentic.Api`). SQLite database, WAL, and SHM files are ignored by Git.
 
 Email is optional. Configure `CorreoSmtp:Host`, `Port`, `EnableSsl`, `UserName`, `Password`, `FromAddress`, and `FromName` using user-secrets or environment variables. The defaults are port 587 and SSL enabled. Downloads and previews do not require SMTP. An unconfigured mail server produces an explicit unavailable response; no email is sent during the demo walkthrough.
+
+### Email on Railway Free/Trial/Hobby
+
+Railway [blocks SMTP on these plans](https://docs.railway.com/networking/outbound-networking).
+For email testing use the implemented HTTPS delivery option (ADR-0051):
+
+```powershell
+$env:EmailDelivery__Provider = 'brevo'
+$env:EmailDelivery__FromAddress = 'YOUR_AUTHORIZED_SENDER_EMAIL'
+$env:EmailDelivery__FromName = 'WorkoutAgentic'
+# Set EmailDelivery__ApiKey privately in the host's variables or user-secrets.
+```
+
+Activate a Brevo transactional account and validate the sender under its current
+requirements; the app does not perform these steps. Use a **Brevo API key**, not
+an SMTP key. See [the transactional API](https://developers.brevo.com/reference/send-transac-email)
+and [current free-plan limits](https://help.brevo.com/hc/en-us/articles/208580669-FAQs-What-are-the-limits-of-the-Free-plan).
+Setting the provider to `brevo` disables SMTP fallback. A provider rejection or
+timeout reports failure; successful acceptance does not certify inbox delivery.
+Before sharing the deployment, send PDF and Excel to a consenting test mailbox,
+check spam and verify that the received attachments open with the expected data.
 
 ## Verification
 
@@ -97,9 +120,9 @@ Persist and back up SQLite **and** the `auth-keys` directory (or configured
 file-system key persistence alone does not encrypt it at rest. Do not publish
 or commit keys. Losing them invalidates cookies and pending reset links.
 
-Password recovery uses `CorreoSmtp` and `Auth:PublicOrigin`. Set the latter to
+Password recovery uses the selected email provider and `Auth:PublicOrigin`. Set the latter to
 the actual HTTPS origin through user-secrets or `Auth__PublicOrigin`. The app
-never builds reset links from a client-supplied Host. Missing SMTP/origin prevents
+never builds reset links from a client-supplied Host. Missing email configuration/origin prevents
 delivery; the generic response deliberately does not disclose account existence.
 Reset links expire in one hour. Logout and password reset revoke the account's
 sessions on all devices. Sessions have an eight-hour absolute lifetime.
@@ -132,6 +155,10 @@ The backend tests substitute the NLU provider and use test databases; frontend t
 Production builds keep the external font stylesheet link instead of downloading it at build time ([ADR-0037](adr/0037-compilacion-sin-descarga-de-fuentes.md)). The browser still needs access to Google Fonts to display the web fonts; existing fallback fonts apply if that service is unavailable.
 
 ## Troubleshooting and limits
+
+- **Email not enabled:** a provider has not been configured. See the Spanish
+  [email setup guide](email-setup.md). The report view checks configuration before
+  asking for a recipient; this check does not prove provider/inbox delivery.
 
 - **Login required:** register a new account or sign in. Historical demo students have no automatically assigned credentials.
 - **API unreachable:** check the backend is listening on port 5259 and use the SPA development proxy.

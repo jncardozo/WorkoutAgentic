@@ -14,6 +14,10 @@ internal static class PlanillaApiModule
         services.AddScoped<IPlanillaConsulta, PlanillaConsulta>();
         services.AddScoped<IPlanillaMutaciones, PlanillaMutaciones>();
         services.AddOptions<CorreoSmtpOptions>().BindConfiguration(CorreoSmtpOptions.SectionName);
+        services.AddOptions<EmailDeliveryOptions>().BindConfiguration(EmailDeliveryOptions.SectionName);
+        services.AddHttpClient(EmailDeliverySender.ClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddScoped<EmailDeliverySender>();
         services.AddScoped<PlanillaCorreoSender>();
         return services;
     }
@@ -22,6 +26,10 @@ internal static class PlanillaApiModule
     {
         var group = endpoints.MapGroup("/api/planillas").WithTags("Planillas")
             .RequireAuthorization().AddEndpointFilter<StudentAccessFilter>();
+
+        group.MapGet("/correo/estado", (EmailDeliverySender sender) => Results.Ok(new { configured = sender.IsConfigured }))
+            .WithName("GetEmailConfigurationStatus")
+            .WithSummary("Indica si el operador configuró la entrega de correo, sin exponer credenciales");
 
         group.MapGet("/sesion-actual/{alumnoId:int}", ObtenerSesionActual)
             .WithName("ObtenerSesionActual")
@@ -173,7 +181,7 @@ internal static class PlanillaApiModule
                 detail: "Escribí una dirección de correo válida.");
         }
 
-        var archivo = comando.Formato.Trim().ToLowerInvariant() switch
+        var archivo = comando.Formato?.Trim().ToLowerInvariant() switch
         {
             "excel" or "xlsx" => "excel",
             "pdf" => "pdf",
@@ -204,11 +212,11 @@ internal static class PlanillaApiModule
             EstadoEnvioCorreo.ConfiguracionIncompleta => Results.Problem(
                 statusCode: StatusCodes.Status503ServiceUnavailable,
                 title: "Correo no configurado",
-                detail: "Configurá el servidor SMTP de la aplicación antes de enviar correos."),
+                detail: "El envío por email no está disponible en este momento. Podés descargar la planilla."),
             _ => Results.Problem(
                 statusCode: StatusCodes.Status502BadGateway,
                 title: "No se pudo enviar el correo",
-                detail: "Revisá la configuración SMTP e intentá nuevamente."),
+                detail: "No pudimos enviar el email. Intentá nuevamente más tarde."),
         };
     }
 

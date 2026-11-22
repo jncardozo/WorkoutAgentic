@@ -93,7 +93,16 @@ sesión de captura aplica las reglas de interpretación de ADR-0025.
   (`.xlsx`) o PDF, o enviarlo como adjunto a un correo y formato que elija.
   Exportar y enviar siempre usa los datos congelados de esa planilla; no lee los
   parciales editables ni permite alterarla (ADR-0019). El envío requiere SMTP
-  configurado por el operador; si falta, la SPA informa que no está disponible.
+  configurado por el operador, o un proveedor HTTPS (ADR-0051); si falta, la SPA
+  informa que no está disponible.
+- El envío también está disponible al consultar una planilla histórica, desde
+  un único acceso centrado en reportes y en el detalle de PDF/Excel (ADR-0052). Identifica la planilla por
+  fecha y número, exige destinatario y acción explícita y no altera la carga
+  actual. El formulario bloquea envíos simultáneos y conserva los datos ante error.
+- Antes de habilitar el formulario se comprueba que el operador configuró un
+  proveedor de correo. La ausencia de configuración se informa sin pedir datos
+  de envío ni simular un resultado satisfactorio. Comprobar configuración no
+  garantiza aceptación del proveedor ni entrega en bandeja de entrada.
 
 ## 3. Alcance de cuentas
 

@@ -100,6 +100,8 @@ interface StubPlanilla {
   bulkEdit: ReturnType<typeof vi.fn>;
   eliminarFila: ReturnType<typeof vi.fn>;
   confirmar: ReturnType<typeof vi.fn>;
+  enviarPlanillaPorCorreo: ReturnType<typeof vi.fn>;
+  emailConfigurationStatus: ReturnType<typeof vi.fn>;
 }
 
 const RESPUESTA_CAPTURA: RespuestaCapturaTexto = {
@@ -121,6 +123,8 @@ function stubPlanilla(
     bulkEdit: vi.fn(() => of(respuestaInicial)),
     eliminarFila: vi.fn(() => of(respuestaInicial)),
     confirmar: vi.fn(() => of(PLANILLA_CONFIRMADA)),
+    enviarPlanillaPorCorreo: vi.fn(() => of({ mensaje: 'Planilla enviada.' })),
+    emailConfigurationStatus: vi.fn(() => of({ configured: true })),
     ...sobres,
   };
 }
@@ -171,6 +175,40 @@ function escribir(fixture: ComponentFixture<PlanillaPage>, selector: string, val
 }
 
 describe('PlanillaPage', () => {
+  it('envía desde el historial sin modificar la sesión o el borrador en curso', async () => {
+    const dialogPrototype = HTMLDialogElement.prototype;
+    const originalShowModal = Object.getOwnPropertyDescriptor(dialogPrototype, 'showModal');
+    Object.defineProperty(dialogPrototype, 'showModal', { configurable: true, value: function (this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+    try {
+      const stub = stubPlanilla(respuesta(sesion()));
+      const fixture = await montar(stub);
+      const page = fixture.componentInstance;
+      page.borradorCaptura.set('Mi próxima serie');
+      const current = page.sesion();
+      page.verPlanillaHistorial(PLANILLA_CONFIRMADA);
+      await fixture.whenStable();
+      boton(fixture, 'Enviar planilla por email').click();
+      await fixture.whenStable();
+      escribir(fixture, 'app-report-email input', 'qa@example.test');
+      fixture.nativeElement.querySelector('app-report-email form').dispatchEvent(new Event('submit'));
+      await fixture.whenStable();
+      expect(stub.enviarPlanillaPorCorreo).toHaveBeenCalledExactlyOnceWith(9, {
+        alumnoId: 1, correo: 'qa@example.test', formato: 'pdf',
+      });
+      expect(page.sesion()).toBe(current);
+      page.cerrarReportes();
+      await fixture.whenStable();
+      expect(page.borradorCaptura()).toBe('Mi próxima serie');
+      expect(page.historialAbierto()).toBe(true);
+      expect(stub.capturarTexto).not.toHaveBeenCalled();
+      const dialog = fixture.nativeElement.querySelector('dialog.training-history-dialog') as HTMLDialogElement;
+      dialog.close = vi.fn(() => dialog.removeAttribute('open'));
+      fixture.destroy();
+    } finally {
+      if (originalShowModal) Object.defineProperty(dialogPrototype, 'showModal', originalShowModal);
+      else Reflect.deleteProperty(dialogPrototype, 'showModal');
+    }
+  });
   it('abre el historial modal sin desplazar ni reemplazar el borrador de captura', async () => {
     const stub = stubPlanilla(respuesta(sesion()), { historial: vi.fn(() => of([PLANILLA_CONFIRMADA])) });
     const fixture = await montar(stub);
