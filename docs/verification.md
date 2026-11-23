@@ -134,6 +134,7 @@ The sandbox prevented normal network access and some worker/test-process communi
 The production build originally failed while downloading Google Fonts. [ADR-0037](adr/0037-compilacion-sin-descarga-de-fuentes.md) disables build-time font inlining while preserving script/style optimization and the browser's external font stylesheet link.
 
 The browser review covered typed input, live interpretation, bulk-editor save, confirmation, and report preview. It did not certify physical microphone capture, mobile installation, SMTP delivery, deployment security, or live-model accuracy across the full Spanish input domain. Automated NLU tests use controlled responses rather than paid provider calls.
+
 # Verificación del despliegue Railway — 2026-11-23
 
 - Backend: `dotnet test src/api/WorkoutAgentic.slnx --no-restore --verbosity quiet`:
@@ -146,6 +147,21 @@ The browser review covered typed input, live interpretation, bulk-editor save, c
   Arranque real en Production con SQLite nueva: `/health`, `/`, `/login`,
   bundle JS y CSRF responden 200; API/asset inexistentes responden 404.
   HTTP interno con esquema reenviado HTTPS no entra en bucle de redirección.
-- Docker no está instalado en esta PC. La construcción Linux y las pruebas
-  del dominio público se deben registrar con el resultado remoto, por separado.
-
+- Docker no está instalado en esta PC. Railway construyó correctamente la imagen
+  Linux desde `dev`, commit `3e15eac`, despliegue
+  `c247d8fd-a4e8-44ae-8243-a5757aad0958` en estado SUCCESS.
+- Dominio real: `https://workoutagentic-production.up.railway.app`. Salud,
+  navegación directa a login/registro/recuperación/acuerdo y CSRF: HTTP 200.
+  API/asset inexistentes: 404. Cuenta técnica explícita `@example.test`:
+  registro 201, login 204 y cuenta autenticada 200; cookies Secure/HttpOnly.
+  Historial bloqueado con 403 antes del acuerdo. No se aceptó el acuerdo en
+  nombre de nadie ni se crearon entrenamientos en esa cuenta técnica.
+- Redeploy `5f6b3a7b-c927-459c-a259-310ac34289ff`: SUCCESS. La cookie emitida antes
+  del redeploy sigue autenticando la misma cuenta después: SQLite y claves de
+  Data Protection persistieron en el volumen `/data` de 500 MB, una réplica iad.
+- Navegador real: `/login` muestra formulario y enlaces de cuenta en HTTPS.
+- Gemini y Brevo configurados por variables privadas, sin incluir claves en Git.
+  **Pendiente en producción:** aceptación personal del acuerdo, carga NLU,
+  confirmación/historial, apertura de PDF/XLSX, recepción real del email y
+  recuperación de contraseña. Las pruebas automatizadas locales y la recepción
+  previa por Brevo no sustituyen esa verificación en el nuevo dominio.
