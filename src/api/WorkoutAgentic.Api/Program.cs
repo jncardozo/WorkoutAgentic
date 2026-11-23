@@ -6,6 +6,7 @@ using WorkoutAgentic.Api.Features.CapturaSesion;
 using WorkoutAgentic.Api.Features.CapturaTexto;
 using WorkoutAgentic.Api.Features.Nlu;
 using WorkoutAgentic.Api.Features.PlanillaApi;
+using WorkoutAgentic.Api.Features.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddNluCaptura();
 builder.Services.AddCapturaSesion();
 builder.Services.AddPlanillaApi();
 builder.Services.AddStudentAuth(builder.Configuration, builder.Environment);
+builder.Services.AddAppHosting(builder.Configuration);
 
 var app = builder.Build();
 
@@ -24,12 +26,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// Redirección HTTPS solo fuera de Development; en dev el proxy de la SPA usa http.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
+app.UseAppHosting();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -56,7 +53,7 @@ app.MapCapturaTexto();
 app.MapPlanillaApi();
 app.MapStudentAuth();
 app.MapLegalAgreement();
-app.MapGet("/", () => "WorkoutAgentic API");
+app.MapAppHosting();
 
 app.Run();
 

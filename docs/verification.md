@@ -134,3 +134,18 @@ The sandbox prevented normal network access and some worker/test-process communi
 The production build originally failed while downloading Google Fonts. [ADR-0037](adr/0037-compilacion-sin-descarga-de-fuentes.md) disables build-time font inlining while preserving script/style optimization and the browser's external font stylesheet link.
 
 The browser review covered typed input, live interpretation, bulk-editor save, confirmation, and report preview. It did not certify physical microphone capture, mobile installation, SMTP delivery, deployment security, or live-model accuracy across the full Spanish input domain. Automated NLU tests use controlled responses rather than paid provider calls.
+# Verificación del despliegue Railway — 2026-11-23
+
+- Backend: `dotnet test src/api/WorkoutAgentic.slnx --no-restore --verbosity quiet`:
+  251 pruebas correctas, sin fallos ni omisiones. Incluye 11 casos nuevos de
+  rutas SPA/404, salud HTTP, confianza explícita del proxy y cookies seguras.
+  El runner requirió ejecución fuera del sandbox para su comunicación local.
+- Frontend: lint correcto, 129 pruebas correctas y build de producción correcto,
+  sin avisos de presupuesto; bundle inicial 306,14 kB.
+- `dotnet publish` Release correcto. Angular copiado al `wwwroot` publicado.
+  Arranque real en Production con SQLite nueva: `/health`, `/`, `/login`,
+  bundle JS y CSRF responden 200; API/asset inexistentes responden 404.
+  HTTP interno con esquema reenviado HTTPS no entra en bucle de redirección.
+- Docker no está instalado en esta PC. La construcción Linux y las pruebas
+  del dominio público se deben registrar con el resultado remoto, por separado.
+
