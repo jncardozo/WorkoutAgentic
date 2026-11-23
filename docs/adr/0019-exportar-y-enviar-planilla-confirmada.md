@@ -25,6 +25,10 @@
 
 ## Consecuencias
 
+**Ampliación 2026-11-23 (ADR-0054):** una planilla eliminada lógicamente deja de
+admitir nuevas exportaciones y envíos (404). Los adjuntos ya entregados o en
+proceso no se revocan. Renombrar el historial conserva el snapshot exportado.
+
 - La SPA necesita conectividad con la API para exportar y enviar los archivos.
 - El servidor SMTP entrega el mensaje y el archivo adjunto a la dirección elegida;
   el sistema no guarda una copia de los correos enviados.

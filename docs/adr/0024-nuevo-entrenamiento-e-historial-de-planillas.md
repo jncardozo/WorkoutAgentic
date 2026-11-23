@@ -18,6 +18,11 @@
 
 ## Consecuencias
 
+**Ampliación 2026-11-23 (ADR-0054):** el historial permite cambiar un nombre
+opcional y eliminar lógicamente entrenamientos propios. Esto conserva sus filas
+congeladas y la sesión original confirmada; las consultas solo muestran los
+entrenamientos no eliminados y nunca modifican la carga en curso.
+
 - El alumno tiene un camino visible para cargar otro entrenamiento sin conocer
   comandos de voz.
 - Las planillas anteriores siguen disponibles después de empezar otra carga.

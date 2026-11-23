@@ -32,14 +32,32 @@
         @for (entry of orderedEntries(); track entry.id) {
           <li>
             <button class="history-entry" type="button" (click)="select(entry)"
-              [attr.aria-label]="'Ver reportes del ' + date(entry.confirmadaUtc) + ', ' + time(entry.confirmadaUtc) + ', planilla ' + entry.id">
+              [disabled]="saving()" [attr.aria-label]="'Ver reportes de ' + title(entry) + ', ' + date(entry.confirmadaUtc) + ', ' + time(entry.confirmadaUtc) + ', planilla ' + entry.id">
               <span class="entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18m-12 4h2" stroke-linecap="round" /></svg></span>
-              <span class="entry-text"><strong>{{ date(entry.confirmadaUtc) }}</strong><span>{{ entry.filas.length }} {{ entry.filas.length === 1 ? 'serie' : 'series' }} · {{ time(entry.confirmadaUtc) }}</span><small>Planilla #{{ entry.id }}</small></span>
+              <span class="entry-text"><strong>{{ title(entry) }}</strong><span>{{ date(entry.confirmadaUtc) }}</span><span>{{ entry.filas.length }} {{ entry.filas.length === 1 ? 'serie' : 'series' }} · {{ time(entry.confirmadaUtc) }}</span><small>Planilla #{{ entry.id }}</small></span>
               <svg class="entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </button>
+            @if (editingId() === entry.id) {
+              <form class="name-editor" (submit)="saveName($event, entry)">
+                <label [for]="'training-name-' + entry.id">Nombre del entrenamiento (opcional)</label>
+                <input [id]="'training-name-' + entry.id" type="text" maxlength="120" [disabled]="saving()"
+                  [value]="draftName()" (input)="draftName.set($any($event.target).value)" placeholder="Ej.: Entrenamiento de piernas" />
+                <small>Hasta 120 caracteres. Vacío conserva el título predeterminado.</small>
+                @if (actionError(); as problem) { <p class="history-error" role="alert">{{ problem }}</p> }
+                <div class="entry-actions"><button type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar nombre' }}</button><button type="button" [disabled]="saving()" (click)="cancelRename()">Cancelar</button></div>
+              </form>
+            } @else {
+              <div class="entry-actions">
+                <button type="button" [disabled]="saving()" [attr.aria-label]="'Cambiar nombre de ' + title(entry)" (click)="editName(entry)">{{ entry.name ? 'Cambiar nombre' : 'Agregar nombre' }}</button>
+                <button type="button" class="delete-training" [disabled]="saving()" [attr.aria-label]="'Eliminar ' + title(entry)" (click)="requestDelete(entry)">Eliminar entrenamiento</button>
+              </div>
+            }
           </li>
         }
       </ul>
     }
   </div>
+  <app-confirmation-dialog dialogId="delete-training-dialog" [isOpen]="deleting() !== null"
+    title="Eliminar entrenamiento" [message]="deleteMessage()" confirmLabel="Eliminar entrenamiento"
+    [busy]="saving()" [error]="actionError()" (cancelled)="cancelDelete()" (confirmed)="deleteTraining()" />
 </dialog>

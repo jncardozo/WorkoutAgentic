@@ -84,11 +84,25 @@ sesión de captura aplica las reglas de interpretación de ADR-0025.
   implica crear una planilla nueva con nota de corrección.
 
 - La planilla confirmada queda congelada para el alumno que la confirmó.
+- Antes de confirmar, la SPA pide aceptación explícita mediante un popup con
+  «Sí, confirmar planilla» y «Cancelar». Cancelar o Escape conserva series y
+  borradores. La advertencia aclara que las series confirmadas no son editables.
+- El historial admite un nombre opcional editable (hasta 120 caracteres, una
+  línea) sin cambiar series ni fecha. Sin nombre muestra «Entrenamiento #N».
+  Nombre, fecha, cantidad de series, hora de confirmación local y número de
+  planilla identifican cada entrada (ADR-0054).
+- El alumno puede eliminar un entrenamiento propio del historial tras un
+  popup de confirmación. El borrado es lógico: conserva internamente snapshot,
+  filas y sesión `Confirmada`; excluye la planilla de la lista, contador y
+  nuevas consultas, exportaciones, envíos y renombrados. No se ofrece restaurar.
+  No reabre ni cambia otra carga. Archivos/correos ya descargados o iniciados
+  siguen existiendo. Los controles exigen cuenta, acuerdo, propiedad y CSRF.
 - Después de confirmar, el alumno puede iniciar otra carga con la acción
   explícita «Nuevo entrenamiento». Esta acción limpia la vista local, no borra
   el snapshot ni crea una sesión vacía en la base; la nueva sesión se crea con
-  el primer mensaje válido. Las planillas confirmadas anteriores permanecen
-  consultables en el historial de solo lectura.
+  el primer mensaje válido. Las planillas confirmadas anteriores que no se
+  hayan eliminado permanecen consultables en el historial; sus series son de
+  solo lectura, con nombre y eliminación disponibles según ADR-0054.
 - Desde la vista confirmada, el alumno puede descargar el snapshot como Excel
   (`.xlsx`) o PDF, o enviarlo como adjunto a un correo y formato que elija.
   Exportar y enviar siempre usa los datos congelados de esa planilla; no lee los

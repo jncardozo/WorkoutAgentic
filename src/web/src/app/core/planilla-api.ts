@@ -110,6 +110,7 @@ export interface PlanillaConfirmadaVista {
   sesionId: number;
   confirmadaUtc: string;
   filas: FilaConfirmadaVista[];
+  name?: string | null;
 }
 
 export type FormatoPlanillaExportable = 'excel' | 'pdf';
@@ -165,6 +166,14 @@ export class PlanillaApi {
 
   historial(alumnoId: number): Observable<PlanillaConfirmadaVista[]> {
     return this.http.get<PlanillaConfirmadaVista[]>(`${this.baseUrl}/historial/${alumnoId}`);
+  }
+
+  renameTraining(planillaId: number, name: string | null): Observable<PlanillaConfirmadaVista> {
+    return this.http.put<PlanillaConfirmadaVista>(`${this.baseUrl}/confirmadas/${planillaId}/nombre`, { name });
+  }
+
+  deleteTraining(planillaId: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/confirmadas/${planillaId}`);
   }
 
   /** Texto escrito o reconocido por voz en el navegador. */

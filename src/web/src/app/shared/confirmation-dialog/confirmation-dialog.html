@@ -1,0 +1,10 @@
+<dialog #dialog [id]="dialogId()" [attr.aria-labelledby]="dialogId() + '-title'"
+  [attr.aria-describedby]="dialogId() + '-message'" (cancel)="cancel($event)">
+  <h2 [id]="dialogId() + '-title'">{{ title() }}</h2>
+  <p [id]="dialogId() + '-message'">{{ message() }}</p>
+  @if (error(); as problem) { <p class="error" role="alert">{{ problem }}</p> }
+  <div class="actions" [attr.aria-busy]="busy()">
+    <button type="button" class="cancel" autofocus [disabled]="busy()" (click)="cancel()">Cancelar</button>
+    <button type="button" class="confirm" [disabled]="busy()" (click)="confirm()">{{ busy() ? 'Procesando…' : confirmLabel() }}</button>
+  </div>
+</dialog>

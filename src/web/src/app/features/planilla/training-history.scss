@@ -49,6 +49,16 @@ h2 { margin: 0; color: var(--texto-fuerte); font-size: 23px; line-height: 1.3; l
 .history-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 24px; }
 .history-list { list-style: none; margin: 0; padding: 0 0 max(12px, env(safe-area-inset-bottom)); }
 .history-list li + li { border-top: 1px solid var(--borde); }
+.entry-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px 58px; }
+.entry-actions button { flex: 1 1 150px; min-height: 44px; padding: 9px 12px; border: 1px solid var(--borde-fuerte); border-radius: 8px; background: var(--panel-2); color: var(--texto); font-size: 12px; }
+.entry-actions .delete-training { color: var(--peligro-suave); }
+button:disabled { opacity: .6; cursor: wait; }
+.name-editor { display: flex; flex-direction: column; gap: 10px; padding-bottom: 16px; }
+.name-editor label { color: var(--texto-fuerte); font-size: 14px; }
+.name-editor input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 12px; border: 1px solid var(--borde-fuerte); border-radius: 8px; background: var(--panel-2); color: var(--texto); font: inherit; }
+.name-editor input:focus-visible { outline: 2px solid var(--acento-suave); outline-offset: 2px; }
+.name-editor small { color: var(--texto-2); font-size: 12px; }
+.name-editor .entry-actions { margin: 0; }
 .history-entry { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 100px; padding: 18px 0; border: 0; border-radius: 8px; background: transparent; color: var(--texto); text-align: left; }
 .history-entry:hover { background: #ff6a0009; }
 .history-entry:focus-visible { outline-offset: -2px; }

@@ -12,6 +12,7 @@ public sealed class PlanillaFilaConfiguration : IEntityTypeConfiguration<Planill
     {
         builder.ToTable("PlanillaFila");
         builder.HasKey(f => new { f.PlanillaId, f.Orden });
+        builder.HasQueryFilter(f => f.Planilla!.DeletedUtc == null);
 
         builder.Property(f => f.EjercicioCanonical).HasMaxLength(120);
 

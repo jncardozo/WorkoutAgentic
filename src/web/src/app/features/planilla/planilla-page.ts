@@ -31,6 +31,7 @@ import { CommandExample } from './command-example';
 import { groupExerciseRows } from './exercise-groups';
 import { TrainingHistory } from './training-history';
 import { ReportEmail } from './report-email';
+import { ConfirmationDialog } from '../../shared/confirmation-dialog/confirmation-dialog';
 import { DictadoVoz } from './dictado-voz';
 import { ReportePreview, FormatoVistaPrevia } from './reporte-preview';
 import { ReporteWorkspace, ModoReporte } from './reporte-workspace';
@@ -63,7 +64,7 @@ const INTERVALO_ENCUESTA_MS = 10_000;
 @Component({
   selector: 'app-planilla-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, ReportePreview, ReporteWorkspace, TrainingEditor, TrainingProgress, CommandExample, TrainingHistory, ReportEmail],
+  imports: [DatePipe, ReportePreview, ReporteWorkspace, TrainingEditor, TrainingProgress, CommandExample, TrainingHistory, ReportEmail, ConfirmationDialog],
   templateUrl: './planilla-page.html',
   styleUrl: './planilla-page.scss',
 })
@@ -108,6 +109,8 @@ export class PlanillaPage {
   readonly fallaCarga = signal<FallaApi | null>(null);
   readonly fallaAccion = signal<FallaApi | null>(null);
   readonly accionEnCurso = signal(false);
+  readonly confirmationOpen = signal(false);
+  private confirmationSessionId: number | null = null;
   readonly exportacionEnCurso = signal(false);
   readonly vistaPrevia = signal<FormatoVistaPrevia | null>(null);
   readonly pantallaReportes = signal<ModoReporte | null>(null);
@@ -212,6 +215,7 @@ export class PlanillaPage {
         this.planillaConfirmada.set(null);
         this.historialPlanillas.set([]);
         this.historialAbierto.set(false);
+        this.confirmationOpen.set(false);
         this.nuevoEntrenamiento.set(false);
         this.reporteDesdeHistorial.set(false);
         this.cerrarBorradores();
@@ -654,11 +658,33 @@ export class PlanillaPage {
 
   // ─── Confirmación (snapshot write-once, ADR-0007 S4) ────────────────────────
 
+  requestConfirmation(): void {
+    if (!this.cuadriculaEditable() || !this.filas().length || this.sesionViva()?.aclaracion
+      || this.accionEnCurso() || this.capturaEnCurso()) return;
+    this.confirmationSessionId = this.sesionViva()!.id;
+    this.fallaAccion.set(null);
+    this.confirmationOpen.set(true);
+  }
+
+  cancelConfirmation(): void {
+    if (this.accionEnCurso()) return;
+    this.confirmationOpen.set(false);
+    this.fallaAccion.set(null);
+  }
+
   confirmar(): void {
+    if (!this.confirmationOpen() || this.accionEnCurso() || this.capturaEnCurso()) return;
+    if (!this.cuadriculaEditable() || !this.filas().length || this.sesionViva()?.aclaracion
+      || this.sesionViva()?.id !== this.confirmationSessionId) {
+      this.confirmationOpen.set(false);
+      this.mostrarToast('El entrenamiento cambió. Revisá la planilla antes de confirmar.', true);
+      return;
+    }
     const alumnoId = this.alumnoId();
     this.ejecutar(
       this.planillaApi.confirmar(alumnoId),
       (planilla) => {
+        this.confirmationOpen.set(false);
         this.planillaConfirmada.set(planilla);
         this.nuevoEntrenamiento.set(false);
         this.reporteDesdeHistorial.set(false);
@@ -753,6 +779,21 @@ export class PlanillaPage {
     if (!this.cargandoHistorial()) this.cargarHistorial(this.alumnoId());
   }
 
+  renamedTraining(updated: PlanillaConfirmadaVista): void {
+    this.historialPlanillas.update(entries => entries.map(entry => entry.id === updated.id ? updated : entry));
+    if (this.planillaConfirmada()?.id === updated.id) this.planillaConfirmada.set(updated);
+  }
+
+  removedTraining(id: number): void {
+    this.historialPlanillas.update(entries => entries.filter(entry => entry.id !== id));
+    if (this.planillaConfirmada()?.id === id) {
+      this.planillaConfirmada.set(null);
+      this.pantallaReportes.set(null);
+      this.vistaPrevia.set(null);
+      this.reporteDesdeHistorial.set(false);
+    }
+  }
+
   verPlanillaHistorial(planilla: PlanillaConfirmadaVista): void {
     this.planillaConfirmada.set(planilla);
     this.reporteDesdeHistorial.set(true);
@@ -808,7 +849,7 @@ export class PlanillaPage {
         if (this.nuevoEntrenamiento()) {
           return { clase: 'badge-ok', texto: 'Nueva planilla' };
         }
-        return { clase: '', texto: 'Sin sesión' };
+        return { clase: '', texto: 'Sin sesión de entrenamiento' };
     }
   }
 

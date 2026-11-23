@@ -84,7 +84,8 @@ public sealed record PlanillaConfirmadaVista(
     int AlumnoId,
     int SesionId,
     DateTime ConfirmadaUtc,
-    List<FilaConfirmadaVista> Filas);
+    List<FilaConfirmadaVista> Filas,
+    string? Name = null);
 
 // Fila congelada de la planilla confirmada.
 public sealed record FilaConfirmadaVista(

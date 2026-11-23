@@ -16,6 +16,10 @@ public class PlanillaConfirmada
 
     public DateTime ConfirmadaUtc { get; set; }
 
+    // Metadatos del historial; nunca alteran las filas congeladas (ADR-0054).
+    public string? Name { get; set; }
+    public DateTime? DeletedUtc { get; set; }
+
     // Cuadrícula congelada: es exactamente lo que confirmó el alumno.
     public List<PlanillaFila> Filas { get; set; } = [];
 }

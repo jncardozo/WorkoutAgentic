@@ -33,6 +33,10 @@ visible al envío que la API ya soportaba.
 
 ## Verificación
 
+**Ampliación 2026-11-23 (ADR-0054):** el borrado lógico excluye la planilla de
+nuevos envíos y descargas, incluso con su URL/ID anterior (404). No revoca
+correos ya iniciados o entregados. El cambio de nombre conserva el adjunto.
+
 - Pruebas de interfaz: accesos desde tarjetas, detalle e impresión; formato e ID
   correctos; dirección inválida; bloqueo durante el envío; errores y cambio de
   planilla; conservación del borrador y de la sesión al volver al historial.

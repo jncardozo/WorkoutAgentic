@@ -244,6 +244,13 @@ namespace WorkoutAgentic.Api.Migrations
                     b.Property<DateTime>("ConfirmadaUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("SesionId")
                         .HasColumnType("INTEGER");
 

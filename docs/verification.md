@@ -1,5 +1,30 @@
 # Verification record
 
+## Confirmación y gestión del historial — 2026-11-23
+
+- ADR-0054 y ampliaciones en ADR-0017, 0019, 0024, 0046 y 0050 documentan los
+  diálogos de confirmación, nombre opcional y eliminación lógica. Las reglas
+  de dominio distinguen metadatos editables de las series congeladas.
+- Migración nueva `AddTrainingHistoryMetadata`: columnas nullable `Name` y
+  `DeletedUtc`, sin cambios en migraciones anteriores. Prueba de upgrade desde
+  `AddAgreementAcceptances` con una planilla existente conserva sesión, snapshot
+  y filas. EF no detecta cambios de modelo sin migración.
+- Pruebas de API: normalización/vacío/límite de nombre, snapshot y PDF intactos,
+  permisos entre cuentas, CSRF/acuerdo, historial tras eliminación y 404 en
+  nuevos PDF/Excel/email/renombrados de la planilla eliminada. La sesión original
+  continúa confirmada y los datos internos permanecen.
+- Pruebas de interfaz: confirmación en dos pasos, cancelación sin POST ni pérdida
+  del texto, doble clic, fallos recuperables, nombre/borrador, eliminación con
+  cancelación y actualización de contador. El diálogo inicia en Cancelar,
+  admite Escape y restaura foco; se usan dobles de dialog en JSDOM.
+- La prueba automatizada no sustituye revisión visual en navegadores móviles
+  ni certifica el despliegue de estos cambios en el dominio público.
+- Resultado local: 259 pruebas backend correctas y 138 frontend correctas;
+  lint y build de producción correctos, sin avisos de presupuesto. Tras ajustar
+  el retorno de foco cuando desaparece la fila eliminada, se repitieron los
+  13 casos de historial/diálogo y el build: correctos. Los 8 casos de historial
+  y migración backend también se verificaron después del ajuste final de tests.
+
 ## Live PDF delivery reported by the operator — 2026-11-22
 
 - After configuring the verified sender and Brevo API key, the operator confirmed

@@ -65,7 +65,8 @@
       <div class="encabezado-lado">
         <app-training-history [entries]="historialPlanillas()" [isOpen]="historialAbierto()" [loading]="cargandoHistorial()"
           [error]="fallaHistorial()?.detalle ?? fallaHistorial()?.titulo ?? null" (opened)="alternarHistorial()"
-          (closed)="historialAbierto.set(false)" (selected)="verPlanillaHistorial($event)" (retry)="retryHistory()" />
+          (closed)="historialAbierto.set(false)" (selected)="verPlanillaHistorial($event)" (retry)="retryHistory()"
+          (renamed)="renamedTraining($event)" (removed)="removedTraining($event)" />
         <button type="button" class="btn refresh-training" (click)="recargar()" aria-label="Actualizar entrenamiento" title="Actualizar datos desde la app">
           <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
@@ -615,7 +616,7 @@
                 type="button"
                 class="btn-confirmar"
                 [disabled]="viva.filas.length === 0 || accionEnCurso() || capturaEnCurso()"
-                (click)="confirmar()"
+                (click)="requestConfirmation()"
               >
                 <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
@@ -654,7 +655,7 @@
           </section>
         } @else {
           <div class="tarjeta sin-sesion">
-            <h2>Sin sesión activa</h2>
+            <h2>Sin sesión de entrenamiento activa</h2>
             <p>Dictá o escribí tu entrenamiento para empezar.</p>
           </div>
         }
@@ -665,6 +666,12 @@
 }
 
 <!-- Aviso flotante (toast del prototipo) -->
+<app-confirmation-dialog dialogId="confirm-training-dialog" [isOpen]="confirmationOpen()"
+  title="¿Terminaste tu entrenamiento?"
+  message="Estás por confirmar esta planilla. Una vez confirmada, no podrás modificar sus series."
+  confirmLabel="Sí, confirmar planilla" [busy]="accionEnCurso()"
+  [error]="fallaAccion()?.detalle ?? fallaAccion()?.titulo ?? null"
+  (cancelled)="cancelConfirmation()" (confirmed)="confirmar()" />
 @if (toast(); as aviso) {
   <div class="toast {{ aviso.malo ? 'toast-malo' : '' }}" role="status">
     <span class="punto-toast" aria-hidden="true"></span>

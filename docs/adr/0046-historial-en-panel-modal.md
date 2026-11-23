@@ -31,6 +31,11 @@ El usuario aprobó un acceso destacado «Mis entrenamientos» y un panel superpu
 
 ## Verificación
 
+**Ampliación 2026-11-23 (ADR-0054):** el nombre opcional encabeza la entrada,
+seguido de fecha, series, hora y planilla. Agregar/cambiar nombre y eliminar
+usan controles separados del acceso a reportes. La eliminación tiene un diálogo
+propio; cancelar conserva la entrada. El contador refleja solo registros visibles.
+
 Ejecutar lint, pruebas y build. Verificar apertura/cierre, foco, error y reintento,
 orden y contador reales, preservación de borradores y retorno desde reportes.
 Revisar móvil y escritorio, listas largas, scroll interno y área de dictado

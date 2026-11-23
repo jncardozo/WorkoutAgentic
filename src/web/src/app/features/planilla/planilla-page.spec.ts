@@ -175,6 +175,20 @@ function escribir(fixture: ComponentFixture<PlanillaPage>, selector: string, val
 }
 
 describe('PlanillaPage', () => {
+  const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+  const originalClose = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'close');
+  beforeEach(() => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, writable: true, value: vi.fn(function (this: HTMLDialogElement) { this.setAttribute('open', ''); }) });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, writable: true, value: vi.fn(function (this: HTMLDialogElement) { this.removeAttribute('open'); }) });
+  });
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    if (originalShowModal) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', originalShowModal);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    if (originalClose) Object.defineProperty(HTMLDialogElement.prototype, 'close', originalClose);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+    vi.restoreAllMocks();
+  });
   it('envía desde el historial sin modificar la sesión o el borrador en curso', async () => {
     const dialogPrototype = HTMLDialogElement.prototype;
     const originalShowModal = Object.getOwnPropertyDescriptor(dialogPrototype, 'showModal');
@@ -455,7 +469,7 @@ describe('PlanillaPage', () => {
   it('sin sesión muestra el aviso de dictar el primer ejercicio y no cuadrícula', async () => {
     const fixture = await montar(stubPlanilla(respuesta(null)));
 
-    expect(texto(fixture)).toContain('Sin sesión activa');
+    expect(texto(fixture)).toContain('Sin sesión de entrenamiento activa');
     expect(fixture.nativeElement.querySelector('table.cuadricula')).toBeNull();
   });
 
@@ -537,6 +551,8 @@ describe('PlanillaPage', () => {
 
     boton(fixture, 'Confirmar planilla').click();
     await fixture.whenStable();
+    boton(fixture, 'Sí, confirmar planilla').click();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     boton(fixture, 'Volver a la planilla').click();
@@ -596,9 +612,59 @@ describe('PlanillaPage', () => {
 
     boton(fixture, 'Confirmar planilla').click();
     await fixture.whenStable();
+    expect(stub.confirmar).not.toHaveBeenCalled();
+    boton(fixture, 'Sí, confirmar planilla').click();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(stub.confirmar).toHaveBeenCalledWith(1);
+  });
+
+  it('cancelar la confirmación conserva series y texto pendiente sin llamar al servidor', async () => {
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub);
+    const page = fixture.componentInstance;
+    page.borradorCaptura.set('Todavía me falta una serie');
+    const before = page.sesion();
+    boton(fixture, 'Confirmar planilla').click();
+    await fixture.whenStable();
+    const dialog = fixture.nativeElement.querySelector('#confirm-training-dialog') as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    expect(dialog.textContent).toContain('no podrás modificar sus series');
+    dialog.querySelector<HTMLButtonElement>('.cancel')!.click();
+    await fixture.whenStable();
+    expect(dialog.open).toBe(false);
+    expect(stub.confirmar).not.toHaveBeenCalled();
+    expect(page.sesion()).toBe(before);
+    expect(page.borradorCaptura()).toBe('Todavía me falta una serie');
+  });
+
+  it('bloquea doble confirmación y conserva el diálogo ante un error recuperable', async () => {
+    const pending = new Subject<PlanillaConfirmadaVista>();
+    const stub = stubPlanilla(respuesta(sesion()), { confirmar: vi.fn(() => pending) });
+    const fixture = await montar(stub);
+    fixture.componentInstance.requestConfirmation();
+    await fixture.whenStable();
+    fixture.componentInstance.confirmar();
+    fixture.componentInstance.confirmar();
+    expect(stub.confirmar).toHaveBeenCalledTimes(1);
+    pending.error(new HttpErrorResponse({ status: 503, error: { title: 'Intentá nuevamente' } }));
+    await fixture.whenStable();
+    expect(fixture.componentInstance.confirmationOpen()).toBe(true);
+    expect(fixture.componentInstance.planillaConfirmada()).toBeNull();
+    expect(fixture.nativeElement.querySelector('#confirm-training-dialog [role="alert"]').textContent).toContain('Intentá nuevamente');
+  });
+
+  it('quitar una confirmada del historial conserva la carga actual y su borrador', async () => {
+    const stub = stubPlanilla(respuesta(sesion()), { historial: vi.fn(() => of([PLANILLA_CONFIRMADA])) });
+    const fixture = await montar(stub);
+    const page = fixture.componentInstance;
+    const before = page.sesion();
+    page.borradorCaptura.set('Mi siguiente ejercicio');
+    page.removedTraining(PLANILLA_CONFIRMADA.id);
+    expect(page.historialPlanillas()).toEqual([]);
+    expect(page.sesion()).toBe(before);
+    expect(page.borradorCaptura()).toBe('Mi siguiente ejercicio');
   });
 
   // ─── Dictado por voz (ADR-0011) ───────────────────────────────────────────────

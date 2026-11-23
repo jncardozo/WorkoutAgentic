@@ -1,0 +1,12 @@
+:host { display: contents; }
+dialog { box-sizing: border-box; width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 24px; border: 1px solid var(--borde-fuerte); border-radius: 18px; background: var(--panel); color: var(--texto); box-shadow: 0 24px 80px #0009; }
+dialog::backdrop { background: #000b; }
+h2 { margin: 0 0 12px; color: var(--texto-fuerte); font-size: 22px; line-height: 1.3; }
+p { margin: 0 0 20px; color: var(--texto-2); line-height: 1.6; overflow-wrap: anywhere; }
+.error { color: var(--peligro-suave); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+button { flex: 1 1 150px; min-height: 48px; padding: 12px; border: 1px solid var(--borde-fuerte); border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--acento-suave); outline-offset: 3px; }
+.cancel { background: var(--panel-2); color: var(--texto); }
+.confirm { background: var(--acento); color: #15100c; }
+button:disabled { opacity: .6; cursor: wait; }

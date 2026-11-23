@@ -22,6 +22,10 @@
 
 ## Consecuencias
 
+**Ampliación 2026-11-23 (ADR-0054):** el botón abre una confirmación modal antes
+del POST. Cancelar conserva la carga. Las series siguen inmutables después de
+confirmar; nombre editable y eliminación lógica son metadatos del historial.
+
 - El alumno puede terminar y confirmar la jornada directamente desde el lugar
   donde revisa sus ejercicios.
 - Sesiones `Expirada` o `EsperandoAclaracion` siguen sin poder confirmarse;

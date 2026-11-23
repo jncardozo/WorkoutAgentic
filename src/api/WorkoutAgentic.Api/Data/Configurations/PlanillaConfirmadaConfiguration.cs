@@ -10,6 +10,8 @@ public sealed class PlanillaConfirmadaConfiguration : IEntityTypeConfiguration<P
     {
         builder.ToTable("PlanillaConfirmada");
         builder.HasKey(pc => pc.Id);
+        builder.Property(pc => pc.Name).HasMaxLength(120);
+        builder.HasQueryFilter(pc => pc.DeletedUtc == null);
 
         builder.HasOne(pc => pc.Alumno)
             .WithMany(a => a.PlanillasConfirmadas)

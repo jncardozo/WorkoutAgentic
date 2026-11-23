@@ -13,6 +13,7 @@ internal static class PlanillaApiModule
     {
         services.AddScoped<IPlanillaConsulta, PlanillaConsulta>();
         services.AddScoped<IPlanillaMutaciones, PlanillaMutaciones>();
+        services.AddScoped<TrainingHistoryChanges>();
         services.AddOptions<CorreoSmtpOptions>().BindConfiguration(CorreoSmtpOptions.SectionName);
         services.AddOptions<EmailDeliveryOptions>().BindConfiguration(EmailDeliveryOptions.SectionName);
         services.AddHttpClient(EmailDeliverySender.ClientName)
@@ -103,6 +104,17 @@ internal static class PlanillaApiModule
         group.MapPost("/confirmadas/{planillaId:int}/correo", EnviarPorCorreo)
             .WithName("EnviarPlanillaPorCorreo")
             .WithSummary("Envía una planilla confirmada como Excel o PDF");
+
+        group.MapPut("/confirmadas/{planillaId:int}/nombre", async (
+            int planillaId, RenameTrainingRequest request, TrainingHistoryChanges changes, CancellationToken cancellationToken) =>
+            await changes.RenameAsync(planillaId, request, cancellationToken))
+            .WithName("RenameTraining")
+            .WithSummary("Cambia el nombre opcional del entrenamiento sin alterar sus series");
+        group.MapDelete("/confirmadas/{planillaId:int}", async (
+            int planillaId, TrainingHistoryChanges changes, CancellationToken cancellationToken) =>
+            await changes.DeleteAsync(planillaId, cancellationToken))
+            .WithName("DeleteTraining")
+            .WithSummary("Elimina lógicamente un entrenamiento propio del historial");
 
         return endpoints;
     }

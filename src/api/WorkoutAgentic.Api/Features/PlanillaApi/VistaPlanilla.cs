@@ -10,7 +10,8 @@ internal static class VistaPlanilla
         planilla.Id,
         planilla.AlumnoId,
         planilla.SesionId,
-        planilla.ConfirmadaUtc,
+        // SQLite conserva el valor UTC, pero no DateTime.Kind: enviar Z al navegador.
+        DateTime.SpecifyKind(planilla.ConfirmadaUtc, DateTimeKind.Utc),
         [.. planilla.Filas
             .OrderBy(f => f.Orden)
             .Select(f => new FilaConfirmadaVista(
@@ -23,7 +24,8 @@ internal static class VistaPlanilla
                 f.TiempoSeg,
                 f.Incompleta,
                 f.Comments,
-                f.Observations))]);
+                f.Observations))],
+        planilla.Name);
 
     public static RespuestaSesionActual Armar(
         int alumnoId,
