@@ -65,4 +65,9 @@ internal sealed record PlanillaFalla(int EstadoHttp, string Titulo, string? Deta
         StatusCodes.Status409Conflict,
         "No hay sesión para confirmar",
         "El alumno no tiene una sesión de captura abierta para confirmar.");
+
+    internal static PlanillaFalla IncompleteConfirmation(string details) => new(
+        StatusCodes.Status409Conflict,
+        "La planilla tiene datos incompletos",
+        $"Datos pendientes: {details}. Volvé a editar o aceptá expresamente confirmar la planilla incompleta.");
 }

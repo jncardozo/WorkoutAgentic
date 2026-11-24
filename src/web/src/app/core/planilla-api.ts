@@ -92,6 +92,7 @@ export interface BulkRowEdit {
 
 export interface ComandoConfirmar {
   alumnoId: number;
+  acceptIncomplete?: boolean;
 }
 
 export interface FilaConfirmadaVista {
@@ -222,8 +223,8 @@ export class PlanillaApi {
     return this.http.delete<RespuestaSesionActual>(`${this.baseUrl}/sesion-actual/${alumnoId}/filas`);
   }
 
-  confirmar(alumnoId: number): Observable<PlanillaConfirmadaVista> {
-    const comando: ComandoConfirmar = { alumnoId };
+  confirmar(alumnoId: number, acceptIncomplete = false): Observable<PlanillaConfirmadaVista> {
+    const comando: ComandoConfirmar = acceptIncomplete ? { alumnoId, acceptIncomplete: true } : { alumnoId };
     return this.http.post<PlanillaConfirmadaVista>(`${this.baseUrl}/confirmar`, comando);
   }
 

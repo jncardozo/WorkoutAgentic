@@ -281,6 +281,55 @@ public class PlanillaApiMutacionesTests : IDisposable
 
     // ─── Confirmar (POST /confirmar) ────────────────────────────────────────────
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Confirmar_WithIncompleteRowsWithoutAcceptance_Returns409AndPreservesSession(bool omitAcceptance)
+    {
+        var (student, _) = await SeedBaseAsync(EstadoSesionCaptura.Lista,
+            conFilaCompleta: true, conFilaPendiente: true, conPrensa: true);
+        object command = omitAcceptance ? new { alumnoId = student } : new ComandoConfirmar(student, AcceptIncomplete: false);
+        var response = await PostAsync("/api/planillas/confirmar", command);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("La planilla tiene datos incompletos", problem.GetProperty("title").GetString());
+        Assert.Contains($"{NombrePrensa}, serie 2: peso", problem.GetProperty("detail").GetString());
+        Assert.False(await ConDbAsync(db => db.PlanillasConfirmadas.AnyAsync()));
+        var session = (await ReadSession(student)).Sesion!;
+        Assert.Equal("Lista", session.Estado);
+        Assert.Equal(2, session.Filas.Count);
+        Assert.Null(session.Filas[1].PesoKg);
+    }
+
+    [Fact]
+    public async Task Confirmar_WithUnresolvedExercise_RequiresAcceptanceDespiteCompleteNumericData()
+    {
+        var (student, _) = await SeedBaseAsync(EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conPrensa: true);
+        await SeedAsync(db => db.RegistrosParciales.Single().DescripcionPendiente = true);
+        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(student));
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("ejercicio por aclarar", problem.GetProperty("detail").GetString());
+        Assert.False(await ConDbAsync(db => db.PlanillasConfirmadas.AnyAsync()));
+    }
+
+    [Fact]
+    public async Task Confirmar_WithBodyweightAndEmptyOptionalNotes_DoesNotRequireIncompleteAcceptance()
+    {
+        var (student, _) = await SeedBaseAsync(EstadoSesionCaptura.EnCurso, conFilaCompleta: true, conPrensa: true);
+        await SeedAsync(db =>
+        {
+            var row = db.RegistrosParciales.Single();
+            row.PesoKg = null;
+            row.Unidad = Unidad.PesoCorporal;
+        });
+        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(student));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var plan = await response.Content.ReadFromJsonAsync<PlanillaConfirmadaVista>(JsonOptions);
+        Assert.False(Assert.Single(plan!.Filas).Incompleta);
+    }
+
     [Fact]
     public async Task Confirmar_WithForeignAlumno_Returns403Problem()
     {
@@ -318,7 +367,7 @@ public class PlanillaApiMutacionesTests : IDisposable
         var (alumnoId, _) = await SeedBaseAsync(
             EstadoSesionCaptura.Lista, conFilaCompleta: true, conFilaPendiente: true, conPrensa: true);
 
-        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(alumnoId));
+        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(alumnoId, AcceptIncomplete: true));
         var snapshot = await response.Content.ReadFromJsonAsync<PlanillaConfirmadaVista>(JsonOptions);
 
         // Snapshot: fila completa → intacta; fila pendiente (sin peso) → marcada.
@@ -355,7 +404,7 @@ public class PlanillaApiMutacionesTests : IDisposable
     {
         var (alumnoId, _) = await SeedPlanchaAsync(EstadoSesionCaptura.Lista, tiempoSeg: 60);
 
-        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(alumnoId));
+        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(alumnoId, AcceptIncomplete: true));
         var snapshot = await response.Content.ReadFromJsonAsync<PlanillaConfirmadaVista>(JsonOptions);
 
         var fila = Assert.Single(snapshot!.Filas);
@@ -374,7 +423,7 @@ public class PlanillaApiMutacionesTests : IDisposable
         var (alumnoId, _) = await SeedBaseAsync(
             EstadoSesionCaptura.Lista, conFilaSinEjercicio: true);
 
-        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(alumnoId));
+        var response = await PostAsync("/api/planillas/confirmar", new ComandoConfirmar(alumnoId, AcceptIncomplete: true));
         var snapshot = await response.Content.ReadFromJsonAsync<PlanillaConfirmadaVista>(JsonOptions);
 
         var fila = Assert.Single(snapshot!.Filas);

@@ -82,7 +82,7 @@ internal static class PlanillaApiModule
 
         group.MapPost("/confirmar", async (ComandoConfirmar comando, IPlanillaMutaciones mutaciones, CancellationToken cancellationToken) =>
             {
-                var resultado = await mutaciones.ConfirmarAsync(comando.AlumnoId, cancellationToken);
+                var resultado = await mutaciones.ConfirmarAsync(comando.AlumnoId, cancellationToken, comando.AcceptIncomplete);
                 if (resultado.Falla is { } falla)
                 {
                     return Problema(falla);

@@ -53,6 +53,11 @@ confirmados solo admitían lectura, exportación y envío.
 
 ## Verificación
 
+**Ampliación 2026-11-24 (ADR-0057):** la confirmación de planillas incompletas
+detalla los faltantes y requiere «Confirmar de todos modos» con aceptación
+explícita en la API. La vista confirmada retira el detalle duplicado y conserva
+las acciones y la consulta de series desde reportes.
+
 - Cancelación sin POST, confirmación explícita, doble clic, fallo/reintento,
   Escape, foco inicial y regreso al control de origen.
 - Renombrar normaliza espacios, acepta vacío, rechaza longitud y controles;

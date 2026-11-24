@@ -23,6 +23,16 @@ describe('Confirmación de acciones', () => {
 
   afterEach(() => fixture.destroy());
 
+  it('incluye la lista de pendientes en la descripción accesible y permite personalizar la salida', async () => {
+    fixture.componentRef.setInput('details', ['Sentadilla, serie 2: peso.']);
+    fixture.componentRef.setInput('cancelLabel', 'Volver a editar');
+    fixture.componentRef.setInput('isOpen', true);
+    await fixture.whenStable();
+    expect(dialog.querySelector('li')?.textContent).toBe('Sentadilla, serie 2: peso.');
+    expect(dialog.getAttribute('aria-describedby')).toContain('test-confirmation-details');
+    expect(dialog.querySelector('.cancel')?.textContent).toContain('Volver a editar');
+  });
+
   it('abre con foco en Cancelar y devuelve el foco al cerrar', async () => {
     const trigger = document.createElement('button');
     document.body.append(trigger);

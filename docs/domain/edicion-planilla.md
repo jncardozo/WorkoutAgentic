@@ -16,7 +16,8 @@
   fuera del desplazamiento horizontal de cada tabla. Se agrupa por nombre sin
   distinguir mayúsculas y espacios externos, en orden de primera aparición,
   conservando el orden de las series dentro del ejercicio y todos los datos.
-  Esta agrupación también aplica al snapshot confirmado en modo de solo lectura.
+  El detalle del snapshot confirmado se consulta en los reportes en modo de solo
+  lectura; la vista «Planilla confirmada» no duplica las tarjetas (ADR-0057).
 - El número de serie y «Editar» activan la edición inline de esa fila en la
   cuadrícula, sin abrir el editor múltiple. El nombre se edita en un campo
   adicional de esa serie. Guardar usa el PUT individual y vuelve a agrupar con los

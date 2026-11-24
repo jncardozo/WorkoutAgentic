@@ -13,6 +13,8 @@ export class ConfirmationDialog {
   readonly title = input.required<string>();
   readonly message = input.required<string>();
   readonly confirmLabel = input.required<string>();
+  readonly cancelLabel = input('Cancelar');
+  readonly details = input<string[]>([]);
   readonly busy = input(false);
   readonly error = input<string | null>(null);
   readonly confirmed = output<void>();

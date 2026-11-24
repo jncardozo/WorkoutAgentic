@@ -70,8 +70,9 @@ sesión de captura aplica las reglas de interpretación de ADR-0025.
 
 - La planilla en curso muestra los `RegistroParcial` en tarjetas por ejercicio,
   con nombre único en la cabecera y filas con serie, repeticiones, peso,
-  comentarios y observaciones (ADR-0032). La agrupación es visual y también aplica
-  al snapshot confirmado; no cambia datos ni el orden persistido. **La columna/campo TIEMPO
+  comentarios y observaciones (ADR-0032). La agrupación es visual; el detalle
+  confirmado se consulta desde los reportes y no se duplica en la pantalla de
+  confirmación (ADR-0057). No cambia datos ni el orden persistido. **La columna/campo TIEMPO
   se retiró de la cuadrícula y de los formularios (ADR-0014)** — el dato sigue existiendo a nivel API pero ya no
   se captura ni exige. Se puede editar, eliminar filas individuales, eliminar
   todos los registros parciales de la sesión y agregar filas antes de confirmar
@@ -87,6 +88,15 @@ sesión de captura aplica las reglas de interpretación de ADR-0025.
 - Antes de confirmar, la SPA pide aceptación explícita mediante un popup con
   «Sí, confirmar planilla» y «Cancelar». Cancelar o Escape conserva series y
   borradores. La advertencia aclara que las series confirmadas no son editables.
+- Si la planilla tiene repeticiones/peso faltantes o ejercicio por aclarar, el
+  popup detalla ejercicio, serie y campos pendientes. Ofrece «Volver a editar»
+  (sin guardar) o «Confirmar de todos modos» (aceptación explícita). La API exige
+  `acceptIncomplete=true`; ausente/false devuelve 409 sin cambiar la sesión.
+  «Al cuerpo» es carga declarada y las notas/RM son opcionales. Se conservan los
+  null e indicadores de incompleta al confirmar con aceptación (ADR-0057).
+- La vista confirmada muestra estado/fecha y acciones de reportes, envío y nuevo
+  entrenamiento. El detalle de ejercicios/series queda en los reportes y sus
+  vistas previas; no se elimina del snapshot ni del historial (ADR-0057).
 - El historial admite un nombre opcional editable (hasta 120 caracteres, una
   línea) sin cambiar series ni fecha. Sin nombre muestra «Entrenamiento #N».
   Nombre, fecha, cantidad de series, hora de confirmación local y número de

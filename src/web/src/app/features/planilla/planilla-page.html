@@ -208,51 +208,6 @@
           </p>
         </div>
 
-        @for (group of confirmedExerciseGroups(); track group.key) {
-          <details class="exercise-card" open [attr.aria-labelledby]="'confirmed-exercise-' + group.key">
-            <summary class="exercise-card-header">
-              <h3 [id]="'confirmed-exercise-' + group.key"><span class="punto-ejercicio" aria-hidden="true"></span>{{ group.name }}</h3>
-              <span>{{ group.rows.length }} {{ group.rows.length === 1 ? 'serie' : 'series' }}</span>
-              <svg class="exercise-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" /></svg>
-            </summary>
-            <div class="envoltorio-tabla">
-              <table class="cuadricula" [attr.aria-labelledby]="'confirmed-exercise-' + group.key">
-                <thead>
-                  <tr>
-                    <th class="num" scope="col">Serie</th>
-                    <th class="num" scope="col">Reps</th>
-                    <th class="num" scope="col">Peso</th>
-                    <th scope="col">RM</th>
-                    <th scope="col">Comentarios</th>
-                    <th scope="col">Observaciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (firma of group.rows; track firma.orden) {
-                    <tr>
-                      <td class="num"><span class="chip">{{ firma.nroSerie }}</span>
-                        @if (firma.incompleta) { <span class="chip chip-aviso">incompleta</span> }
-                      </td>
-                      <td class="num reps">{{ firma.reps ?? '—' }}</td>
-                      <td class="num valor">
-                        @if (firma.unidad === 'PesoCorporal') {
-                          al cuerpo
-                        } @else {
-                          {{ firma.pesoKg === null ? '—' : formatoKg(firma.pesoKg) }}
-                        }
-                      </td>
-                      <td class="rm-cell">{{ firma.isOneRepMax ? 'RM / 1 repetición' : '—' }}</td>
-                      <td class="series-note">{{ firma.comments || '—' }}</td>
-                      <td class="series-note">{{ firma.observations || '—' }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-
-          </details>
-        }
-
         <section class="panel-exportacion" aria-labelledby="titulo-exportacion">
           <div>
             <h3 id="titulo-exportacion">Tus reportes están listos</h3>
@@ -676,9 +631,11 @@
 
 <!-- Aviso flotante (toast del prototipo) -->
 <app-confirmation-dialog dialogId="confirm-training-dialog" [isOpen]="confirmationOpen()"
-  title="¿Terminaste tu entrenamiento?"
-  message="Estás por confirmar esta planilla. Una vez confirmada, no podrás modificar sus series."
-  confirmLabel="Sí, confirmar planilla" [busy]="accionEnCurso()"
+  [title]="confirmationWarnings().length ? 'Tu planilla tiene datos incompletos' : '¿Terminaste tu entrenamiento?'"
+  [message]="confirmationWarnings().length ? 'Estás por confirmar una planilla con datos pendientes. Podés volver a editar o confirmarla de todos modos. Una vez confirmada, no podrás modificar sus series.' : 'Estás por confirmar esta planilla. Una vez confirmada, no podrás modificar sus series.'"
+  [details]="confirmationWarnings()"
+  [confirmLabel]="confirmationWarnings().length ? 'Confirmar de todos modos' : 'Sí, confirmar planilla'"
+  [cancelLabel]="confirmationWarnings().length ? 'Volver a editar' : 'Cancelar'" [busy]="accionEnCurso()"
   [error]="fallaAccion()?.detalle ?? fallaAccion()?.titulo ?? null"
   (cancelled)="cancelConfirmation()" (confirmed)="confirmar()" />
 @if (toast(); as aviso) {

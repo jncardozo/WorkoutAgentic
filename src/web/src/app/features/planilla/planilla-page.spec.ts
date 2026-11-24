@@ -402,17 +402,20 @@ describe('PlanillaPage', () => {
     expect(fixture.componentInstance.filas()).toEqual(rows);
   });
 
-  it('agrupa también la planilla confirmada sin mostrar acciones de edición', async () => {
+  it('muestra la confirmada con acceso a reportes sin duplicar el detalle de ejercicios', async () => {
     const fixture = await montar(stubPlanilla(respuesta(null)));
     fixture.componentInstance.planillaConfirmada.set({ ...PLANILLA_CONFIRMADA,
       filas: [PLANILLA_CONFIRMADA.filas[0], { ...PLANILLA_CONFIRMADA.filas[0], orden: 2, nroSerie: 2 }] });
     await fixture.whenStable();
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelectorAll('.exercise-card')).toHaveLength(1);
-    expect(host.querySelectorAll('.cuadricula tbody tr')).toHaveLength(2);
-    expect(host.querySelector('.cuadricula tbody')?.textContent).not.toContain('Press banca');
-    expect(host.querySelector('.cuadricula button')).toBeNull();
+    expect(host.querySelectorAll('.panel-confirmada .exercise-card')).toHaveLength(0);
+    expect(host.querySelector('.panel-confirmada .cuadricula')).toBeNull();
+    expect(host.textContent).toContain('Tus reportes están listos');
+    expect(boton(fixture, 'Elegir reporte PDF o Excel')).toBeTruthy();
+    expect(boton(fixture, 'Nuevo entrenamiento')).toBeTruthy();
+    expect(host.querySelector('.panel-confirmada app-report-email')).not.toBeNull();
+    expect(fixture.componentInstance.planillaConfirmada()?.filas).toHaveLength(2);
   });
 
   it('ignora una recarga en vuelo mientras se edita el borrador', async () => {
@@ -589,8 +592,8 @@ describe('PlanillaPage', () => {
     fixture.detectChanges();
     const cuerpo = texto(fixture);
     expect(cuerpo).toContain('Planilla confirmada');
-    expect(cuerpo).toContain('incompleta');
-    expect(fixture.nativeElement.querySelector('table.cuadricula')).not.toBeNull();
+    expect(cuerpo).toContain('Tus reportes están listos');
+    expect(fixture.nativeElement.querySelector('.panel-confirmada table.cuadricula')).toBeNull();
   });
 
   it('una fila alta incompleta no llama al API y explica qué falta', async () => {
@@ -666,6 +669,60 @@ describe('PlanillaPage', () => {
     expect(stub.confirmar).not.toHaveBeenCalled();
     expect(page.sesion()).toBe(before);
     expect(page.borradorCaptura()).toBe('Todavía me falta una serie');
+  });
+
+  it('detalla los datos pendientes y permite volver a editar sin enviar ni perder el borrador', async () => {
+    const rows = [fila({ nroSerie: 2, pesoKg: null }), fila({ id: 6, nroSerie: 3, reps: null, pesoKg: null })];
+    const stub = stubPlanilla(respuesta(sesion({ filas: rows })));
+    const fixture = await montar(stub);
+    const page = fixture.componentInstance;
+    page.borradorCaptura.set('Texto pendiente de enviar');
+    page.requestConfirmation();
+    await fixture.whenStable();
+    const dialog = fixture.nativeElement.querySelector('#confirm-training-dialog') as HTMLDialogElement;
+    expect(dialog.textContent).toContain('Tu planilla tiene datos incompletos');
+    expect(dialog.textContent).toContain('Press banca, serie 2: peso');
+    expect(dialog.textContent).toContain('Press banca, serie 3: repeticiones y peso');
+    expect(dialog.querySelectorAll('li')).toHaveLength(2);
+    expect(stub.confirmar).not.toHaveBeenCalled();
+    boton(fixture, 'Volver a editar').click();
+    await fixture.whenStable();
+    expect(dialog.open).toBe(false);
+    expect(page.filas()).toEqual(rows);
+    expect(page.borradorCaptura()).toBe('Texto pendiente de enviar');
+    expect(stub.confirmar).not.toHaveBeenCalled();
+  });
+
+  it('envía la aceptación de datos incompletos solo al confirmar de todos modos', async () => {
+    const stub = stubPlanilla(respuesta(sesion({ filas: [fila({ pesoKg: null })] })));
+    const fixture = await montar(stub);
+    fixture.componentInstance.requestConfirmation();
+    await fixture.whenStable();
+    boton(fixture, 'Confirmar de todos modos').click();
+    await fixture.whenStable();
+    expect(stub.confirmar).toHaveBeenCalledWith(1, true);
+  });
+
+  it('advierte ejercicio por aclarar y no trata el peso corporal o las notas vacías como faltantes', async () => {
+    const fixture = await montar(stubPlanilla(respuesta(sesion({ filas: [
+      fila({ descripcionPendiente: true }),
+      fila({ id: 6, unidad: 'PesoCorporal', pesoKg: null, comments: null, observations: null }),
+    ] }))));
+    expect(fixture.componentInstance.confirmationWarnings()).toEqual(['Press banca, serie 1: ejercicio por aclarar.']);
+  });
+
+  it('exige revisar nuevamente si las filas cambian después de abrir el aviso', async () => {
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub);
+    const page = fixture.componentInstance;
+    page.requestConfirmation();
+    page.sesion.set(respuesta(sesion({ filas: [fila({ pesoKg: null })] })));
+    page.confirmar();
+    expect(stub.confirmar).not.toHaveBeenCalled();
+    expect(page.confirmationOpen()).toBe(false);
+    page.requestConfirmation();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('#confirm-training-dialog').textContent).toContain('datos incompletos');
   });
 
   it('bloquea doble confirmación y conserva el diálogo ante un error recuperable', async () => {

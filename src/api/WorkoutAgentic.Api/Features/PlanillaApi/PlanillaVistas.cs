@@ -78,7 +78,7 @@ public sealed record ComandoEdicionFila(
 
 // POST /api/planillas/confirmar: abre el snapshot (write-once) cuando la
 // sesión está en EnCurso o Lista (ADR-0017).
-public sealed record ComandoConfirmar(int AlumnoId);
+public sealed record ComandoConfirmar(int AlumnoId, bool AcceptIncomplete = false);
 
 // ─── Respuesta de confirmación (snapshot congelado) ──────────────────────────
 

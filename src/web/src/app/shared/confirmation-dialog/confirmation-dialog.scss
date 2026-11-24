@@ -4,6 +4,8 @@ dialog::backdrop { background: #000b; }
 h2 { margin: 0 0 12px; color: var(--texto-fuerte); font-size: 22px; line-height: 1.3; }
 p { margin: 0 0 20px; color: var(--texto-2); line-height: 1.6; overflow-wrap: anywhere; }
 .error { color: var(--peligro-suave); }
+.details { margin: 0 0 20px; padding-left: 22px; color: var(--texto); line-height: 1.6; overflow-wrap: anywhere; }
+.details li + li { margin-top: 8px; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; }
 button { flex: 1 1 150px; min-height: 48px; padding: 12px; border: 1px solid var(--borde-fuerte); border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer; }
 button:focus-visible { outline: 2px solid var(--acento-suave); outline-offset: 3px; }

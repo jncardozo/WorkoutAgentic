@@ -112,6 +112,7 @@ export class PlanillaPage {
   readonly accionEnCurso = signal(false);
   readonly confirmationOpen = signal(false);
   private confirmationSessionId: number | null = null;
+  private confirmationRowsKey: string | null = null;
   readonly exportacionEnCurso = signal(false);
   readonly vistaPrevia = signal<FormatoVistaPrevia | null>(null);
   readonly pantallaReportes = signal<ModoReporte | null>(null);
@@ -168,9 +169,13 @@ export class PlanillaPage {
   readonly exerciseGroups = computed(() => groupExerciseRows(
     this.filas(), row => this.etiquetaEjercicio(row), row => row.id,
   ));
-  readonly confirmedExerciseGroups = computed(() => groupExerciseRows(
-    this.planillaConfirmada()?.filas ?? [], row => row.ejercicioCanonical, row => row.orden,
-  ));
+  readonly confirmationWarnings = computed(() => this.filas().flatMap(row => {
+    const missing: string[] = [];
+    if (row.descripcionPendiente) missing.push('ejercicio por aclarar');
+    if (row.reps === null) missing.push('repeticiones');
+    if (row.pesoKg === null && row.unidad !== 'PesoCorporal') missing.push('peso (o «al cuerpo»)');
+    return missing.length ? [`${this.etiquetaEjercicio(row)}, serie ${row.nroSerie}: ${missing.join(' y ')}.`] : [];
+  }));
   readonly filasPendientesDeDatos = computed(() => {
     return this.filas()
       .filter((fila) => fila.reps === null || (fila.pesoKg === null && fila.unidad !== 'PesoCorporal'))
@@ -677,6 +682,7 @@ export class PlanillaPage {
     if (!this.cuadriculaEditable() || !this.filas().length || this.sesionViva()?.aclaracion
       || this.accionEnCurso() || this.capturaEnCurso()) return;
     this.confirmationSessionId = this.sesionViva()!.id;
+    this.confirmationRowsKey = JSON.stringify(this.filas());
     this.fallaAccion.set(null);
     this.confirmationOpen.set(true);
   }
@@ -690,14 +696,15 @@ export class PlanillaPage {
   confirmar(): void {
     if (!this.confirmationOpen() || this.accionEnCurso() || this.capturaEnCurso()) return;
     if (!this.cuadriculaEditable() || !this.filas().length || this.sesionViva()?.aclaracion
-      || this.sesionViva()?.id !== this.confirmationSessionId) {
+      || this.sesionViva()?.id !== this.confirmationSessionId
+      || JSON.stringify(this.filas()) !== this.confirmationRowsKey) {
       this.confirmationOpen.set(false);
       this.mostrarToast('El entrenamiento cambió. Revisá la planilla antes de confirmar.', true);
       return;
     }
     const alumnoId = this.alumnoId();
     this.ejecutar(
-      this.planillaApi.confirmar(alumnoId),
+      this.confirmationWarnings().length ? this.planillaApi.confirmar(alumnoId, true) : this.planillaApi.confirmar(alumnoId),
       (planilla) => {
         this.confirmationOpen.set(false);
         this.planillaConfirmada.set(planilla);

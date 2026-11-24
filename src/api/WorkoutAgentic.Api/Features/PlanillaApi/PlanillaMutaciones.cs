@@ -38,7 +38,7 @@ internal interface IPlanillaMutaciones
         int alumnoId, CancellationToken cancellationToken);
 
     Task<ResultadoMutacion<PlanillaConfirmadaVista>> ConfirmarAsync(
-        int alumnoId, CancellationToken cancellationToken);
+        int alumnoId, CancellationToken cancellationToken, bool acceptIncomplete = false);
 }
 
 internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanillaMutaciones
@@ -186,7 +186,7 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
     // ─── Confirmación (snapshot write-once, reglas §2 y ADR-0017) ─────────────
 
     public async Task<ResultadoMutacion<PlanillaConfirmadaVista>> ConfirmarAsync(
-        int alumnoId, CancellationToken cancellationToken)
+        int alumnoId, CancellationToken cancellationToken, bool acceptIncomplete = false)
     {
         var alumno = await db.Alumnos
             .AsNoTracking()
@@ -222,6 +222,19 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
         if (sesion.Registros.Any(r => !OneRepMaxRule.IsValid(r.IsOneRepMax, r.Reps, r.PesoKg, r.Unidad, r.TiempoSeg)))
             return ResultadoMutacion<PlanillaConfirmadaVista>.ConFalla(PlanillaFalla.DatosInvalidos(OneRepMaxRule.Clarification));
 
+        var incomplete = sesion.Registros.Where(IncompleteForConfirmation).OrderBy(r => r.Id).ToList();
+        if (incomplete.Count > 0 && !acceptIncomplete)
+        {
+            var details = incomplete.Select(row =>
+            {
+                var fields = ReglaCompletitudSeries.CamposFaltantes(row).ToList();
+                if (row.DescripcionPendiente) fields.Insert(0, "ejercicio por aclarar");
+                var name = row.EjercicioCanonico ?? row.Ejercicio?.NombreCanonico ?? row.EjercicioCrudo ?? "ejercicio sin nombre";
+                return $"{name}, serie {row.NroSerie}: {string.Join(" y ", fields)}";
+            });
+            return ResultadoMutacion<PlanillaConfirmadaVista>.ConFalla(PlanillaFalla.IncompleteConfirmation(string.Join("; ", details)));
+        }
+
         var ahora = DateTime.UtcNow;
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var planilla = new PlanillaConfirmada
@@ -251,8 +264,7 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
                 IsOneRepMax = parcial.IsOneRepMax,
                 // Marca congelada de integridad: fila sin
                 // ejercicio identificado (descripción libre) o sin reps/peso.
-                Incompleta = parcial.DescripcionPendiente
-                    || !ReglaCompletitudSeries.EstaCompleta(parcial),
+                Incompleta = IncompleteForConfirmation(parcial),
             });
         }
 
@@ -266,6 +278,9 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
     }
 
     // ─── Carga y validaciones compartidas ─────────────────────────────────────
+
+    private static bool IncompleteForConfirmation(RegistroParcial row) =>
+        row.DescripcionPendiente || !ReglaCompletitudSeries.EstaCompleta(row);
 
     private static string? CleanNote(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

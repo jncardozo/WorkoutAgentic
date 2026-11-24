@@ -58,6 +58,13 @@ describe('PlanillaApi', () => {
 
   afterEach(() => http.verify());
 
+  it('envía la aceptación expresa para confirmar una planilla incompleta', () => {
+    api.confirmar(1, true).subscribe();
+    const request = http.expectOne('/api/planillas/confirmar');
+    expect(request.request.body).toEqual({ alumnoId: 1, acceptIncomplete: true });
+    request.flush({ id: 9, filas: [] });
+  });
+
   it('consulta si el correo está configurado antes de habilitar el envío', () => {
     let configured: boolean | undefined;
     api.emailConfigurationStatus().subscribe(status => configured = status.configured);
