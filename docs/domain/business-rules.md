@@ -165,6 +165,31 @@ sesión de captura aplica las reglas de interpretación de ADR-0025.
 
 ---
 
+## 6. RM declarado y comparación histórica (ADR-0055)
+
+- Cualquier ejercicio con carga externa puede tener una serie marcada como RM.
+  Es una declaración explícita de máximo para una repetición: requiere reps=1,
+  peso positivo normalizado a kg y ausencia de tiempo/peso corporal. No se estima
+  desde varias reps ni se deduce por ser la mayor carga o una serie efectiva.
+- Marca independiente de notas, revisable en la SPA antes de confirmar.
+  Captura contradictoria pide aclaración sin cambiar filas; edición inválida
+  rechaza la operación completa. Los datos históricos no reciben marcas inferidas.
+- Solo RM completos y confirmados aportan referencias futuras. Al confirmar otra
+  sesión, se elige el mayor RM de planillas anteriores del mismo alumno/ejercicio
+  y no posteriores a su confirmación. Empates: fecha más reciente, mayor ID de
+  planilla y menor orden de fila. Se ignoran mayúsculas y espacios redundantes,
+  sin equiparar variantes ni sinónimos por aproximación.
+- Congelar referencia (peso, fecha UTC de confirmación, planilla y fila de origen)
+  junto con las series. La fecha del reporte se presenta en Argentina; no se
+  deduce una fecha retroactiva del entrenamiento a partir del texto.
+- Eliminar una planilla excluye sus RM de comparaciones nuevas. Los reportes
+  ya confirmados mantienen la referencia utilizada aunque se elimine el origen.
+- Reportar por ejercicio la máxima carga de sesión / RM previo ×100 con un
+  decimal, sin limitar a 100 %. Sin referencia o sin carga numérica no inventar
+  porcentajes. Un menor porcentaje no demuestra menor fuerza: pueden cambiar
+  las repeticiones u otros factores. PDF, Excel, vistas previas y adjuntos usan
+  los mismos datos congelados. Excel incluye la hoja «Progreso RM».
+
 ## Fase 2 (fuera del MVP) — Reglas del generador de rutinas
 
 > Se activarán cuando el producto agregue el agente generador; quedan documentadas

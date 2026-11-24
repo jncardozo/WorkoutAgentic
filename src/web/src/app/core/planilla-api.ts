@@ -29,6 +29,7 @@ export interface FilaParcialVista {
   tiempoSeg: number | null;
   comments?: string | null;
   observations?: string | null;
+  isOneRepMax?: boolean;
   pendienteAclaracion: boolean;
   creadoUtc: string;
 }
@@ -66,6 +67,7 @@ export interface ComandoNuevaFila {
   tiempoSeg: number | null;
   comments?: string | null;
   observations?: string | null;
+  isOneRepMax?: boolean;
 }
 
 /** Edición = reemplazo completo de los campos (ADR-0007 S2). */
@@ -79,6 +81,7 @@ export interface ComandoEdicionFila {
   tiempoSeg: number | null;
   comments?: string | null;
   observations?: string | null;
+  isOneRepMax?: boolean;
 }
 
 export interface BulkRowEdit {
@@ -101,6 +104,7 @@ export interface FilaConfirmadaVista {
   tiempoSeg: number | null;
   comments?: string | null;
   observations?: string | null;
+  isOneRepMax?: boolean;
   incompleta: boolean;
 }
 
@@ -111,6 +115,18 @@ export interface PlanillaConfirmadaVista {
   confirmadaUtc: string;
   filas: FilaConfirmadaVista[];
   name?: string | null;
+  oneRepMaxProgress?: OneRepMaxProgressView[];
+}
+
+export interface OneRepMaxProgressView {
+  exercise: string;
+  sessionMaxKg: number | null;
+  referenceKg: number | null;
+  referenceConfirmedUtc: string | null;
+  referencePlanillaId: number | null;
+  referenceRowOrder: number | null;
+  percentage: number | null;
+  description: string;
 }
 
 export type FormatoPlanillaExportable = 'excel' | 'pdf';

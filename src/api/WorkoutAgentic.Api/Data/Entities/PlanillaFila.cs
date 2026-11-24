@@ -19,6 +19,14 @@ public class PlanillaFila
 
     public int? Reps { get; set; }
 
+    public bool IsOneRepMax { get; set; }
+
+    // Referencia histórica congelada; sin FK para conservar el reporte al eliminar el origen.
+    public decimal? ReferenceOneRepMaxKg { get; set; }
+    public DateTime? ReferenceConfirmedUtc { get; set; }
+    public int? ReferencePlanillaId { get; set; }
+    public int? ReferenceRowOrder { get; set; }
+
     public string? Comments { get; set; }
 
     public string? Observations { get; set; }

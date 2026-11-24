@@ -25,6 +25,11 @@
 
 ## Consecuencias
 
+**Ampliación 2026-11-24 (ADR-0055):** el snapshot conserva el 1RM declarado y
+la referencia histórica utilizada al confirmar. PDF y Excel incorporan la
+comparación por ejercicio; Excel agrega la hoja «Progreso RM». Cambiar el
+historial posteriormente no recalcula las referencias de reportes confirmados.
+
 **Ampliación 2026-11-23 (ADR-0054):** una planilla eliminada lógicamente deja de
 admitir nuevas exportaciones y envíos (404). Los adjuntos ya entregados o en
 proceso no se revocan. Renombrar el historial conserva el snapshot exportado.

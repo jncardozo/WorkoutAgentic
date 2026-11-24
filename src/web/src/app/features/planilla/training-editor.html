@@ -23,6 +23,7 @@
                 @if (row.original.unidad === 'PesoCorporal' && !row.weight.trim()) {
                   <p class="registered-load">Carga registrada: al cuerpo</p>
                 }
+                <label class="rm-option"><input type="checkbox" aria-label="RM / 1 repetición" [checked]="row.isOneRepMax" (change)="markOneRepMax(row.id, $any($event.target).checked)" /> RM / 1 repetición</label>
                 <details class="notes">
                   <summary>Notas @if (row.comments || row.observations) { <span> · {{ row.comments || row.observations }}</span> }</summary>
                   <label class="campo">Comentarios<textarea rows="2" [value]="row.comments" (input)="update(row.id, 'comments', $any($event.target).value)"></textarea></label>

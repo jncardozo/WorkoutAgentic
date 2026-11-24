@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FormatoPlanillaExportable, PlanillaConfirmadaVista } from '../../core/planilla-api';
 import { ReportEmail } from './report-email';
+import { OneRepMaxProgress } from './one-rep-max-progress';
 
 export type FormatoVistaPrevia = Extract<FormatoPlanillaExportable, 'pdf' | 'excel'>;
 
 @Component({
   selector: 'app-reporte-preview',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReportEmail],
+  imports: [ReportEmail, OneRepMaxProgress],
   templateUrl: './reporte-preview.html',
   styleUrl: './reporte-preview.scss',
 })

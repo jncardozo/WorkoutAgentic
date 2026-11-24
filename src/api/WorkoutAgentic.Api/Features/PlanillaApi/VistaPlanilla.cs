@@ -24,8 +24,10 @@ internal static class VistaPlanilla
                 f.TiempoSeg,
                 f.Incompleta,
                 f.Comments,
-                f.Observations))],
-        planilla.Name);
+                f.Observations,
+                f.IsOneRepMax))],
+        planilla.Name,
+        OneRepMaxProgress.Summarize(planilla));
 
     public static RespuestaSesionActual Armar(
         int alumnoId,
@@ -65,5 +67,6 @@ internal static class VistaPlanilla
         fila.PendienteAclaracion,
         fila.CreadoUtc,
         fila.Comments,
-        fila.Observations);
+        fila.Observations,
+        fila.IsOneRepMax);
 }

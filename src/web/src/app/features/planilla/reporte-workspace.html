@@ -82,6 +82,7 @@
         <article class="tarjeta-metrica"><span>INTENSIDAD PICO</span><strong>{{ cargaMaxima() === null ? 'Sin datos' : numero(cargaMaxima()) }}@if (cargaMaxima() !== null) { <small>kg</small> }</strong><p>Carga máxima registrada</p></article>
       </section>
 
+      <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" />
       <section class="seccion-detalle" aria-labelledby="titulo-detalle">
         <header class="encabezado-seccion"><h2 id="titulo-detalle">Detalle de la sesión</h2><span>{{ ejercicios() }} EJERCICIOS · {{ filas().length }} SERIES</span></header>
         @for (grupo of grupos(); track grupo.nombre; let indice = $index) {
@@ -97,7 +98,7 @@
                 <tbody>
                   @for (fila of grupo.filas; track fila.orden) {
                     <tr>
-                      <th scope="row" class="serie-label">Serie {{ fila.nroSerie }}@if (fila.incompleta) { <span class="badge-incompleta">INCOMPLETA</span> }</th>
+                      <th scope="row" class="serie-label">Serie {{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }@if (fila.incompleta) { <span class="badge-incompleta">INCOMPLETA</span> }</th>
                       <td class="series-reps">{{ fila.reps ?? '—' }}</td>
                       <td class="series-weight">{{ pesoTexto(fila) }}</td>
                       <td class="series-note">{{ fila.comments || '—' }}</td>
@@ -119,7 +120,7 @@
               <div class="columna-grafico" [class.alternada]="indice % 2 === 1">
                 <strong>{{ numero(fila.pesoKg) }} kg</strong>
                 <span class="barra-grafico"><i [style.height]="anchoBarra(fila)"></i></span>
-                <small>S{{ fila.nroSerie }}</small>
+                <small>S{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</small>
               </div>
             }
           </div>
@@ -146,18 +147,19 @@
           <header class="encabezado-seccion"><div><h2>Curva de intensidad por serie (carga absoluta)</h2><p>Valores numéricos disponibles en la planilla</p></div><span>KG</span></header>
           <div class="grafico-columnas">
             @for (fila of filasConCarga(); track fila.orden; let indice = $index) {
-              <div class="columna-grafico" [class.alternada]="indice % 2 === 1"><strong>{{ numero(fila.pesoKg) }}</strong><span class="barra-grafico"><i [style.height]="anchoBarra(fila)"></i></span><small>S{{ fila.nroSerie }}</small></div>
+              <div class="columna-grafico" [class.alternada]="indice % 2 === 1"><strong>{{ numero(fila.pesoKg) }}</strong><span class="barra-grafico"><i [style.height]="anchoBarra(fila)"></i></span><small>S{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</small></div>
             }
           </div>
         </section>
       }
 
+      <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" />
       <section class="hoja-excel" aria-label="Hoja de datos del reporte Excel">
         <div class="barra-hoja"><strong>PLANILLA DE ENTRENAMIENTO</strong><span>{{ filas().length }} FILAS REGISTRADAS</span></div>
         <div class="tabla-scroll"><table><thead><tr><th>#</th><th>Ejercicio</th><th>Serie</th><th>Reps</th><th>Peso (kg)</th><th>Volumen</th><th>Progresión</th><th>Comentarios</th><th>Observaciones</th></tr></thead>
           <tbody>
             @for (fila of filas(); track fila.orden; let indice = $index) {
-              <tr><td>{{ indice + 1 }}</td><td><span class="punto-tabla"></span>{{ fila.ejercicioCanonical }}</td><td>{{ fila.nroSerie }}</td><td>{{ fila.reps ?? '—' }}</td><td>{{ pesoTexto(fila) }}</td><td>{{ volumenFila(fila) }}</td><td><span class="barra-celda"><i [style.width]="anchoBarra(fila)"></i></span></td><td class="series-note">{{ fila.comments || '—' }}</td><td class="series-note">{{ fila.observations || '—' }}</td></tr>
+              <tr><td>{{ indice + 1 }}</td><td><span class="punto-tabla"></span>{{ fila.ejercicioCanonical }}</td><td>{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</td><td>{{ fila.reps ?? '—' }}</td><td>{{ pesoTexto(fila) }}</td><td>{{ volumenFila(fila) }}</td><td><span class="barra-celda"><i [style.width]="anchoBarra(fila)"></i></span></td><td class="series-note">{{ fila.comments || '—' }}</td><td class="series-note">{{ fila.observations || '—' }}</td></tr>
             }
           </tbody>
         </table></div>

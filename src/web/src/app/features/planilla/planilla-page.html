@@ -222,6 +222,7 @@
                     <th class="num" scope="col">Serie</th>
                     <th class="num" scope="col">Reps</th>
                     <th class="num" scope="col">Peso</th>
+                    <th scope="col">RM</th>
                     <th scope="col">Comentarios</th>
                     <th scope="col">Observaciones</th>
                   </tr>
@@ -240,6 +241,7 @@
                           {{ firma.pesoKg === null ? '—' : formatoKg(firma.pesoKg) }}
                         }
                       </td>
+                      <td class="rm-cell">{{ firma.isOneRepMax ? 'RM / 1 repetición' : '—' }}</td>
                       <td class="series-note">{{ firma.comments || '—' }}</td>
                       <td class="series-note">{{ firma.observations || '—' }}</td>
                     </tr>
@@ -396,6 +398,7 @@
                         <th class="num" scope="col">Serie</th>
                         <th class="num" scope="col">Reps</th>
                         <th class="num" scope="col">Peso</th>
+                        <th scope="col">RM</th>
                         <th scope="col">Comentarios</th>
                         <th scope="col">Observaciones</th>
                         <th class="col-acciones" scope="col"><span class="sr-solo">Acciones</span></th>
@@ -405,7 +408,7 @@
                       @for (fila of group.rows; track fila.id) {
                         @if (editando(fila) && borradorEdicion(); as borrador) {
                           <tr class="inline-exercise-name">
-                            <td colspan="6">
+                            <td colspan="7">
                               <label>Ejercicio de esta serie
                                 <input type="text" class="selector-ejercicio" aria-label="Nombre del ejercicio"
                                   [value]="borrador.ejercicioCrudo"
@@ -475,6 +478,11 @@
                             } @else {
                               <span class="valor">{{ pesoTexto(fila) }}</span>
                             }
+                          </td>
+                          <td class="rm-cell">
+                            @if (editando(fila) && borradorEdicion(); as borrador) {
+                              <label class="rm-option"><input type="checkbox" [checked]="borrador.isOneRepMax" (change)="markOneRepMax(true, $any($event.target).checked)" /> RM / 1 repetición</label>
+                            } @else { {{ fila.isOneRepMax ? 'RM / 1 repetición' : '—' }} }
                           </td>
                           <td class="series-note">
                             @if (editando(fila) && borradorEdicion(); as borrador) {
@@ -587,6 +595,7 @@
                     al cuerpo
                   </span>
                 </label>
+                <label class="rm-option"><input type="checkbox" [checked]="alta.isOneRepMax" (change)="markOneRepMax(false, $any($event.target).checked)" /> RM / 1 repetición</label>
                 <label class="campo">
                   Comentarios
                   <textarea rows="2" [value]="alta.comments"

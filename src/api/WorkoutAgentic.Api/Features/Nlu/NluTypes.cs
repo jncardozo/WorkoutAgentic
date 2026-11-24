@@ -43,7 +43,8 @@ public sealed record EntidadesNlu(
     string? EjercicioNormalizado = null,
     string? Comments = null,
     string? Observations = null,
-    IReadOnlyList<SeriesDetail>? Series = null);
+    IReadOnlyList<SeriesDetail>? Series = null,
+    bool? IsOneRepMax = null);
 
 // Ordinal relativo 1..N en un alta por cantidad; ordinal real al actualizar.
 public sealed record SeriesDetail(
@@ -52,7 +53,8 @@ public sealed record SeriesDetail(
     decimal? Weight = null,
     Unidad? Unit = null,
     string? Comments = null,
-    string? Observations = null);
+    string? Observations = null,
+    bool? IsOneRepMax = null);
 
 public sealed record EntidadesExtraidas(
     bool Exito,

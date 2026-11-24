@@ -89,6 +89,8 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
         {
             return ResultadoMutacion<RespuestaSesionActual>.ConFalla(valores.Falla);
         }
+        if (!OneRepMaxRule.IsValid(comando.IsOneRepMax, valores.Reps, valores.PesoKg, valores.Unidad, valores.TiempoSeg))
+            return ResultadoMutacion<RespuestaSesionActual>.ConFalla(PlanillaFalla.DatosInvalidos(OneRepMaxRule.Clarification));
         if (valores.Reps is null
             || (valores.PesoKg is null && valores.Unidad != Unidad.PesoCorporal))
         {
@@ -110,6 +112,7 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
             TiempoSeg = valores.TiempoSeg,
             Comments = CleanNote(comando.Comments),
             Observations = CleanNote(comando.Observations),
+            IsOneRepMax = comando.IsOneRepMax,
             CreadoUtc = DateTime.UtcNow,
         };
         sesion.Registros.Add(fila);
@@ -216,7 +219,11 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
                 PlanillaFalla.ConfirmacionDePlanillaVacia());
         }
 
+        if (sesion.Registros.Any(r => !OneRepMaxRule.IsValid(r.IsOneRepMax, r.Reps, r.PesoKg, r.Unidad, r.TiempoSeg)))
+            return ResultadoMutacion<PlanillaConfirmadaVista>.ConFalla(PlanillaFalla.DatosInvalidos(OneRepMaxRule.Clarification));
+
         var ahora = DateTime.UtcNow;
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var planilla = new PlanillaConfirmada
         {
             SesionId = sesion.Id,
@@ -241,6 +248,7 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
                 TiempoSeg = parcial.TiempoSeg,
                 Comments = parcial.Comments,
                 Observations = parcial.Observations,
+                IsOneRepMax = parcial.IsOneRepMax,
                 // Marca congelada de integridad: fila sin
                 // ejercicio identificado (descripción libre) o sin reps/peso.
                 Incompleta = parcial.DescripcionPendiente
@@ -248,28 +256,13 @@ internal sealed partial class PlanillaMutaciones(CapturasDbContext db) : IPlanil
             });
         }
 
+        await OneRepMaxProgress.FreezeReferencesAsync(db, planilla, cancellationToken);
         sesion.Estado = EstadoSesionCaptura.Confirmada;
         db.PlanillasConfirmadas.Add(planilla);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
-        return ResultadoMutacion<PlanillaConfirmadaVista>.ConVista(new PlanillaConfirmadaVista(
-            planilla.Id,
-            alumnoId,
-            sesion.Id,
-            ahora,
-            [.. planilla.Filas
-                .OrderBy(f => f.Orden)
-                .Select(f => new FilaConfirmadaVista(
-                    f.Orden,
-                    f.EjercicioCanonical,
-                    f.NroSerie,
-                    f.Reps,
-                    f.PesoKg,
-                    f.Unidad?.ToString(),
-                    f.TiempoSeg,
-                    f.Incompleta,
-                    f.Comments,
-                    f.Observations))]));
+        return ResultadoMutacion<PlanillaConfirmadaVista>.ConVista(VistaPlanilla.MapearPlanillaConfirmada(planilla));
     }
 
     // ─── Carga y validaciones compartidas ─────────────────────────────────────

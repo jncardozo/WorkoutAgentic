@@ -19,7 +19,8 @@ public sealed record FilaParcialVista(
     bool PendienteAclaracion,
     DateTime CreadoUtc,
     string? Comments = null,
-    string? Observations = null);
+    string? Observations = null,
+    bool IsOneRepMax = false);
 
 // Pregunta viva de captura, respondida desde la misma SPA.
 public sealed record AclaracionVista(string Campo, int Reintento);
@@ -58,7 +59,8 @@ public sealed record ComandoNuevaFila(
     int? TiempoSeg,
     string? EjercicioNombre = null,
     string? Comments = null,
-    string? Observations = null);
+    string? Observations = null,
+    bool IsOneRepMax = false);
 
 // PUT /api/planillas/filas/{filaId}: reemplazo completo de los campos. Con
 // EjercicioId = null la fila queda como descripción libre (EjercicioCrudo).
@@ -71,7 +73,8 @@ public sealed record ComandoEdicionFila(
     string? Unidad,
     int? TiempoSeg,
     string? Comments = null,
-    string? Observations = null);
+    string? Observations = null,
+    bool IsOneRepMax = false);
 
 // POST /api/planillas/confirmar: abre el snapshot (write-once) cuando la
 // sesión está en EnCurso o Lista (ADR-0017).
@@ -85,7 +88,8 @@ public sealed record PlanillaConfirmadaVista(
     int SesionId,
     DateTime ConfirmadaUtc,
     List<FilaConfirmadaVista> Filas,
-    string? Name = null);
+    string? Name = null,
+    List<OneRepMaxProgressView>? OneRepMaxProgress = null);
 
 // Fila congelada de la planilla confirmada.
 public sealed record FilaConfirmadaVista(
@@ -98,4 +102,10 @@ public sealed record FilaConfirmadaVista(
     int? TiempoSeg,
     bool Incompleta,
     string? Comments = null,
-    string? Observations = null);
+    string? Observations = null,
+    bool IsOneRepMax = false);
+
+public sealed record OneRepMaxProgressView(
+    string Exercise, decimal? SessionMaxKg, decimal? ReferenceKg,
+    DateTime? ReferenceConfirmedUtc, int? ReferencePlanillaId, int? ReferenceRowOrder,
+    decimal? Percentage, string Description);

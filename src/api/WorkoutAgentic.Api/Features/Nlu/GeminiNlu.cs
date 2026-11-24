@@ -22,7 +22,8 @@ internal sealed record AnalisisNluJson(
     [property: JsonPropertyName("aclarar")] AclararNluJson? Aclarar,
     [property: JsonPropertyName("comentarios")] string? Comments,
     [property: JsonPropertyName("observaciones")] string? Observations,
-    [property: JsonPropertyName("series")] List<SeriesDetailJson>? Series);
+    [property: JsonPropertyName("series")] List<SeriesDetailJson>? Series,
+    [property: JsonPropertyName("es_rm")] bool? IsOneRepMax = null);
 
 internal sealed record SeriesDetailJson(
     [property: JsonPropertyName("serie")] int Serie,
@@ -30,7 +31,8 @@ internal sealed record SeriesDetailJson(
     [property: JsonPropertyName("peso")] decimal? Weight,
     [property: JsonPropertyName("unidad")] string? Unit,
     [property: JsonPropertyName("comentarios")] string? Comments,
-    [property: JsonPropertyName("observaciones")] string? Observations);
+    [property: JsonPropertyName("observaciones")] string? Observations,
+    [property: JsonPropertyName("es_rm")] bool? IsOneRepMax = null);
 
 internal sealed record AclararNluJson(
     [property: JsonPropertyName("campo")] string? Campo,
@@ -75,6 +77,25 @@ internal sealed class GeminiNlu(
         no supongas que la última serie es efectiva. observaciones: sensaciones,
         molestias e incidentes tal como los relató, sin diagnósticos ni consejos.
         Una observación NO es AYUDA por ser texto: es un dato de la serie.
+        RM significa máximo declarado para UNA repetición, para CUALQUIER ejercicio con
+        peso externo, no solo banca. 'RM', '1RM', 'uno RM', 'erre eme', 'repetición máxima',
+        'mi máximo para una repetición' → es_rm=true en la serie indicada.
+        'récord personal' solo significa RM si expresa que es para una repetición;
+        de lo contrario preguntá si es 1RM con aclarar.campo='rm'.
+        'no fue RM', 'quitá el RM de la segunda serie' → es_rm=false en esa serie.
+        Ausencia de declaración → es_rm=null, no false. No marcar la serie más pesada
+        ni calcular un RM estimado. RM no reemplaza comentarios como 'efectiva'.
+        Si declara RM en un ALTA pero omite repeticiones, dejá repeticiones=null y
+        pedí aclarar que fue una sola; nunca agregues una repetición no expresada.
+        En actualizaciones, reps/peso omitidos quedan null: el backend valida los
+        datos ya registrados antes de marcar RM o aplicar cualquier cambio.
+        RM con más de una repetición, sin peso positivo o al cuerpo → aclarar.campo='rm'.
+        En un lote, una marca particular nunca se propaga: va en series junto a su
+        ordinal. Sin serie identificada preguntá cuál, no elijas la última.
+        Ejemplo: 'Peso muerto 2 series primera 5 con 80 segunda una repetición con
+        140 kilos repetición máxima' → cantidad_series=2,
+        series=[{serie:1,repeticiones:5,peso:80},
+        {serie:2,repeticiones:1,peso:140,es_rm:true}].
         'Sentí un tirón en el pectoral izquierdo en la segunda serie de press de banca'
         → CARGA_SERIE, ejercicio='press de banca', cantidad_series=null,
         series=[{serie:2, observaciones:'Sentí un tirón en el pectoral izquierdo'}].
@@ -301,7 +322,8 @@ internal sealed class GeminiNlu(
         Observations: TrimVacio(datos.Observations),
         Series: datos.Series?.Select(detail => new SeriesDetail(
             detail.Serie, detail.Reps, detail.Weight, ParseUnidad(detail.Unit),
-            TrimVacio(detail.Comments), TrimVacio(detail.Observations))).ToArray());
+            TrimVacio(detail.Comments), TrimVacio(detail.Observations), detail.IsOneRepMax)).ToArray(),
+        IsOneRepMax: datos.IsOneRepMax);
 
     private static string? TrimVacio(string? texto) =>
         string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();

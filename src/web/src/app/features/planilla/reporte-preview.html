@@ -72,6 +72,7 @@
           <div class="metrica"><span>Carga máxima</span><strong>{{ cargaMaxima() === null ? 'Sin datos' : numero(cargaMaxima()) }} @if (cargaMaxima() !== null) { <small>kg</small> }</strong><p>Entre las cargas numéricas registradas</p></div>
         </section>
 
+        <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" />
         <section class="detalle-pdf" aria-labelledby="titulo-detalle-pdf">
           <div class="titulo-seccion">
             <div><span class="indice-seccion">01</span><h2 id="titulo-detalle-pdf">Detalle de la sesión</h2></div>
@@ -84,7 +85,7 @@
                 @for (fila of filas(); track fila.orden) {
                   <tr>
                     <td class="nombre-ejercicio">{{ fila.ejercicioCanonical }}</td>
-                    <td>{{ fila.nroSerie }}</td>
+                    <td>{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</td>
                     <td>{{ fila.reps ?? '—' }}</td>
                     <td>{{ pesoTexto(fila) }}</td>
                     <td>{{ tonelaje(fila) }}</td>
@@ -104,7 +105,7 @@
             <div class="barras-carga">
               @for (fila of filasConCarga(); track fila.orden) {
                 <div class="barra-carga">
-                  <div class="barra-valor"><span>{{ numero(fila.pesoKg) }} kg</span><span>S{{ fila.nroSerie }}</span></div>
+                  <div class="barra-valor"><span>{{ numero(fila.pesoKg) }} kg</span><span>S{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</span></div>
                   <div class="riel"><span [style.width]="anchoBarra(fila)"></span></div>
                 </div>
               }
@@ -142,7 +143,7 @@
                 @for (fila of filas(); track fila.orden; let indice = $index) {
                   <tr>
                     <td>{{ fila.ejercicioCanonical }}</td>
-                    <td>{{ fila.nroSerie }}</td>
+                    <td>{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</td>
                     <td>{{ fila.reps ?? '—' }}</td>
                     <td>{{ fila.pesoKg === null ? '—' : numero(fila.pesoKg) }}</td>
                     <td>{{ fila.unidad ?? '—' }}</td>
@@ -160,6 +161,7 @@
           <footer class="pestanas-hoja"><span class="pestana-activa">▤ &nbsp;Reporte</span><span class="estado-libro">{{ fechaConfirmacion() }} · {{ filas().length }} filas</span></footer>
         </div>
 
+        <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" />
         <p class="nota-excel">La vista previa usa los mismos datos confirmados que el archivo descargable. Las celdas sin información se muestran como «—».</p>
       </section>
     </main>

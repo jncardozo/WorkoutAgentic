@@ -13,7 +13,7 @@ using WorkoutAgentic.Api.Features.PlanillaApi;
 
 namespace WorkoutAgentic.Api.Tests.Features.CapturaSesion;
 
-public sealed class SeriesCaptureTests : IDisposable
+public sealed partial class SeriesCaptureTests : IDisposable
 {
     private readonly SqliteConnection connection = new("Data Source=:memory:");
     private readonly CapturasDbContext db;

@@ -29,3 +29,6 @@ dialog button { margin: 4px; }
 
 
 .registered-load { font-size: 13px; color: var(--texto-2); }
+
+.rm-option { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; cursor: pointer; }
+.rm-option input { width: 20px; height: 20px; accent-color: var(--acento, #ff6a00); }

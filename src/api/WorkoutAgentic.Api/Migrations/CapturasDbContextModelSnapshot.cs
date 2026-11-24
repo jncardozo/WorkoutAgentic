@@ -283,6 +283,9 @@ namespace WorkoutAgentic.Api.Migrations
                     b.Property<bool>("Incompleta")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsOneRepMax")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("NroSerie")
                         .HasColumnType("INTEGER");
 
@@ -291,6 +294,18 @@ namespace WorkoutAgentic.Api.Migrations
 
                     b.Property<decimal?>("PesoKg")
                         .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReferenceConfirmedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("ReferenceOneRepMaxKg")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ReferencePlanillaId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ReferenceRowOrder")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("Reps")
                         .HasColumnType("INTEGER");
@@ -330,6 +345,9 @@ namespace WorkoutAgentic.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("EjercicioId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsOneRepMax")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("NroSerie")

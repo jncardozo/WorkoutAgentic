@@ -43,6 +43,7 @@ interface BorradorFila {
   reps: string;
   peso: string;
   pesoAlCuerpo: boolean;
+  isOneRepMax: boolean;
   comments: string;
   observations: string;
 }
@@ -395,6 +396,7 @@ export class PlanillaPage {
       reps: '',
       peso: '',
       pesoAlCuerpo: false,
+      isOneRepMax: false,
       comments: '',
       observations: '',
     });
@@ -433,6 +435,11 @@ export class PlanillaPage {
     this.borradorAlta.update((borrador) =>
       borrador ? { ...borrador, pesoAlCuerpo: marcado, peso: marcado ? '' : borrador.peso } : borrador,
     );
+  }
+
+  markOneRepMax(editing: boolean, checked: boolean): void {
+    const draft = editing ? this.borradorEdicion : this.borradorAlta;
+    draft.update(value => value ? { ...value, isOneRepMax: checked } : value);
   }
 
   private conValorTexto(
@@ -484,6 +491,7 @@ export class PlanillaPage {
       tiempoSeg: null,
       comments: borrador.comments.trim() || null,
       observations: borrador.observations.trim() || null,
+      isOneRepMax: borrador.isOneRepMax,
     };
 
     this.ejecutar(
@@ -514,7 +522,7 @@ export class PlanillaPage {
       errores.push('La fila necesita el peso o marcar «al cuerpo».');
     }
 
-    return errores;
+    return [...errores, ...this.validateOneRepMax(borrador)];
   }
 
   // ─── Edición de fila (PUT: reemplazo completo, ADR-0007 S2) ─────────────────
@@ -533,6 +541,7 @@ export class PlanillaPage {
       reps: fila.reps === null ? '' : String(fila.reps),
       peso: pesoAlCuerpo ? '' : fila.pesoKg === null ? '' : String(fila.pesoKg),
       pesoAlCuerpo,
+      isOneRepMax: fila.isOneRepMax ?? false,
       comments: fila.comments ?? '',
       observations: fila.observations ?? '',
     });
@@ -578,6 +587,7 @@ export class PlanillaPage {
       tiempoSeg: null,
       comments: borrador.comments.trim() || null,
       observations: borrador.observations.trim() || null,
+      isOneRepMax: borrador.isOneRepMax,
     };
 
     this.ejecutar(
@@ -611,7 +621,12 @@ export class PlanillaPage {
       errores.push('El peso no puede ser negativo.');
     }
 
-    return errores;
+    return [...errores, ...this.validateOneRepMax(borrador)];
+  }
+
+  private validateOneRepMax(draft: BorradorFila): string[] {
+    return draft.isOneRepMax && (leerEntero(draft.reps) !== 1 || draft.pesoAlCuerpo || !(parsearDecimalNoNegativo(draft.peso)! > 0))
+      ? ['El RM requiere una repetición y un peso mayor que cero en kg.'] : [];
   }
 
   // ─── Eliminación de fila (dos pasos) ────────────────────────────────────────

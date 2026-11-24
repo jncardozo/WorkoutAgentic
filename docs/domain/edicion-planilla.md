@@ -95,6 +95,13 @@ dejando vacío el campo de esa tarjeta; los datos no intervenidos se conservan.
 
 ## Criterios de aceptación
 
+**Ampliación ADR-0055:** alta, edición inline y editor múltiple incluyen el
+control «RM / 1 repetición», visible fuera de Notas. `isOneRepMax` forma parte de
+los valores originales y nuevos del contrato de edición. El reemplazo completo
+usa false si no se envía. No cambia automáticamente reps/peso: una marca requiere
+reps=1 y peso positivo en kg, sin corporal/tiempo; de lo contrario falla toda la
+operación. Quitar la marca conserva los demás datos. Se congela al confirmar.
+
 1. Corregir varias filas y enviar una única petición; se guardan todas juntas.
 2. Una fila inválida, ajena, borrada o cambiada impide guardar el resto.
 3. Sesiones no editables e historial confirmado rechazan edición masiva.

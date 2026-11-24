@@ -59,7 +59,8 @@ describe('TrainingEditor', () => {
     await fixture.whenStable();
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).not.toContain('Aplicar a varias series');
-    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(host.querySelectorAll('input[type="checkbox"]').length).toBe(1);
+    expect(host.querySelector('input[type="checkbox"]')?.getAttribute('aria-label')).toBe('RM / 1 repetición');
     editor.update(1, 'reps', '10');
     expect(editor.changes()[0].values).toMatchObject({ reps: 10, pesoKg: null, unidad: 'PesoCorporal' });
     editor.update(1, 'weight', '20');
@@ -73,6 +74,28 @@ describe('TrainingEditor', () => {
     editor.save();
     expect(editor.errors()[1]).toBeTruthy();
     expect(api.bulkEdit).not.toHaveBeenCalled();
+  });
+
+  it('valida el RM y lo envía junto con el original para detectar conflictos', async () => {
+    const { editor, api } = await setup();
+    editor.markOneRepMax(2, true);
+    editor.save();
+    expect(api.bulkEdit).not.toHaveBeenCalled();
+    expect(editor.errors()[2]).toContain('una repetición');
+    editor.update(2, 'reps', '1');
+    editor.save();
+    const changes = api.bulkEdit.mock.calls[0] as unknown as [number, number, { original: { isOneRepMax: boolean }; values: { isOneRepMax: boolean; reps: number } }[]];
+    expect(changes[2][0].original.isOneRepMax).toBe(false);
+    expect(changes[2][0].values).toMatchObject({ isOneRepMax: true, reps: 1 });
+  });
+
+  it('conserva una marca al abrir y permite quitarla sin cambiar la carga', async () => {
+    const { fixture, editor } = await setup();
+    fixture.componentRef.setInput('rows', [{ ...row(1), reps: 1, isOneRepMax: true }]);
+    await fixture.whenStable();
+    expect(editor.changes()).toEqual([]);
+    editor.markOneRepMax(1, false);
+    expect(editor.changes()[0].values).toMatchObject({ isOneRepMax: false, reps: 1, pesoKg: 40 });
   });
 
   it('conserva el borrador si el servidor detecta un conflicto', async () => {

@@ -51,10 +51,10 @@ internal sealed partial class PlanillaMutaciones
 
     private static ComandoEdicionFila CurrentValues(RegistroParcial row) => new(
         row.EjercicioId, row.EjercicioCrudo, row.NroSerie, row.Reps, row.PesoKg,
-        row.Unidad?.ToString(), row.TiempoSeg, row.Comments, row.Observations);
+        row.Unidad?.ToString(), row.TiempoSeg, row.Comments, row.Observations, row.IsOneRepMax);
 
     private sealed record PreparedEdit(Ejercicio? Exercise, string? Raw, string? Name,
-        int Number, int? Reps, decimal? Weight, Data.Unidad? Unit, int? Time, string? Comments, string? Observations);
+        int Number, int? Reps, decimal? Weight, Data.Unidad? Unit, int? Time, string? Comments, string? Observations, bool IsOneRepMax);
 
     private async Task<(PreparedEdit? Edit, PlanillaFalla? Failure)> PrepareEditAsync(
         RegistroParcial row, ComandoEdicionFila command, CancellationToken cancellationToken)
@@ -78,8 +78,10 @@ internal sealed partial class PlanillaMutaciones
         }
         var values = ValidarCuerpoFila(exercise, command.NroSerie, command.Reps, command.PesoKg, command.Unidad, command.TiempoSeg);
         if (values.Falla is not null) return (null, values.Falla);
+        if (!CapturaSesion.OneRepMaxRule.IsValid(command.IsOneRepMax, values.Reps, values.PesoKg, values.Unidad, values.TiempoSeg))
+            return (null, PlanillaFalla.DatosInvalidos(CapturaSesion.OneRepMaxRule.Clarification));
         return (new(exercise, raw, name, command.NroSerie, values.Reps, values.PesoKg,
-            values.Unidad, values.TiempoSeg, CleanNote(command.Comments), CleanNote(command.Observations)), null);
+            values.Unidad, values.TiempoSeg, CleanNote(command.Comments), CleanNote(command.Observations), command.IsOneRepMax), null);
     }
 
     private static void ApplyEdit(RegistroParcial row, PreparedEdit edit)
@@ -94,6 +96,7 @@ internal sealed partial class PlanillaMutaciones
         row.TiempoSeg = edit.Time;
         row.Comments = edit.Comments;
         row.Observations = edit.Observations;
+        row.IsOneRepMax = edit.IsOneRepMax;
         row.DescripcionPendiente = row.PendienteAclaracion = false;
     }
 }

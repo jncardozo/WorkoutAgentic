@@ -38,6 +38,7 @@ propuesta por el LLM. Sin ejercicio o cantidad/ordinal para un alta: guía, sin 
 | repeticiones, peso, unidad | Datos comunes explícitos de un alta, o de una única actualización histórica |
 | comentarios | Tipo/propósito dicho: aproximación, entrada en calor, calentamiento, efectiva |
 | observaciones | Sensaciones o incidentes expresados, sin diagnóstico ni interpretación médica |
+| es_rm | Declaración de 1RM: true marca, false quita explícitamente, null conserva; también en cada detalle de series (ADR-0055) |
 | series | Lista de detalles con serie, repeticiones, peso, unidad, comentarios, observaciones |
 | aclarar | Campo y pregunta abierta cuando el contenido es realmente ambiguo |
 | tiempo_segundos, descanso_segundos | Siempre null; no se capturan en el MVP |
@@ -116,7 +117,35 @@ otra aclaración persistida. Un dato simplemente ausente queda null, sin inventa
 - «Press 4 series» con variante incierta → filas y pregunta abierta.
 - Contradicción «segunda con 40 o 60» → aclarar peso; no elegir ni aplicar.
 
-## 6. Voz
+## 6. RM declarado (ADR-0055)
+
+- `es_rm` es independiente de comentarios y observaciones y aplica a cualquier
+  ejercicio con carga externa. Reconocer «RM», «1RM», «uno RM», «erre eme»,
+  «repetición máxima» y «mi máximo para una repetición». No identificar RM por
+  ser la mayor carga, última serie o «efectiva». «Récord personal» sin indicar
+  una repetición exige aclarar si es 1RM.
+- True marca, false solo ante negación/remoción explícita («no fue RM», «quitá
+  el RM de la segunda serie»), null no modifica. Una marca particular va en el
+  detalle del ordinal; un `es_rm` raíz con más de una serie exige aclarar alcance.
+- Los valores finales de una serie marcada deben ser una repetición y peso
+  positivo en kg (admite dictar lb y convertir), sin tiempo ni peso corporal.
+  Contradicción o datos necesarios ausentes: pregunta abierta en la SPA, sin
+  aplicar ninguna fila del mensaje ni crear aclaración persistente adicional.
+  En actualizaciones se validan también los datos existentes: omitir reps/peso
+  no los borra. No agregar una repetición simplemente por decir RM.
+- «Peso muerto 2 series primera 5 con 80 segunda una repetición con 140 kilos
+  repetición máxima» → 5/80 sin RM, 1/140 con RM. Mismo comportamiento para
+  sentadillas, remos, presses, curls y cualquier otro nombre libre con carga.
+- «Press de banca 4 series primera aproximación 12 con 40 segunda aproximación
+  10 con 50 tercera efectiva 8 con 60 cuarta efectiva una repetición con 170 RM»
+  → solo la cuarta marcada; conserva «efectiva» como comentario.
+- «Segunda serie no fue RM» → quita solo la marca, conserva reps/peso/notas.
+- «Cuarta dos repeticiones con 170 RM» → aclarar contradicción; ninguna fila cambia.
+- «Sentadilla una serie con 100 RM» → preguntar si fue una repetición; sin alta.
+- Aumentar reps de una serie marcada a 2 sin quitar RM rechaza todo el mensaje.
+- Fallo de infraestructura NLU conserva la marca igual que los demás datos.
+
+## 7. Voz
 
 Al enviar la captura, la SPA muestra un indicador animado e indeterminado hasta
 que responda la API (ADR-0030). Bloquea envíos duplicados y deja el texto en modo

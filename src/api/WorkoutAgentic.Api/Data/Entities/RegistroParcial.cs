@@ -26,6 +26,8 @@ public class RegistroParcial
 
     public int? Reps { get; set; }
 
+    public bool IsOneRepMax { get; set; }
+
     public string? Comments { get; set; }
 
     public string? Observations { get; set; }

@@ -12,11 +12,12 @@ internal sealed partial class SesionCapturaServicio
 
     private static SeriesDetail CommonData(EntidadesNlu entities) => new(
         entities.SerieOrdinal ?? 0, entities.Reps, entities.PesoKg, entities.Unidad,
-        entities.Comments, entities.Observations);
+        entities.Comments, entities.Observations, entities.IsOneRepMax);
 
     private static bool HasData(SeriesDetail detail) => detail.Reps is not null
         || detail.Weight is not null || detail.Unit == Unidad.PesoCorporal
-        || !string.IsNullOrWhiteSpace(detail.Comments) || !string.IsNullOrWhiteSpace(detail.Observations);
+        || !string.IsNullOrWhiteSpace(detail.Comments) || !string.IsNullOrWhiteSpace(detail.Observations)
+        || detail.IsOneRepMax is not null;
 
     private static bool InvalidValues(SeriesDetail detail) => detail.Reps is < 1
         || detail.Weight is < 0
@@ -33,6 +34,20 @@ internal sealed partial class SesionCapturaServicio
         if (entities.CantidadSeries is < 1 or > MaxSeriesLote || entities.SerieOrdinal is < 1)
             return InvalidDetails;
         if (InvalidValues(CommonData(entities))) return InvalidDetails;
+        if (entities.CantidadSeries is > 1 && entities.IsOneRepMax is not null)
+            return "Indicá en qué serie registraste el RM; no cambié las filas.";
+        if (entities.CantidadSeries is { } batchCount)
+        {
+            for (var index = 1; index <= batchCount; index++)
+            {
+                var candidate = new RegistroParcial();
+                ApplyValues(candidate, CommonData(entities));
+                if (entities.Series?.FirstOrDefault(d => d.Ordinal == index) is { } detail)
+                    ApplyValues(candidate, detail);
+                if (!OneRepMaxRule.IsValid(candidate.IsOneRepMax, candidate.Reps, candidate.PesoKg, candidate.Unidad))
+                    return OneRepMaxRule.Clarification;
+            }
+        }
         if (entities.Series is not { Count: > 0 } details) return null;
         if (details.Count > MaxSeriesLote || details.Select(d => d.Ordinal).Distinct().Count() != details.Count
             || details.Any(d => d.Ordinal < 1 || InvalidValues(d) || !HasData(d)))
@@ -54,6 +69,7 @@ internal sealed partial class SesionCapturaServicio
         }
         if (!string.IsNullOrWhiteSpace(detail.Comments)) row.Comments = detail.Comments.Trim();
         if (!string.IsNullOrWhiteSpace(detail.Observations)) row.Observations = detail.Observations.Trim();
+        if (detail.IsOneRepMax is { } isOneRepMax) row.IsOneRepMax = isOneRepMax;
     }
 
     private static string BatchMessage(string name, IReadOnlyList<RegistroParcial> rows)
@@ -90,6 +106,14 @@ internal sealed partial class SesionCapturaServicio
                 return new(TextosBot.SerieSinFila(name, detail.Ordinal), session.Id, false);
             if (matches.Count != 1)
                 return new($"Hay más de una serie {detail.Ordinal} de {name}. Editá la fila correspondiente en la cuadrícula; no cambié los datos.", session.Id, false);
+            var candidate = new RegistroParcial
+            {
+                Reps = matches[0].Reps, PesoKg = matches[0].PesoKg, Unidad = matches[0].Unidad,
+                TiempoSeg = matches[0].TiempoSeg, IsOneRepMax = matches[0].IsOneRepMax,
+            };
+            ApplyValues(candidate, detail);
+            if (!OneRepMaxRule.IsValid(candidate.IsOneRepMax, candidate.Reps, candidate.PesoKg, candidate.Unidad, candidate.TiempoSeg))
+                return new(OneRepMaxRule.Clarification, session.Id, false);
             targets.Add((matches[0], detail));
         }
 

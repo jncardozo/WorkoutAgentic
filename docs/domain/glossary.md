@@ -17,7 +17,7 @@
 | **Descanso** | Tiempo de recuperación entre series de un mismo ejercicio. |
 | **RIR** | "Reps In Reserve": repeticiones que quedarían en el tanque al terminar la serie. RIR 2 = parar 2 reps antes del fallo. |
 | **RPE** | Esfuerzo percibido 1–10 (RIR 2 ≈ RPE 8). Escala de intensidad del agente. |
-| **1RM** | Máximo teórico para una repetición; sirve para calcular cargas (evitar pedir 1RM real a novatos). |
+| **1RM / RM declarado** | Máximo peso que el alumno declara haber levantado en una sola repetición de un ejercicio. El MVP registra la declaración y compara cargas con ella; no calcula un máximo teórico ni prescribe pruebas (ADR-0055). |
 | **Volumen** | Series efectivas por grupo muscular por semana. Métrica de dosis principal. |
 | **Frecuencia** | Veces por semana que se entrena un grupo muscular o patrón. |
 

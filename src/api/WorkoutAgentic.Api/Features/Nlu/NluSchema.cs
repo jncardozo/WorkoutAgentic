@@ -32,6 +32,7 @@ internal static class NluSchema
         "descanso_segundos": { "type": "integer", "nullable": true },
         "comentarios": { "type": "string", "nullable": true },
         "observaciones": { "type": "string", "nullable": true },
+        "es_rm": { "type": "boolean", "nullable": true },
         "series": {
           "type": "array",
           "nullable": true,
@@ -44,7 +45,8 @@ internal static class NluSchema
               "peso": { "type": "number", "nullable": true },
               "unidad": { "type": "string", "enum": ["kg", "lb", "peso_corporal"], "nullable": true },
               "comentarios": { "type": "string", "nullable": true },
-              "observaciones": { "type": "string", "nullable": true }
+              "observaciones": { "type": "string", "nullable": true },
+              "es_rm": { "type": "boolean", "nullable": true }
             },
             "required": ["serie"]
           }
@@ -55,7 +57,7 @@ internal static class NluSchema
           "properties": {
             "campo": {
               "type": "string",
-              "enum": ["ejercicio", "serie", "reps", "peso", "tiempo", "unidad", "valor_exacto"]
+              "enum": ["ejercicio", "serie", "reps", "peso", "tiempo", "unidad", "valor_exacto", "rm"]
             },
             "pregunta": { "type": "string", "nullable": true }
           }

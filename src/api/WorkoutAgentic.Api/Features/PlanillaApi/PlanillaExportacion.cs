@@ -44,7 +44,7 @@ internal static class PlanillaArchivoFactory
         {
             Agregar(zip, "[Content_Types].xml", """
                 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-                <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>
+                <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>
                 """);
             Agregar(zip, "_rels/.rels", """
                 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -52,14 +52,15 @@ internal static class PlanillaArchivoFactory
                 """);
             Agregar(zip, "xl/workbook.xml", """
                 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Reporte" sheetId="1" r:id="rId1"/></sheets><calcPr calcId="191029" fullCalcOnLoad="1" forceFullCalc="1"/></workbook>
+                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Reporte" sheetId="1" r:id="rId1"/><sheet name="Progreso RM" sheetId="2" r:id="rId3"/></sheets><calcPr calcId="191029" fullCalcOnLoad="1" forceFullCalc="1"/></workbook>
                 """);
             Agregar(zip, "xl/_rels/workbook.xml.rels", """
                 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>
                 """);
             Agregar(zip, "xl/styles.xml", EstilosExcel);
             AgregarHoja(zip, planilla);
+            AddProgressSheet(zip, planilla);
         }
 
         return new(contenido.ToArray(), $"planilla-{planilla.Id}.xlsx", TipoExcel);
@@ -112,6 +113,7 @@ internal static class PlanillaArchivoFactory
         EscribirAnchoColumna(writer, 8, 25);
         EscribirAnchoColumna(writer, 9, 30);
         EscribirAnchoColumna(writer, 10, 60);
+        EscribirAnchoColumna(writer, 11, 22);
         writer.WriteEndElement();
         writer.WriteStartElement("sheetData", SpreadsheetNs);
         EscribirFilaConEstilo(writer, 1, ["WORKOUTAGENTIC  |  REPORTE DE ENTRENAMIENTO"], 1);
@@ -120,7 +122,7 @@ internal static class PlanillaArchivoFactory
         var resumen = Resumir(planilla);
         EscribirFilaConEstilo(writer, 5, [resumen.Series.ToString(CultureInfo.InvariantCulture), "", resumen.VolumenKgReps?.ToString("0.##", CultureInfo.InvariantCulture) ?? "Sin datos", "", resumen.CargaMaximaKg?.ToString("0.##", CultureInfo.InvariantCulture) ?? "Sin datos", ""], 4);
         EscribirFilaConEstilo(writer, 6, ["El volumen suma repeticiones por carga numérica; excluye peso corporal y datos faltantes."], 5);
-        EscribirFilaConEstilo(writer, 7, ["Ejercicio", "Serie", "Repeticiones", "Peso (kg)", "Unidad", "Volumen (kg x reps)", "Estado", "Progresión", "Comentarios", "Observaciones"], 6);
+        EscribirFilaConEstilo(writer, 7, ["Ejercicio", "Serie", "Repeticiones", "Peso (kg)", "Unidad", "Volumen (kg x reps)", "Estado", "Progresión", "Comentarios", "Observaciones", "RM / 1 repetición"], 6);
 
         var indice = 8;
         foreach (var fila in planilla.Filas.OrderBy(f => f.Orden))
@@ -146,6 +148,7 @@ internal static class PlanillaArchivoFactory
             CeldaTexto(writer, $"H{indice}", BarraProgresion(fila.PesoKg, fila.Unidad, resumen.CargaMaximaKg), estilo);
             CeldaTexto(writer, $"I{indice}", fila.Comments, estilo);
             CeldaTexto(writer, $"J{indice}", fila.Observations, estilo);
+            CeldaTexto(writer, $"K{indice}", fila.IsOneRepMax ? "RM / 1 repetición" : "—", estilo);
             writer.WriteEndElement();
             indice++;
         }
@@ -165,19 +168,19 @@ internal static class PlanillaArchivoFactory
 
         writer.WriteEndElement();
         writer.WriteStartElement("autoFilter", SpreadsheetNs);
-        writer.WriteAttributeString("ref", $"A7:J{Math.Max(7, indice - 1)}");
+        writer.WriteAttributeString("ref", $"A7:K{Math.Max(7, indice - 1)}");
         writer.WriteEndElement();
         writer.WriteStartElement("mergeCells", SpreadsheetNs);
         writer.WriteAttributeString("count", "9");
-        EscribirCeldaFusionada(writer, "A1:J1");
-        EscribirCeldaFusionada(writer, "A2:J2");
+        EscribirCeldaFusionada(writer, "A1:K1");
+        EscribirCeldaFusionada(writer, "A2:K2");
         EscribirCeldaFusionada(writer, "A4:B4");
         EscribirCeldaFusionada(writer, "C4:D4");
         EscribirCeldaFusionada(writer, "E4:F4");
         EscribirCeldaFusionada(writer, "A5:B5");
         EscribirCeldaFusionada(writer, "C5:D5");
         EscribirCeldaFusionada(writer, "E5:F5");
-        EscribirCeldaFusionada(writer, "A6:J6");
+        EscribirCeldaFusionada(writer, "A6:K6");
         writer.WriteEndElement();
         writer.WriteStartElement("pageMargins", SpreadsheetNs);
         writer.WriteAttributeString("left", "0.25");
@@ -205,6 +208,61 @@ internal static class PlanillaArchivoFactory
         writer.WriteAttributeString("width", ancho.ToString(CultureInfo.InvariantCulture));
         writer.WriteAttributeString("customWidth", "1");
         writer.WriteEndElement();
+    }
+
+    private static void AddProgressSheet(ZipArchive zip, PlanillaConfirmada plan)
+    {
+        var entry = zip.CreateEntry("xl/worksheets/sheet2.xml", CompressionLevel.Optimal);
+        using var stream = entry.Open();
+        using var writer = XmlWriter.Create(stream, new XmlWriterSettings { Encoding = new UTF8Encoding(false) });
+        writer.WriteStartDocument(true);
+        writer.WriteStartElement("worksheet", SpreadsheetNs);
+        writer.WriteStartElement("cols", SpreadsheetNs);
+        var widths = new[] { 38, 22, 20, 22, 18, 18, 15, 85 };
+        for (var i = 0; i < widths.Length; i++) EscribirAnchoColumna(writer, i + 1, widths[i]);
+        writer.WriteEndElement();
+        writer.WriteStartElement("sheetData", SpreadsheetNs);
+        EscribirFilaConEstilo(writer, 1, ["COMPARACIÓN CON RM HISTÓRICO"], 1);
+        EscribirFilaConEstilo(writer, 2, [OneRepMaxProgress.Interpretation], 5);
+        EscribirFilaConEstilo(writer, 4, ["Ejercicio", "Máximo de sesión (kg)", "RM previo (kg)", "Fecha del RM", "% del RM", "Planilla de origen", "Fila de origen", "Análisis"], 6);
+        var index = 5;
+        foreach (var progress in OneRepMaxProgress.Summarize(plan))
+        {
+            writer.WriteStartElement("row", SpreadsheetNs);
+            writer.WriteAttributeString("r", index.ToString(CultureInfo.InvariantCulture));
+            writer.WriteAttributeString("ht", "80");
+            writer.WriteAttributeString("customHeight", "1");
+            CeldaTexto(writer, $"A{index}", progress.Exercise, 7);
+            CeldaNumero(writer, $"B{index}", progress.SessionMaxKg?.ToString(CultureInfo.InvariantCulture), 7);
+            CeldaNumero(writer, $"C{index}", progress.ReferenceKg?.ToString(CultureInfo.InvariantCulture), 7);
+            var recorded = progress.ReferenceConfirmedUtc is { } utc
+                ? TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById("America/Argentina/Buenos_Aires")).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "—";
+            CeldaTexto(writer, $"D{index}", recorded, 7);
+            if (progress.Percentage is { } percentage)
+                CeldaFormula(writer, $"E{index}", $"ROUND(B{index}/C{index}*100,1)", percentage, 7);
+            else CeldaTexto(writer, $"E{index}", "—", 7);
+            CeldaNumero(writer, $"F{index}", progress.ReferencePlanillaId?.ToString(CultureInfo.InvariantCulture), 7);
+            CeldaNumero(writer, $"G{index}", progress.ReferenceRowOrder?.ToString(CultureInfo.InvariantCulture), 7);
+            CeldaTexto(writer, $"H{index}", progress.Description, 7);
+            writer.WriteEndElement();
+            index++;
+        }
+        writer.WriteEndElement();
+        writer.WriteStartElement("autoFilter", SpreadsheetNs);
+        writer.WriteAttributeString("ref", $"A4:H{Math.Max(4, index - 1)}");
+        writer.WriteEndElement();
+        writer.WriteStartElement("mergeCells", SpreadsheetNs);
+        writer.WriteAttributeString("count", "2");
+        EscribirCeldaFusionada(writer, "A1:H1");
+        EscribirCeldaFusionada(writer, "A2:H2");
+        writer.WriteEndElement();
+        writer.WriteStartElement("pageSetup", SpreadsheetNs);
+        writer.WriteAttributeString("orientation", "landscape");
+        writer.WriteAttributeString("fitToWidth", "1");
+        writer.WriteAttributeString("fitToHeight", "0");
+        writer.WriteEndElement();
+        writer.WriteEndElement();
+        writer.WriteEndDocument();
     }
 
     private static void EscribirCeldaFusionada(XmlWriter writer, string referencia)
@@ -311,14 +369,23 @@ internal static class PlanillaArchivoFactory
     }
 
     // Notes wrap and continue on additional pages; no observation is truncated.
-    private static PdfRowBlock[][] PaginatePdf(IEnumerable<PlanillaFila> rows)
+    private static PdfRowBlock[][] PaginatePdf(PlanillaConfirmada plan)
     {
+        var rows = plan.Filas.OrderBy(f => f.Orden);
+        var progress = OneRepMaxProgress.Summarize(plan);
+        var described = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pages = new List<PdfRowBlock[]>();
         var page = new List<PdfRowBlock>();
         var height = 0;
         foreach (var row in rows)
         {
             var notes = new List<string>();
+            if (row.IsOneRepMax) notes.Add("RM declarado / 1 repetición");
+            if (described.Add(row.EjercicioCanonical))
+            {
+                var comparison = progress.FirstOrDefault(p => p.Exercise == row.EjercicioCanonical);
+                if (comparison is not null) notes.AddRange(WrapNote("RM histórico: " + comparison.Description));
+            }
             if (!string.IsNullOrWhiteSpace(row.Comments)) notes.AddRange(WrapNote("Comentarios: " + row.Comments));
             if (!string.IsNullOrWhiteSpace(row.Observations)) notes.AddRange(WrapNote("Observaciones: " + row.Observations));
             var chunks = notes.Count == 0 ? new[] { Array.Empty<string>() } : notes.Chunk(40);
@@ -357,8 +424,7 @@ internal static class PlanillaArchivoFactory
 
     private static byte[] CrearPdfReporte(PlanillaConfirmada planilla)
     {
-        var filas = planilla.Filas.OrderBy(f => f.Orden).ToArray();
-        var paginas = PaginatePdf(filas);
+        var paginas = PaginatePdf(planilla);
         if (paginas.Length == 0) paginas = [[]];
         var resumen = Resumir(planilla);
         var contenidos = paginas.Select((pagina, indice) => ContenidoPaginaPdf(planilla, resumen, pagina, indice + 1, paginas.Length)).ToArray();
@@ -420,6 +486,7 @@ internal static class PlanillaArchivoFactory
         TarjetaPdf(pdf, 217, 700, 160, "VOLUMEN CALCULABLE", volumenTexto, "kg x repeticiones");
         TarjetaPdf(pdf, 394, 700, 160, "CARGA MÁXIMA", picoTexto, "kg; cargas numéricas");
         TextoPdf(pdf, 40, 685, 7, "El volumen excluye peso corporal y filas con datos faltantes.", "0.35 0.39 0.43");
+        TextoPdf(pdf, 40, 674, 6, OneRepMaxProgress.Interpretation, "0.35 0.39 0.43");
 
         RectanguloPdf(pdf, 40, 576, 515, 91, "0.95 0.97 1");
         TextoPdf(pdf, 52, 650, 10, "PROGRESIÓN DE CARGA POR SERIE", "0.08 0.12 0.20");

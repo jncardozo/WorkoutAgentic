@@ -12,6 +12,7 @@ interface DraftRow {
   weight: string;
   comments: string;
   observations: string;
+  isOneRepMax: boolean;
 }
 type TextField = 'name' | 'number' | 'reps' | 'weight' | 'comments' | 'observations';
 @Component({
@@ -84,17 +85,17 @@ export class TrainingEditor {
     return { id: row.id, group: name.toLocaleLowerCase('es'), originalName: name, name,
       original: { ejercicioId: row.ejercicioId, ejercicioCrudo: row.ejercicioCrudo, nroSerie: row.nroSerie,
         reps: row.reps, pesoKg: row.pesoKg, unidad: row.unidad, tiempoSeg: row.tiempoSeg,
-        comments: row.comments ?? null, observations: row.observations ?? null },
+        comments: row.comments ?? null, observations: row.observations ?? null, isOneRepMax: row.isOneRepMax ?? false },
       number: String(row.nroSerie), reps: row.reps === null ? '' : String(row.reps),
       weight: row.pesoKg === null ? '' : String(row.pesoKg),
-      comments: row.comments ?? '', observations: row.observations ?? '' };
+      comments: row.comments ?? '', observations: row.observations ?? '', isOneRepMax: row.isOneRepMax ?? false };
   }
 
   private values(row: DraftRow): ComandoEdicionFila {
     const weight = decimal(row.weight);
     const sameName = row.name.trim() === row.originalName;
     const sameLoad = row.weight === (row.original.pesoKg === null ? '' : String(row.original.pesoKg));
-    return { ...row.original, ejercicioId: sameName ? row.original.ejercicioId : null,
+    return { ...row.original, isOneRepMax: row.isOneRepMax, ejercicioId: sameName ? row.original.ejercicioId : null,
       ejercicioCrudo: sameName ? row.original.ejercicioCrudo : row.name.trim(),
       nroSerie: Number(row.number), reps: row.reps.trim() ? Number(row.reps) : null,
       pesoKg: sameLoad ? row.original.pesoKg : weight, unidad: sameLoad ? row.original.unidad : weight !== null ? 'Kg' : row.original.unidad === 'Tiempo' ? 'Tiempo' : null,
@@ -104,6 +105,10 @@ export class TrainingEditor {
 
   update(id: number, field: TextField, value: string): void {
     this.drafts.update(rows => rows.map(row => row.id === id ? { ...row, [field]: value } : row));
+    this.errors.update(errors => { const copy = { ...errors }; delete copy[id]; return copy; });
+  }
+  markOneRepMax(id: number, checked: boolean): void {
+    this.drafts.update(rows => rows.map(row => row.id === id ? { ...row, isOneRepMax: checked } : row));
     this.errors.update(errors => { const copy = { ...errors }; delete copy[id]; return copy; });
   }
   toggleGroup(key: string): void {
@@ -117,6 +122,8 @@ export class TrainingEditor {
       if (!row.name.trim() || !positiveInteger(row.number) || (row.reps.trim() && !positiveInteger(row.reps))
         || (row.weight.trim() && decimal(row.weight) === null))
         errors[row.id] = 'Revisá el ejercicio, número de serie, repeticiones y peso. Usá números válidos; los datos pendientes pueden quedar vacíos.';
+      if (row.isOneRepMax && (Number(row.reps) !== 1 || !(decimal(row.weight)! > 0) || this.values(row).unidad !== 'Kg' || row.original.tiempoSeg !== null))
+        errors[row.id] = 'El RM requiere una repetición y un peso mayor que cero en kg.';
     }
     this.errors.set(errors);
     if (Object.keys(errors).length) {

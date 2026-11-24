@@ -429,6 +429,35 @@ describe('PlanillaPage', () => {
     inFlight.complete();
   });
 
+  it('muestra el RM y permite quitarlo conservando los datos de la serie', async () => {
+    const row = fila({ reps: 1, isOneRepMax: true });
+    const stub = stubPlanilla(respuesta(sesion({ filas: [row] })));
+    const fixture = await montar(stub);
+    expect(texto(fixture)).toContain('RM / 1 repetición');
+    const page = fixture.componentInstance;
+    page.abrirEdicion(row);
+    expect(page.borradorEdicion()?.isOneRepMax).toBe(true);
+    page.markOneRepMax(true, false);
+    page.guardarEdicion(row);
+    expect(stub.editarFila.mock.calls[0][1]).toMatchObject({ isOneRepMax: false, reps: 1, pesoKg: 45 });
+  });
+
+  it('rechaza un RM de varias repeticiones y lo incluye en el alta válida', async () => {
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub);
+    const page = fixture.componentInstance;
+    page.abrirAlta();
+    page.actualizarBorradorAlta('ejercicioCrudo', 'Sentadilla');
+    page.actualizarBorradorAlta('reps', '2');
+    page.actualizarBorradorAlta('peso', '100');
+    page.markOneRepMax(false, true);
+    page.guardarAlta();
+    expect(stub.agregarFila).not.toHaveBeenCalled();
+    page.actualizarBorradorAlta('reps', '1');
+    page.guardarAlta();
+    expect(stub.agregarFila.mock.calls[0][0]).toMatchObject({ ejercicioNombre: 'Sentadilla', isOneRepMax: true, reps: 1, pesoKg: 100 });
+  });
+
   it('muestra y edita comentarios y observaciones como campos separados', async () => {
     const row = fila({ comments: 'aproximación', observations: 'Sentí un tirón en el pectoral izquierdo' });
     const stub = stubPlanilla(respuesta(sesion({ filas: [row] })));

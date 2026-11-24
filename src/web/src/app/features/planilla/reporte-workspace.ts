@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FormatoPlanillaExportable, PlanillaConfirmadaVista } from '../../core/planilla-api';
 import { ReportEmail } from './report-email';
+import { OneRepMaxProgress } from './one-rep-max-progress';
 
 export type ModoReporte = 'seleccion' | 'pdf' | 'excel';
 
 @Component({
   selector: 'app-reporte-workspace',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReportEmail],
+  imports: [ReportEmail, OneRepMaxProgress],
   templateUrl: './reporte-workspace.html',
   styleUrl: './reporte-workspace.scss',
 })
