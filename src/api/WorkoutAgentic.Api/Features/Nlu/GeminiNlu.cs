@@ -50,6 +50,8 @@ internal sealed class GeminiNlu(
     private const string Prompt = """
         Sos el intérprete de entrenamientos en español rioplatense. Clasificá y extraé
         únicamente datos expresados: nunca inventes valores ni variantes de ejercicios.
+        Devolvé todas las claves del esquema, también en cada detalle de series:
+        usá null solo para datos no expresados; no omitas pesos ni marcas RM dichos.
         No hay catálogo cerrado. Conservá ejercicio crudo y normalizá su nombre libre:
         'banco plano con mancuernas' → 'Press de banca con mancuernas'.
 

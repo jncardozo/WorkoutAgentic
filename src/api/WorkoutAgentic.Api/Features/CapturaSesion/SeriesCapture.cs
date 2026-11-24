@@ -50,7 +50,8 @@ internal sealed partial class SesionCapturaServicio
         }
         if (entities.Series is not { Count: > 0 } details) return null;
         if (details.Count > MaxSeriesLote || details.Select(d => d.Ordinal).Distinct().Count() != details.Count
-            || details.Any(d => d.Ordinal < 1 || InvalidValues(d) || !HasData(d)))
+            || details.Any(d => d.Ordinal < 1 || InvalidValues(d)
+                || (entities.CantidadSeries is null && !HasData(d))))
             return InvalidDetails;
         if (entities.CantidadSeries is { } count && details.Any(d => d.Ordinal > count))
             return InvalidDetails;

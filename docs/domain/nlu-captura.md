@@ -88,6 +88,20 @@ otra aclaración persistida. Un dato simplemente ausente queda null, sin inventa
 
 ## 5. Corpus y pruebas
 
+- El contrato del proveedor (ADR-0056) exige claves con valores nullable y deja
+  límites numéricos/de cantidad en el backend para evitar rechazos por complejidad
+  del esquema. Probar cambios del esquema también con el proveedor real; los
+  fixtures simulados solo validan parsing y aplicación.
+- «press de banca inclinado con mancuernas 4 series» y «sillon de cuadriceps 4
+  series», por separado en sesiones editables sin pendientes → cuatro filas del
+  ejercicio indicado, con reps/peso null y sin RM. No requieren datos de carga
+  para crear el lote inicial. Series anteriores pendientes o sesión expirada
+  conservan sus bloqueos y mensajes específicos.
+- En un alta con cantidad explícita, `series=null` y detalles con ordinal válido
+  y todos los datos null son equivalentes: estos últimos solo enumeran filas,
+  sin inventar valores. En actualizaciones, un detalle sin datos sigue siendo
+  inválido y evita aplicar parcialmente el mensaje.
+
 - «sentadilla hack 4 series primera y segunda serie aproximaciones con 40kg y
   12 repeticiones tercera serie efectiva con 80kg y 10 repeticiones y cuarta y
   ultima serie con 100kg y 8 repeticiones» → reps 12/12/10/8, kg 40/40/80/100;

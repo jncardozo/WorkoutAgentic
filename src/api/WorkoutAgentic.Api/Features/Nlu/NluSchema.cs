@@ -3,8 +3,11 @@ using System.Text.Json.Nodes;
 namespace WorkoutAgentic.Api.Features.Nlu;
 
 // responseSchema que fuerza la salida del LLM al spec NLU §1/§2 (ADR-0002 S2).
-// El prompt exige "no inventar"; el schema deja todo opcional en nullable
-// menos intent+confianza. Los nombres de enum intencionalmente iguales al spec
+// El prompt exige "no inventar": todas las claves se devuelven, con null para
+// los datos ausentes. Required evita ramificaciones por claves opcionales.
+// Los límites numéricos y de cantidad se validan en el
+// backend: maxItems/minimum multiplican los estados del generador (ADR-0056).
+// Los nombres de enum intencionalmente iguales al spec
 // (CARGA_EJERCICIO…) y de unidad como el spec §2.
 internal static class NluSchema
 {
@@ -36,11 +39,10 @@ internal static class NluSchema
         "series": {
           "type": "array",
           "nullable": true,
-          "maxItems": 30,
           "items": {
             "type": "object",
             "properties": {
-              "serie": { "type": "integer", "minimum": 1 },
+              "serie": { "type": "integer" },
               "repeticiones": { "type": "integer", "nullable": true },
               "peso": { "type": "number", "nullable": true },
               "unidad": { "type": "string", "enum": ["kg", "lb", "peso_corporal"], "nullable": true },
@@ -48,7 +50,7 @@ internal static class NluSchema
               "observaciones": { "type": "string", "nullable": true },
               "es_rm": { "type": "boolean", "nullable": true }
             },
-            "required": ["serie"]
+            "required": ["serie", "repeticiones", "peso", "unidad", "comentarios", "observaciones", "es_rm"]
           }
         },
         "aclarar": {
@@ -60,10 +62,11 @@ internal static class NluSchema
               "enum": ["ejercicio", "serie", "reps", "peso", "tiempo", "unidad", "valor_exacto", "rm"]
             },
             "pregunta": { "type": "string", "nullable": true }
-          }
+          },
+          "required": ["campo", "pregunta"]
         }
       },
-      "required": ["intent", "confianza"]
+      "required": ["intent", "confianza", "ejercicio", "ejercicio_normalizado", "serie", "cantidad_series", "repeticiones", "peso", "unidad", "tiempo_segundos", "descanso_segundos", "comentarios", "observaciones", "es_rm", "series", "aclarar"]
     }
     """;
 
