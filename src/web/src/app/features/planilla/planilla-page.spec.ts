@@ -15,6 +15,8 @@ import {
 } from '../../core/planilla-api';
 import { DictadoVoz, FABRICA_RECONOCEDOR } from './dictado-voz';
 import { PlanillaPage } from './planilla-page';
+import { TrainingEditor } from './training-editor';
+import { By } from '@angular/platform-browser';
 
 const CATALOGO = [
   { id: 11, nombreCanonico: 'Press banca', grupoMuscular: 'Pecho', usaPeso: true, usaTiempo: false },
@@ -175,6 +177,68 @@ function escribir(fixture: ComponentFixture<PlanillaPage>, selector: string, val
 }
 
 describe('PlanillaPage', () => {
+  async function mobileSetup() {
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub);
+    const page = fixture.componentInstance;
+    page.mobileLayout.set(true);
+    await fixture.whenStable();
+    const editor = fixture.debugElement.query(By.directive(TrainingEditor)).componentInstance as TrainingEditor;
+    return { fixture, page, editor, stub };
+  }
+
+  it('en móvil muestra edición directa y permite volver a la grilla', async () => {
+    const { fixture, page } = await mobileSetup();
+    expect(fixture.nativeElement.querySelector('.editor.embedded')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.cuadricula')).toBeNull();
+    await page.changeMobileView('grid'); await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.editor.embedded')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.cuadricula')).not.toBeNull();
+    await page.changeMobileView('cards'); await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.editor.embedded')).not.toBeNull();
+  });
+
+  it('en móvil protege borradores de capturas, confirmación y refrescos en vuelo', async () => {
+    const { fixture, page, editor, stub } = await mobileSetup();
+    const inFlight = new Subject<RespuestaSesionActual>();
+    stub.sesionActual.mockReturnValueOnce(inFlight);
+    page.recargar();
+    editor.update(5, 'weight', '80'); await fixture.whenStable();
+    inFlight.next(respuesta(sesion({ filas: [fila({ pesoKg: 99 })] }))); inFlight.complete();
+    expect(page.filas()[0].pesoKg).toBe(45);
+    expect(editor.drafts()[0].weight).toBe('80');
+    page.borradorCaptura.set('Remo 2 series'); page.enviarCaptura(); page.requestConfirmation();
+    expect(stub.capturarTexto).not.toHaveBeenCalled();
+    expect(page.confirmationOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.refresh-training').disabled).toBe(true);
+  });
+
+  it('cambiar a grilla pregunta por borradores y cancelar mantiene las tarjetas', async () => {
+    const { fixture, page, editor } = await mobileSetup();
+    editor.update(5, 'weight', '80'); await fixture.whenStable();
+    const switching = page.changeMobileView('grid');
+    expect(editor.discardPrompt()).toBe(true);
+    editor.resolveLeave(false); await switching;
+    expect(page.mobileView()).toBe('cards');
+    expect(editor.drafts()[0].weight).toBe('80');
+    const discard = page.changeMobileView('grid');
+    editor.resolveLeave(true); await discard; await fixture.whenStable();
+    expect(page.mobileView()).toBe('grid');
+    expect(page.mobileLocked()).toBe(false);
+  });
+
+  it('al guardar tarjetas actualiza los datos y libera captura sin abrir otro editor', async () => {
+    const { fixture, page, editor, stub } = await mobileSetup();
+    stub.bulkEdit.mockReturnValue(of(respuesta(sesion({ filas: [fila({ pesoKg: 80 })] }))));
+    editor.update(5, 'weight', '80'); await fixture.whenStable();
+    editor.save(); await fixture.whenStable();
+    expect(stub.bulkEdit).toHaveBeenCalledTimes(1);
+    expect(page.filas()[0].pesoKg).toBe(80);
+    expect(page.mobileLocked()).toBe(false);
+    expect(page.trainingEditorOpen()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.editor.embedded')).not.toBeNull();
+  });
+
   const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
   const originalClose = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'close');
   beforeEach(() => {

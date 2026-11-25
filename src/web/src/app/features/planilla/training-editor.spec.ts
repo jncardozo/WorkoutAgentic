@@ -12,18 +12,89 @@ const row = (id: number, exercise = 'Press de banca'): FilaParcialVista => ({
   creadoUtc: '2026-11-10T12:00:00Z', comments: 'aproximación', observations: 'Sin molestias',
 });
 
-async function setup() {
+async function setup(embedded = false) {
   const api = { bulkEdit: vi.fn(() => of({ alumno: { id: 1, nombre: 'Alumno' }, sesion: null })) };
   TestBed.configureTestingModule({ imports: [TrainingEditor], providers: [{ provide: PlanillaApi, useValue: api }] });
   const fixture = TestBed.createComponent(TrainingEditor);
   fixture.componentRef.setInput('rows', [row(1), row(2), row(3, 'Remo')]);
   fixture.componentRef.setInput('studentId', 1);
   fixture.componentRef.setInput('sessionId', 10);
+  fixture.componentRef.setInput('embedded', embedded);
   await fixture.whenStable();
+  for (const dialog of fixture.nativeElement.querySelectorAll('dialog') as NodeListOf<HTMLDialogElement>) {
+    dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
+    dialog.close = vi.fn(() => dialog.removeAttribute('open'));
+  }
   return { fixture, editor: fixture.componentInstance, api };
 }
 
 describe('TrainingEditor', () => {
+  it('en tarjetas abre las series y muestra cambios sin persistir hasta guardar', async () => {
+    const { fixture, editor, api } = await setup(true);
+    expect(fixture.nativeElement.querySelectorAll('.series-card')).toHaveLength(3);
+    expect(fixture.nativeElement.querySelector('.editor-footer')).toBeNull();
+    const dirty = vi.fn(); editor.dirtyChange.subscribe(dirty);
+    editor.update(2, 'weight', '70,5');
+    await fixture.whenStable();
+    expect(dirty).toHaveBeenLastCalledWith(true);
+    expect(fixture.nativeElement.querySelector('.changed .unsaved')?.textContent).toContain('Sin guardar');
+    expect(fixture.nativeElement.querySelector('.editor-footer')).not.toBeNull();
+    expect(api.bulkEdit).not.toHaveBeenCalled();
+  });
+
+  it('en tarjetas descartar conserva la vista y restaura pesos y RM', async () => {
+    const { fixture, editor } = await setup(true);
+    const closed = vi.fn(); editor.closed.subscribe(closed);
+    editor.update(2, 'weight', '80'); editor.markOneRepMax(2, true);
+    const cancel = editor.cancel();
+    await fixture.whenStable();
+    editor.resolveLeave(true); await cancel; await fixture.whenStable();
+    expect(closed).not.toHaveBeenCalled();
+    expect(editor.changes()).toEqual([]);
+    expect(editor.drafts()[1]).toMatchObject({ weight: '40', isOneRepMax: false });
+    expect(fixture.nativeElement.querySelectorAll('.series-card')).toHaveLength(3);
+  });
+
+  it('en tarjetas conserva la expansión al refrescar e incorpora grupos nuevos abiertos', async () => {
+    const { fixture, editor } = await setup(true);
+    editor.toggleGroup('press de banca');
+    fixture.componentRef.setInput('rows', [row(1), row(2), row(3, 'Remo'), row(4, 'Sentadilla')]);
+    await fixture.whenStable();
+    expect(editor.expanded().has('press de banca')).toBe(false);
+    expect(editor.expanded().has('remo')).toBe(true);
+    expect(editor.expanded().has('sentadilla')).toBe(true);
+  });
+
+  it('ubica la barra por encima del teclado y la actualiza con VisualViewport', async () => {
+    const originalViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+    const viewport = Object.assign(new EventTarget(), { height: 400, offsetTop: 20 });
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
+    try {
+      const { fixture, editor } = await setup(true);
+      editor.update(2, 'weight', '50'); await fixture.whenStable();
+      expect(editor.keyboardInset()).toBe(Math.max(0, window.innerHeight - 420));
+      viewport.height = 350; viewport.offsetTop = 50; viewport.dispatchEvent(new Event('resize'));
+      await fixture.whenStable();
+      const footer = fixture.nativeElement.querySelector('.editor-footer') as HTMLElement;
+      expect(footer.style.bottom).toBe(`${Math.max(0, window.innerHeight - 400)}px`);
+      fixture.destroy();
+    } finally {
+      if (originalViewport) Object.defineProperty(window, 'visualViewport', originalViewport);
+      else Reflect.deleteProperty(window, 'visualViewport');
+    }
+  });
+
+  it('la eliminación de una tarjeta exige aceptación y no se ofrece con borradores', async () => {
+    const { editor } = await setup(true);
+    const removed = vi.fn(); editor.removed.subscribe(removed);
+    editor.requestRemoval(editor.drafts()[1]);
+    expect(removed).not.toHaveBeenCalled();
+    editor.confirmRemoval(); expect(removed).toHaveBeenCalledWith(2);
+    editor.update(1, 'reps', '10');
+    editor.requestRemoval(editor.drafts()[1]);
+    expect(editor.deletionTarget()).toBeNull();
+  });
+
   it('no convierte datos históricos omitidos en cambios al abrir', async () => {
     const { fixture, editor } = await setup();
     fixture.componentRef.setInput('rows', [row(1), { ...row(2), unidad: null, comments: ' nota histórica ' }]);

@@ -1,11 +1,16 @@
-<section class="editor" [style.height.px]="viewportHeight()" aria-labelledby="editor-title">
+<section class="editor" [class.embedded]="embedded()" [class.has-changes]="embedded() && changes().length > 0" [style.height.px]="embedded() ? null : viewportHeight()" aria-labelledby="editor-title">
   <header class="editor-header">
-    <h1 id="editor-title">Editar entrenamiento</h1>
-    <p>Revisá las series y guardá todos los cambios juntos.</p>
+    @if (embedded()) {
+      <h3 id="editor-title">Tus series</h3>
+      <p>Tocá un campo para editar. Guardá los cambios antes de seguir cargando.</p>
+    } @else {
+      <h1 id="editor-title">Editar entrenamiento</h1>
+      <p>Revisá las series y guardá todos los cambios juntos.</p>
+    }
   </header>
   <main class="editor-content">
     @if (failure(); as message) { <p class="banner banner-peligro" role="alert">{{ message }}</p><button class="btn" type="button" (click)="cancel()">Volver a la planilla actual</button> }
-    <fieldset [disabled]="saving()">
+    <fieldset [disabled]="saving() || disabled()">
       @for (group of groups(); track group.key) {
         <section class="exercise-group">
           <button class="group-toggle" type="button" (click)="toggleGroup(group.key)" [attr.aria-expanded]="expanded().has(group.key)">
@@ -13,8 +18,14 @@
           </button>
           @if (expanded().has(group.key)) {
             @for (row of group.rows; track row.id) {
-              <article class="series-card" [class.has-error]="errors()[row.id]" [id]="'edit-row-' + row.id">
-                <h2>Serie {{ row.number }}</h2>
+              <article class="series-card" [class.has-error]="errors()[row.id]" [class.changed]="changedIds().has(row.id)" [id]="'edit-row-' + row.id" [attr.aria-labelledby]="'series-title-' + row.id">
+                <div class="series-heading">
+                  <h3 [id]="'series-title-' + row.id">Serie {{ row.number }}</h3>
+                  @if (changedIds().has(row.id)) { <span class="unsaved" role="status">Sin guardar</span> }
+                  @if (embedded()) {
+                    <button class="remove-series" type="button" [disabled]="changes().length > 0" (click)="requestRemoval(row)" [attr.aria-label]="'Eliminar serie ' + row.number + ' de ' + row.name" title="Eliminar serie">×</button>
+                  }
+                </div>
                 @if (errors()[row.id]; as message) { <p role="alert" class="row-error">{{ message }}</p> }
                 <div class="numbers">
                   <label class="campo">Repeticiones<input inputmode="numeric" [value]="row.reps" (input)="update(row.id, 'reps', $any($event.target).value)" /></label>
@@ -41,10 +52,12 @@
       }
     </fieldset>
   </main>
-  <footer class="editor-footer">
+  @if (!embedded() || changes().length > 0 || saving()) {
+  <footer class="editor-footer" [style.bottom.px]="embedded() ? keyboardInset() : null">
     <button class="btn" type="button" [disabled]="saving()" (click)="cancel()">Cancelar</button>
-    <button class="btn-enviar" type="button" [disabled]="saving() || changes().length === 0" (click)="save()">{{ saving() ? 'Guardando…' : 'Guardar cambios (' + changes().length + ' series)' }}</button>
+    <button class="btn-enviar" type="button" [disabled]="saving() || disabled() || changes().length === 0" (click)="save()">{{ saving() ? 'Guardando…' : 'Guardar cambios (' + changes().length + (changes().length === 1 ? ' serie)' : ' series)') }}</button>
   </footer>
+  }
 </section>
 <dialog #leaveDialog aria-labelledby="discard-title" (cancel)="$event.preventDefault(); resolveLeave(false)">
   <h2 id="discard-title">¿Descartar los cambios?</h2>
@@ -52,3 +65,9 @@
   <button class="btn" type="button" (click)="resolveLeave(false)">Seguir editando</button>
   <button class="btn-enviar" type="button" (click)="resolveLeave(true)">Descartar cambios</button>
 </dialog>
+@if (embedded()) {
+  <app-confirmation-dialog dialogId="remove-mobile-series" [isOpen]="deletionTarget() !== null"
+    title="¿Eliminar esta serie?" [message]="'Se eliminará la serie ' + deletionTarget()?.number + ' de ' + deletionTarget()?.name + '.'"
+    confirmLabel="Eliminar serie" [busy]="disabled() || saving()"
+    (cancelled)="deletionTarget.set(null)" (confirmed)="confirmRemoval()" />
+}

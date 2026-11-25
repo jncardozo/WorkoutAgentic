@@ -1,5 +1,5 @@
 @if (trainingEditorOpen() && sesionViva(); as editorSession) {
-  <app-training-editor [rows]="editorSession.filas" [studentId]="alumnoId()" [sessionId]="editorSession.id"
+  <app-training-editor #fullTrainingEditor [rows]="editorSession.filas" [studentId]="alumnoId()" [sessionId]="editorSession.id"
     (saved)="savedTraining($event)" (closed)="closeTrainingEditor()" />
 } @else {
 <!-- Vista Alumno: captura por texto/voz en navegador y revisión de la cuadrícula. -->
@@ -67,7 +67,7 @@
           [error]="fallaHistorial()?.detalle ?? fallaHistorial()?.titulo ?? null" (opened)="alternarHistorial()"
           (closed)="historialAbierto.set(false)" (selected)="verPlanillaHistorial($event)" (retry)="retryHistory()"
           (renamed)="renamedTraining($event)" (removed)="removedTraining($event)" />
-        <button type="button" class="btn refresh-training" (click)="recargar()" aria-label="Actualizar entrenamiento" title="Actualizar datos desde la app">
+        <button type="button" class="btn refresh-training" [disabled]="mobileLocked()" (click)="recargar()" aria-label="Actualizar entrenamiento" title="Actualizar datos desde la app">
           <svg class="icono" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
           </svg>
@@ -95,7 +95,7 @@
             placeholder="Ej.: press de banca, 3 series de 10 con 20 kg"
             aria-label="Ejercicio a dictar"
             [value]="borradorCaptura()"
-            [readOnly]="capturaEnCurso()"
+            [readOnly]="capturaEnCurso() || mobileLocked()"
             (input)="borradorCaptura.set($any($event.target).value)"
             (keydown.enter)="$event.preventDefault(); enviarCaptura()"
           ></textarea>
@@ -112,7 +112,7 @@
               class="btn btn-mic"
               [class.escuchando]="dictado.escuchando()"
               (click)="alternarDictado()"
-              [disabled]="capturaEnCurso()"
+              [disabled]="capturaEnCurso() || mobileLocked()"
               [attr.aria-pressed]="dictado.escuchando()"
               [attr.aria-label]="dictado.escuchando() ? 'Detener dictado por voz' : 'Dictar por voz'"
               [title]="dictado.escuchando() ? 'Detener el dictado' : 'Dictar por voz'"
@@ -127,7 +127,7 @@
             type="button"
             class="btn-enviar"
             (click)="enviarCaptura()"
-            [disabled]="capturaEnCurso() || dictado.escuchando()"
+            [disabled]="capturaEnCurso() || dictado.escuchando() || mobileLocked()"
             [attr.aria-busy]="capturaEnCurso()"
           >
             @if (capturaEnCurso()) {
@@ -142,6 +142,7 @@
           </button>
         </div>
       </div>
+      @if (mobileLocked()) { <p class="meta-captura" role="status">Guardá o cancelá los cambios de tus series para seguir dictando.</p> }
       @if (capturaEnCurso()) {
         <p class="capture-loading" role="status" aria-live="polite" aria-atomic="true">
           Cargando tus series en la cuadrícula…
@@ -260,13 +261,15 @@
           @if (cuadriculaEditable()) {
             <div class="session-actions" role="group" aria-label="Acciones del entrenamiento">
               <div class="session-primary-actions">
+                @if (!showMobileCards()) {
                 <button type="button" class="btn btn-primario" (click)="openTrainingEditor()"
                   [disabled]="viva.filas.length === 0 || accionEnCurso() || capturaEnCurso()">Editar entrenamiento</button>
+                }
                 <button
                   type="button"
                   class="btn-enviar btn-agregar"
                   (click)="abrirAlta()"
-                  [disabled]="altaAbierta() || filasPendientesDeDatos().length > 0"
+                  [disabled]="altaAbierta() || filasPendientesDeDatos().length > 0 || mobileLocked()"
                   [title]="filasPendientesDeDatos().length > 0 ? 'Completá las series del ejercicio actual antes de agregar filas' : null"
                 >
                   <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -290,7 +293,7 @@
                       type="button"
                       class="btn-enlace btn-eliminar"
                       (click)="pedirBorradoTotal()"
-                      [disabled]="accionEnCurso() || filaEditandoId() !== null || altaAbierta()"
+                      [disabled]="accionEnCurso() || filaEditandoId() !== null || altaAbierta() || mobileLocked()"
                     >
                       Eliminar todos
                     </button>
@@ -339,6 +342,20 @@
           @if (viva.filas.length === 0) {
             <p class="vacia">Todavía no hay series.</p>
           } @else {
+            @if (mobileLayout()) {
+              <div class="mobile-view-switch" role="group" aria-label="Vista de las series">
+                <button type="button" [class.active]="mobileView() === 'cards'" [attr.aria-pressed]="mobileView() === 'cards'"
+                  [disabled]="mobileSaving() || filaEditandoId() !== null || altaAbierta()" (click)="changeMobileView('cards')">Tarjetas</button>
+                <button type="button" [class.active]="mobileView() === 'grid'" [attr.aria-pressed]="mobileView() === 'grid'"
+                  [disabled]="mobileSaving() || filaEditandoId() !== null || altaAbierta()" (click)="changeMobileView('grid')">Grilla</button>
+              </div>
+            }
+            @if (showMobileCards()) {
+              <app-training-editor #mobileTrainingEditor [embedded]="true" [rows]="viva.filas" [studentId]="alumnoId()" [sessionId]="viva.id"
+                [disabled]="!cuadriculaEditable() || accionEnCurso() || capturaEnCurso() || altaAbierta() || dictado.escuchando() || confirmationOpen()"
+                (dirtyChange)="mobileDraftChanged($event)" (savingChange)="mobileSaving.set($event)"
+                (saved)="savedMobileTraining($event)" (removed)="removeMobileSeries($event)" />
+            } @else {
             @for (group of exerciseGroups(); track group.key) {
               <details class="exercise-card" open [attr.aria-labelledby]="'exercise-' + group.key">
                 <summary class="exercise-card-header">
@@ -389,6 +406,7 @@
                               <button type="button" class="row-edit" [disabled]="!cuadriculaEditable()" (click)="abrirEdicion(fila)"
                                 [attr.aria-label]="'Editar serie ' + fila.nroSerie + ' de ' + etiquetaEjercicio(fila)">
                                 <span class="chip">{{ fila.nroSerie }}</span>
+                                @if (cuadriculaEditable()) { <span class="row-edit-label">Editar</span> }
                               </button>
                             }
                           </td>
@@ -497,6 +515,7 @@
                 </div>
               </details>
             }
+            }
           }
 
           <!-- Alta manual de fila (panel del prototipo) -->
@@ -579,7 +598,7 @@
               <button
                 type="button"
                 class="btn-confirmar"
-                [disabled]="viva.filas.length === 0 || accionEnCurso() || capturaEnCurso()"
+                [disabled]="viva.filas.length === 0 || accionEnCurso() || capturaEnCurso() || mobileLocked()"
                 (click)="requestConfirmation()"
               >
                 <svg class="icono-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

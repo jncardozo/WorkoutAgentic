@@ -68,6 +68,13 @@ sesión de captura aplica las reglas de interpretación de ADR-0025.
   Cambios concurrentes se informan sin sobrescribirlos. Ver el contrato y la
   interacción en [edicion-planilla.md](edicion-planilla.md).
 
+- **Edición móvil de prueba (ADR-0058):** la pantalla principal ofrece tarjetas
+  por serie con edición directa y selector para volver a la grilla. Peso, reps,
+  RM y notas siguen usando el mismo guardado múltiple explícito. Los borradores
+  se indican como «Sin guardar» y se protegen del refresco y otras operaciones.
+  Guardar/cancelar permite continuar la captura; cambiar de vista pide descarte.
+  No modifica snapshots ni permite editar una sesión que antes no era editable.
+
 - La planilla en curso muestra los `RegistroParcial` en tarjetas por ejercicio,
   con nombre único en la cabecera y filas con serie, repeticiones, peso,
   comentarios y observaciones (ADR-0032). La agrupación es visual; el detalle

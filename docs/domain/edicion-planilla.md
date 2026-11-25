@@ -2,6 +2,23 @@
 
 ## Interacción
 
+**Prueba móvil ADR-0058:** hasta 767 px la pantalla principal ofrece tarjetas de
+series con edición directa de reps/peso, RM visible y notas desplegables. Los
+grupos se abren inicialmente. «Tarjetas / Grilla» permite volver al formato
+anterior; desktop mantiene tabla con «Editar» en la primera columna. Se reutiliza
+el editor múltiple en modo embebido, sin cambios de API.
+
+Las tarjetas muestran «Sin guardar» al modificar datos. La barra inferior fija
+ofrece Cancelar/Guardar cambios y acompaña el teclado. El guardado es explícito;
+los errores conservan el borrador. Cancelar, cambiar de vista o salir solicita
+descarte. Mientras hay cambios se pausa la encuesta y se bloquean las operaciones
+que reemplazarían esos datos. La eliminación individual pide confirmación y
+requiere no tener borradores. Cambiar de ancho no descarta una edición pendiente.
+La grilla queda disponible durante la prueba y el diseño nuevo puede retirarse.
+
+Las siguientes reglas del editor de pantalla completa y la grilla se conservan
+cuando se eligen esas vistas:
+
 - Botón «Editar entrenamiento» encima de la tabla, sin desplazamiento lateral.
   Visible solo en EnCurso/Lista y habilitado con filas y sin otra operación activa.
 - Las acciones Editar entrenamiento/Agregar fila están en un bloque separado del

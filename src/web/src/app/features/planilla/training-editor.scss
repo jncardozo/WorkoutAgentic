@@ -11,7 +11,12 @@ button, summary { min-height: 44px; }
 .group-toggle > span:last-child { flex-shrink: 0; font-size: 12px; }
 .series-card { border: 1px solid var(--borde); border-radius: 12px; padding: 14px; background: var(--panel); margin-top: 12px; scroll-margin-block: 16px; }
 .row-error { font-size: 13px; overflow-wrap: anywhere; }
-.series-card h2 { font-size: 17px; margin-bottom: 12px; }
+.series-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.series-heading h3 { font-size: 17px; margin: 0; }
+.unsaved { color: var(--acento, #ff6a00); font-size: 11px; font-weight: 600; }
+.changed { border-color: var(--acento, #ff6a00); }
+.remove-series { margin-left: auto; min-width: 44px; background: transparent; color: var(--texto-2); border: 1px solid var(--borde); border-radius: 8px; font-size: 22px; }
+.remove-series:disabled { opacity: .4; }
 .numbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .campo { margin-block: 10px; font-size: 13px; }
 .campo input, .campo textarea, .campo select { font-size: 16px; min-width: 0; min-height: 44px; }
@@ -32,3 +37,18 @@ dialog button { margin: 4px; }
 
 .rm-option { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; cursor: pointer; }
 .rm-option input { width: 20px; height: 20px; accent-color: var(--acento, #ff6a00); }
+
+/* ADR-0058: solo la presentación embebida reemplaza la grilla móvil. */
+.embedded { max-width: none; overflow: visible; background: transparent; }
+.embedded .editor-header { padding: 0 0 14px; border: 0; }
+.embedded .editor-header h3 { margin: 0; font-size: 16px; }
+.embedded .editor-content { overflow: visible; padding: 0; }
+.embedded .group-toggle { align-items: flex-start; }
+.embedded .group-toggle > span:first-child { min-width: 0; }
+.embedded .series-card { padding: 12px; }
+.embedded .campo input, .embedded .campo textarea { box-sizing: border-box; width: 100%; }
+.embedded .numbers input { min-height: 54px; text-align: center; font-size: 24px; font-variant-numeric: tabular-nums; }
+.embedded .editor-footer { position: fixed; left: 0; right: 0; z-index: 850; max-width: 760px; margin: auto; box-sizing: border-box; box-shadow: 0 -8px 28px #0006; }
+.embedded .editor-footer button { min-width: 0; min-height: 48px; white-space: normal; font-size: 14px; }
+.embedded.has-changes { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+.embedded summary { max-width: 100%; }

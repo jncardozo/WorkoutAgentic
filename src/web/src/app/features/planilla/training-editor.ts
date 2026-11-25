@@ -1,5 +1,6 @@
 import { Component, DestroyRef, ElementRef, viewChild, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { BulkRowEdit, ComandoEdicionFila, FilaParcialVista, PlanillaApi, RespuestaSesionActual, fallaDe } from '../../core/planilla-api';
+import { ConfirmationDialog } from '../../shared/confirmation-dialog/confirmation-dialog';
 
 interface DraftRow {
   id: number;
@@ -17,15 +18,22 @@ interface DraftRow {
 type TextField = 'name' | 'number' | 'reps' | 'weight' | 'comments' | 'observations';
 @Component({
   selector: 'app-training-editor',
+  imports: [ConfirmationDialog],
   templateUrl: './training-editor.html',
   styleUrl: './training-editor.scss',
 })
 export class TrainingEditor {
+  readonly embedded = input(false);
+  readonly disabled = input(false);
   readonly rows = input.required<FilaParcialVista[]>();
   readonly studentId = input.required<number>();
   readonly sessionId = input.required<number>();
   readonly saved = output<RespuestaSesionActual>();
   readonly closed = output<void>();
+  readonly dirtyChange = output<boolean>();
+  readonly savingChange = output<boolean>();
+  readonly removed = output<number>();
+  readonly deletionTarget = signal<DraftRow | null>(null);
   private readonly api = inject(PlanillaApi);
   private readonly leaveDialog = viewChild<ElementRef<HTMLDialogElement>>('leaveDialog');
   readonly drafts = signal<DraftRow[]>([]);
@@ -35,6 +43,7 @@ export class TrainingEditor {
   readonly failure = signal<string | null>(null);
   readonly discardPrompt = signal(false);
   readonly viewportHeight = signal(window.visualViewport?.height ?? window.innerHeight);
+  readonly keyboardInset = signal(0);
   private leaveResolver: ((leave: boolean) => void) | null = null;
   private focusId: number | null = null;
 
@@ -52,29 +61,42 @@ export class TrainingEditor {
       || (row.weight.trim() !== '' && decimal(row.weight) === null)
       || JSON.stringify(this.values(row)) !== JSON.stringify(row.original))
     .map(row => ({ id: row.id, original: row.original, values: this.values(row) })));
+  readonly changedIds = computed(() => new Set(this.changes().map(row => row.id)));
 
   constructor() {
     effect(() => {
       const rows = this.rows();
+      const embedded = this.embedded();
       untracked(() => {
+        const previousGroups = new Set(this.drafts().map(row => row.group));
         const drafts = rows.map(row => this.draft(row));
         this.drafts.set(drafts);
-        this.expanded.set(new Set());
+        this.expanded.set(embedded ? new Set(drafts.map(row => row.group)
+          .filter(key => !previousGroups.has(key) || this.expanded().has(key))) : new Set());
       });
     });
+    effect(() => { const dirty = this.changes().length > 0; untracked(() => this.dirtyChange.emit(dirty)); });
+    effect(() => { const saving = this.saving(); untracked(() => this.savingChange.emit(saving)); });
     effect(() => {
       const dialog = this.leaveDialog()?.nativeElement;
       if (this.discardPrompt()) { if (dialog && !dialog.open) dialog.showModal(); }
       else if (dialog?.open) dialog.close();
     });
-    const onResize = () => this.viewportHeight.set(window.visualViewport?.height ?? window.innerHeight);
+    const onResize = () => {
+      const viewport = window.visualViewport;
+      this.viewportHeight.set(viewport?.height ?? window.innerHeight);
+      this.keyboardInset.set(Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0)));
+    };
+    onResize();
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (this.changes().length || this.saving()) { event.preventDefault(); event.returnValue = ''; }
     };
     window.visualViewport?.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('scroll', onResize);
     window.addEventListener('beforeunload', beforeUnload);
     inject(DestroyRef).onDestroy(() => {
       window.visualViewport?.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('scroll', onResize);
       window.removeEventListener('beforeunload', beforeUnload);
       this.leaveResolver?.(false);
     });
@@ -82,7 +104,7 @@ export class TrainingEditor {
 
   private draft(row: FilaParcialVista): DraftRow {
     const name = row.ejercicioCanonico ?? row.ejercicioCrudo ?? '';
-    return { id: row.id, group: name.toLocaleLowerCase('es'), originalName: name, name,
+    return { id: row.id, group: name.trim().toLocaleLowerCase('es'), originalName: name, name,
       original: { ejercicioId: row.ejercicioId, ejercicioCrudo: row.ejercicioCrudo, nroSerie: row.nroSerie,
         reps: row.reps, pesoKg: row.pesoKg, unidad: row.unidad, tiempoSeg: row.tiempoSeg,
         comments: row.comments ?? null, observations: row.observations ?? null, isOneRepMax: row.isOneRepMax ?? false },
@@ -115,7 +137,7 @@ export class TrainingEditor {
     this.expanded.update(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   }
   save(): void {
-    if (this.saving() || !this.changes().length) return;
+    if (this.disabled() || this.saving() || !this.changes().length) return;
     const errors: Record<number, string> = {};
     const changed = new Set(this.changes().map(row => row.id));
     for (const row of this.drafts().filter(row => changed.has(row.id))) {
@@ -133,7 +155,11 @@ export class TrainingEditor {
     }
     this.saving.set(true); this.failure.set(null);
     this.api.bulkEdit(this.studentId(), this.sessionId(), this.changes()).subscribe({
-      next: response => { this.saving.set(false); this.saved.emit(response); },
+      next: response => {
+        this.drafts.set((response.sesion?.filas ?? []).map(row => this.draft(row)));
+        this.saving.set(false);
+        this.saved.emit(response);
+      },
       error: error => { this.saving.set(false); const failure = fallaDe(error); this.failure.set(failure.detalle ?? failure.titulo); },
     });
   }
@@ -148,7 +174,22 @@ export class TrainingEditor {
   resolveLeave(discard: boolean): void {
     this.discardPrompt.set(false); this.leaveResolver?.(discard); this.leaveResolver = null;
   }
-  async cancel(): Promise<void> { if (await this.requestLeave()) this.closed.emit(); }
+  async cancel(): Promise<void> {
+    if (!(await this.requestLeave())) return;
+    if (this.embedded()) {
+      this.drafts.set(this.rows().map(row => this.draft(row)));
+      this.errors.set({}); this.failure.set(null);
+    } else this.closed.emit();
+  }
+  requestRemoval(row: DraftRow): void {
+    if (!this.disabled() && !this.saving() && !this.changes().length) this.deletionTarget.set(row);
+  }
+  confirmRemoval(): void {
+    const row = this.deletionTarget();
+    if (!row || this.disabled() || this.saving() || this.changes().length) return;
+    this.deletionTarget.set(null);
+    this.removed.emit(row.id);
+  }
   private focusRow(): void { document.getElementById(`edit-row-${this.focusId}`)?.scrollIntoView?.({ block: 'center' }); }
 }
 

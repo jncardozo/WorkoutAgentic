@@ -76,10 +76,44 @@ export class PlanillaPage {
   /** Resuelto por el router desde la cuenta autenticada. */
   readonly alumnoId = input.required<number>();
   readonly trainingEditorOpen = signal(false);
-  private readonly trainingEditor = viewChild(TrainingEditor);
+  private readonly trainingEditor = viewChild<TrainingEditor>('fullTrainingEditor');
+  private readonly mobileTrainingEditor = viewChild<TrainingEditor>('mobileTrainingEditor');
+  private readonly mobileMedia = window.matchMedia?.('(max-width: 767px)');
+  readonly mobileLayout = signal(this.mobileMedia?.matches ?? false);
+  readonly mobileView = signal<'cards' | 'grid'>('cards');
+  readonly mobileDirty = signal(false);
+  readonly mobileSaving = signal(false);
+  readonly mobileLocked = computed(() => this.mobileDirty() || this.mobileSaving());
+  // Mantener montados los borradores si cambia el ancho mientras se edita.
+  readonly showMobileCards = computed(() => (this.mobileLayout() && this.mobileView() === 'cards') || this.mobileLocked());
+
+  async changeMobileView(view: 'cards' | 'grid'): Promise<void> {
+    if (this.mobileSaving() || this.filaEditandoId() !== null || this.altaAbierta()) return;
+    if (view === this.mobileView()) return;
+    if (!(await (this.mobileTrainingEditor()?.requestLeave() ?? Promise.resolve(true)))) return;
+    this.mobileDirty.set(false);
+    this.mobileView.set(view);
+  }
+
+  mobileDraftChanged(dirty: boolean): void {
+    this.mobileDirty.set(dirty);
+    if (dirty) this.dictado.cancelar();
+  }
+
+  savedMobileTraining(response: RespuestaSesionActual): void {
+    this.mobileDirty.set(false);
+    this.mobileSaving.set(false);
+    this.sesion.set(response);
+    this.mostrarToast('Cambios guardados.');
+  }
+
+  removeMobileSeries(id: number): void {
+    const row = this.filas().find(row => row.id === id);
+    if (row) this.eliminarFila(row);
+  }
 
   openTrainingEditor(): void {
-    if (!this.cuadriculaEditable() || this.accionEnCurso() || this.capturaEnCurso()) return;
+    if (!this.cuadriculaEditable() || this.accionEnCurso() || this.capturaEnCurso() || this.mobileLocked()) return;
     this.dictado.cancelar();
     this.cerrarBorradores();
     this.trainingEditorOpen.set(true);
@@ -95,7 +129,7 @@ export class PlanillaPage {
     this.trainingEditorOpen.set(false);
   }
 
-  canLeave(): Promise<boolean> { return this.trainingEditor()?.requestLeave() ?? Promise.resolve(true); }
+  canLeave(): Promise<boolean> { return (this.trainingEditor() ?? this.mobileTrainingEditor())?.requestLeave() ?? Promise.resolve(true); }
   private readonly entradaCaptura = viewChild<ElementRef<HTMLTextAreaElement>>('entradaCaptura');
 
   readonly cargando = signal(true);
@@ -215,6 +249,8 @@ export class PlanillaPage {
   private encuesta: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
+    const onMobileChange = (event: MediaQueryListEvent) => this.mobileLayout.set(event.matches);
+    this.mobileMedia?.addEventListener('change', onMobileChange);
     effect(() => {
       const id = this.alumnoId();
       untracked(() => {
@@ -240,6 +276,7 @@ export class PlanillaPage {
     });
 
     inject(DestroyRef).onDestroy(() => {
+      this.mobileMedia?.removeEventListener('change', onMobileChange);
       this.dictado.cancelar();
       this.detenerEncuesta();
       this.clearCaptureMessage();
@@ -252,6 +289,7 @@ export class PlanillaPage {
   // ─── Carga y encuesta (la cuadrícula se actualiza sola, arquitectura S7) ────
 
   recargar(): void {
+    if (this.mobileLocked()) return;
     this.fallaAccion.set(null);
     this.cargar(this.alumnoId());
   }
@@ -259,7 +297,7 @@ export class PlanillaPage {
   private cargar(alumnoId: number): void {
     this.planillaApi.sesionActual(alumnoId).subscribe({
       next: (respuesta) => {
-        if (this.trainingEditorOpen()) return;
+        if (this.trainingEditorOpen() || this.mobileLocked()) return;
         this.sesion.set(respuesta);
         this.fallaCarga.set(null);
         this.cargando.set(false);
@@ -306,6 +344,7 @@ export class PlanillaPage {
     if (
       this.filaEditandoId() !== null
       || this.trainingEditorOpen()
+      || this.mobileLocked()
       || this.altaAbierta()
       || this.planillaConfirmada()
       || this.accionEnCurso()
@@ -316,7 +355,7 @@ export class PlanillaPage {
 
     this.planillaApi.sesionActual(alumnoId).subscribe({
       next: (respuesta) => {
-        if (this.trainingEditorOpen()) return;
+        if (this.trainingEditorOpen() || this.mobileLocked()) return;
         this.sesion.set(respuesta);
         this.fallaCarga.set(null);
       },
@@ -335,7 +374,7 @@ export class PlanillaPage {
    * como snapshot consultable en el historial.
    */
   enviarCaptura(): void {
-    if (this.capturaEnCurso() || this.dictado.escuchando()) {
+    if (this.mobileLocked() || this.capturaEnCurso() || this.dictado.escuchando()) {
       return;
     }
 
@@ -376,6 +415,7 @@ export class PlanillaPage {
    * enviar. Si ya está escuchando, alterna a detener.
    */
   alternarDictado(): void {
+    if (this.mobileLocked()) return;
     if (this.capturaEnCurso()) return;
     if (this.dictado.escuchando()) {
       this.dictado.detener();
@@ -391,6 +431,7 @@ export class PlanillaPage {
   // ─── Alta de fila (POST: fila completa, ADR-0007 S3) ────────────────────────
 
   abrirAlta(): void {
+    if (this.mobileLocked()) return;
     this.filaEditandoId.set(null);
     this.borradorEdicion.set(null);
     this.fallaAccion.set(null);
@@ -645,6 +686,7 @@ export class PlanillaPage {
   }
 
   eliminarFila(fila: FilaParcialVista): void {
+    if (this.mobileLocked()) return;
     this.ejecutar(
       this.planillaApi.eliminarFila(fila.id),
       (respuesta) => {
@@ -656,6 +698,7 @@ export class PlanillaPage {
   }
 
   pedirBorradoTotal(): void {
+    if (this.mobileLocked()) return;
     this.borrarTodasEnConfirmacion.set(true);
   }
 
@@ -664,6 +707,7 @@ export class PlanillaPage {
   }
 
   eliminarTodasLasFilas(): void {
+    if (this.mobileLocked()) return;
     this.ejecutar(
       this.planillaApi.eliminarTodasLasFilas(this.alumnoId()),
       (respuesta) => {
@@ -680,7 +724,7 @@ export class PlanillaPage {
 
   requestConfirmation(): void {
     if (!this.cuadriculaEditable() || !this.filas().length || this.sesionViva()?.aclaracion
-      || this.accionEnCurso() || this.capturaEnCurso()) return;
+      || this.accionEnCurso() || this.capturaEnCurso() || this.mobileLocked()) return;
     this.confirmationSessionId = this.sesionViva()!.id;
     this.confirmationRowsKey = JSON.stringify(this.filas());
     this.fallaAccion.set(null);
@@ -694,7 +738,7 @@ export class PlanillaPage {
   }
 
   confirmar(): void {
-    if (!this.confirmationOpen() || this.accionEnCurso() || this.capturaEnCurso()) return;
+    if (!this.confirmationOpen() || this.accionEnCurso() || this.capturaEnCurso() || this.mobileLocked()) return;
     if (!this.cuadriculaEditable() || !this.filas().length || this.sesionViva()?.aclaracion
       || this.sesionViva()?.id !== this.confirmationSessionId
       || JSON.stringify(this.filas()) !== this.confirmationRowsKey) {
@@ -817,6 +861,10 @@ export class PlanillaPage {
   }
 
   verPlanillaHistorial(planilla: PlanillaConfirmadaVista): void {
+    if (this.mobileLocked()) {
+      this.mostrarToast('Guardá o cancelá los cambios de tus series antes de abrir otro entrenamiento.', true);
+      return;
+    }
     this.planillaConfirmada.set(planilla);
     this.reporteDesdeHistorial.set(true);
     this.historialAbierto.set(false);
