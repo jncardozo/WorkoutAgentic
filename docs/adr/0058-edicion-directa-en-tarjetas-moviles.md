@@ -12,6 +12,10 @@ nuevo y volver a la grilla si la experiencia no mejora.
 
 ## Decisión
 
+**Ampliación ADR-0059 (2026-11-25):** las tarjetas móviles retiran el desplegable
+de ejercicio/número; conservan sus valores al guardar. La edición de identidad
+sigue disponible en grilla y editor completo.
+
 - En anchos hasta 767 px, mostrar por defecto tarjetas de series editables en
   la pantalla principal, agrupadas por ejercicio. Peso y repeticiones se editan
   tocando el campo; RM queda visible. Notas y ejercicio/número se despliegan.

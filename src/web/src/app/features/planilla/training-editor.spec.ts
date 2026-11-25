@@ -29,6 +29,31 @@ async function setup(embedded = false) {
 }
 
 describe('TrainingEditor', () => {
+  it('en tarjetas oculta la identidad y conserva ejercicio y ordinal originales al guardar', async () => {
+    const { fixture, editor, api } = await setup(true);
+    fixture.componentRef.setInput('rows', [{ ...row(2), ejercicioId: 73,
+      ejercicioCanonico: 'Press de banca', ejercicioCrudo: 'banco', nroSerie: 4 }]);
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.identity')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Ejercicio y número de serie');
+    expect(fixture.nativeElement.textContent).toContain('Serie 4');
+    editor.update(2, 'weight', '50');
+    editor.save();
+    const [, , edits] = api.bulkEdit.mock.calls[0] as unknown as [number, number,
+      { original: { ejercicioId: number; ejercicioCrudo: string; nroSerie: number };
+        values: { ejercicioId: number; ejercicioCrudo: string; nroSerie: number; pesoKg: number } }[]];
+    expect(edits[0].original).toMatchObject({ ejercicioId: 73, ejercicioCrudo: 'banco', nroSerie: 4 });
+    expect(edits[0].values).toMatchObject({ ejercicioId: 73, ejercicioCrudo: 'banco', nroSerie: 4, pesoKg: 50 });
+  });
+
+  it('el editor completo mantiene la edición del ejercicio y número de serie', async () => {
+    const { fixture, editor } = await setup();
+    editor.toggleGroup('press de banca');
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.identity')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Ejercicio y número de serie');
+  });
+
   it('en tarjetas abre las series y muestra cambios sin persistir hasta guardar', async () => {
     const { fixture, editor, api } = await setup(true);
     expect(fixture.nativeElement.querySelectorAll('.series-card')).toHaveLength(3);

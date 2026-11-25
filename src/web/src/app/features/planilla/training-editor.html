@@ -40,11 +40,13 @@
                   <label class="campo">Comentarios<textarea rows="2" [value]="row.comments" (input)="update(row.id, 'comments', $any($event.target).value)"></textarea></label>
                   <label class="campo">Observaciones<textarea rows="3" [value]="row.observations" (input)="update(row.id, 'observations', $any($event.target).value)"></textarea></label>
                 </details>
+                @if (!embedded()) {
                 <details class="identity">
                   <summary>Ejercicio y número de serie</summary>
                   <label class="campo">Ejercicio<input [value]="row.name" (input)="update(row.id, 'name', $any($event.target).value)" /></label>
                   <label class="campo">Número de serie<input inputmode="numeric" [value]="row.number" (input)="update(row.id, 'number', $any($event.target).value)" /></label>
                 </details>
+                }
               </article>
             }
           }

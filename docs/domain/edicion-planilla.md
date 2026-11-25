@@ -8,6 +8,10 @@ grupos se abren inicialmente. «Tarjetas / Grilla» permite volver al formato
 anterior; desktop mantiene tabla con «Editar» en la primera columna. Se reutiliza
 el editor múltiple en modo embebido, sin cambios de API.
 
+Las tarjetas móviles no muestran «Ejercicio y número de serie» (ADR-0059): nombre
+y ordinal siguen visibles y se conservan al guardar. Para corregirlos se usa la
+grilla o el editor completo, que mantienen sus controles de identidad.
+
 Las tarjetas muestran «Sin guardar» al modificar datos. La barra inferior fija
 ofrece Cancelar/Guardar cambios y acompaña el teclado. El guardado es explícito;
 los errores conservan el borrador. Cancelar, cambiar de vista o salir solicita
