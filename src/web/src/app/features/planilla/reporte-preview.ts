@@ -2,13 +2,14 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { FormatoPlanillaExportable, PlanillaConfirmadaVista } from '../../core/planilla-api';
 import { ReportEmail } from './report-email';
 import { OneRepMaxProgress } from './one-rep-max-progress';
+import { ExerciseLoadChart } from './exercise-load-chart';
 
 export type FormatoVistaPrevia = Extract<FormatoPlanillaExportable, 'pdf' | 'excel'>;
 
 @Component({
   selector: 'app-reporte-preview',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReportEmail, OneRepMaxProgress],
+  imports: [ReportEmail, OneRepMaxProgress, ExerciseLoadChart],
   templateUrl: './reporte-preview.html',
   styleUrl: './reporte-preview.scss',
 })

@@ -112,20 +112,7 @@
         }
       </section>
 
-      @if (filasConCarga().length) {
-        <section class="grafico-reporte" aria-label="Progresión de carga por serie">
-          <header class="encabezado-seccion"><div><h2>Progresión de carga serie a serie</h2><p>Cargas numéricas registradas en la planilla</p></div><span>KG</span></header>
-          <div class="grafico-columnas">
-            @for (fila of filasConCarga(); track fila.orden; let indice = $index) {
-              <div class="columna-grafico" [class.alternada]="indice % 2 === 1">
-                <strong>{{ numero(fila.pesoKg) }} kg</strong>
-                <span class="barra-grafico"><i [style.height]="anchoBarra(fila)"></i></span>
-                <small>S{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</small>
-              </div>
-            }
-          </div>
-        </section>
-      }
+      <app-exercise-load-chart [rows]="filas()" />
     </main>
   } @else {
     <div class="archivo-excel-barra">
@@ -142,16 +129,7 @@
         <article class="tarjeta-metrica"><span>INTENSIDAD PICO</span><strong>{{ cargaMaxima() === null ? 'Sin datos' : numero(cargaMaxima()) }}@if (cargaMaxima() !== null) { <small>kg</small> }</strong><p>Carga máxima registrada</p></article>
       </section>
 
-      @if (filasConCarga().length) {
-        <section class="grafico-excel" aria-label="Curva de intensidad por serie">
-          <header class="encabezado-seccion"><div><h2>Curva de intensidad por serie (carga absoluta)</h2><p>Valores numéricos disponibles en la planilla</p></div><span>KG</span></header>
-          <div class="grafico-columnas">
-            @for (fila of filasConCarga(); track fila.orden; let indice = $index) {
-              <div class="columna-grafico" [class.alternada]="indice % 2 === 1"><strong>{{ numero(fila.pesoKg) }}</strong><span class="barra-grafico"><i [style.height]="anchoBarra(fila)"></i></span><small>S{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</small></div>
-            }
-          </div>
-        </section>
-      }
+      <app-exercise-load-chart [rows]="filas()" />
 
       <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" />
       <section class="hoja-excel" aria-label="Hoja de datos del reporte Excel">

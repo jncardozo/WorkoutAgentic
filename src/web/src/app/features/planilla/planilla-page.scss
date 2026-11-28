@@ -117,6 +117,24 @@
   user-select: none;
   pointer-events: none;
 }
+.clear-capture {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  margin-block: -8px;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto-2);
+  font: 13px var(--tipografia-texto);
+  cursor: pointer;
+}
+.clear-capture:hover:not(:disabled) { color: var(--acento-suave); background: var(--panel-2); }
+.clear-capture:focus-visible { outline: 2px solid var(--acento-suave); outline-offset: 2px; }
+.clear-capture:disabled { opacity: .5; cursor: default; }
 .acciones-captura {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

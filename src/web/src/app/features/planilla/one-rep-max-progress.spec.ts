@@ -4,6 +4,7 @@ import { ReportePreview } from './reporte-preview';
 import { ReporteWorkspace } from './reporte-workspace';
 import { PlanillaApi } from '../../core/planilla-api';
 import { of } from 'rxjs';
+import { OneRepMaxProgress } from './one-rep-max-progress';
 
 const comparison: OneRepMaxProgressView = {
   exercise: 'Press de banca', sessionMaxKg: 100, referenceKg: 170,
@@ -19,6 +20,19 @@ const plan: PlanillaConfirmadaVista = {
 };
 
 describe('Reportes con RM histórico', () => {
+  it('inicia plegado sin RM previo y permite consultar el detalle sin perder descripciones', async () => {
+    const fixture = TestBed.createComponent(OneRepMaxProgress);
+    fixture.componentRef.setInput('progress', [{ ...comparison, referenceKg: null, percentage: null,
+      description: 'Sin RM previo registrado para este ejercicio.' }]);
+    await fixture.whenStable();
+    const details = fixture.nativeElement.querySelector('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    expect(details.querySelector('summary')?.textContent).toContain('Sin RM previo registrado');
+    details.querySelector('summary')!.click();
+    expect(details.open).toBe(true);
+    expect(details.textContent).toContain('Sin RM previo registrado para este ejercicio.');
+  });
+
   for (const format of ['pdf', 'excel'] as const) {
     it(`muestra el análisis congelado y la marca RM en el workspace ${format}`, async () => {
       TestBed.configureTestingModule({ imports: [ReporteWorkspace], providers: [{ provide: PlanillaApi,
@@ -29,6 +43,8 @@ describe('Reportes con RM histórico', () => {
       fixture.componentRef.setInput('modo', format);
       await fixture.whenStable();
       const text = (fixture.nativeElement as HTMLElement).textContent;
+      expect(fixture.nativeElement.querySelector('app-one-rep-max-progress details').open).toBe(false);
+      expect(fixture.nativeElement.querySelector('app-one-rep-max-progress summary').textContent).toContain('1 de 1 ejercicios con RM previo');
       expect(text).toContain(comparison.description);
       expect(text).toContain('por sí solo no indica mejora');
       expect(fixture.nativeElement.querySelector('.rm-badge')).not.toBeNull();
@@ -42,6 +58,7 @@ describe('Reportes con RM histórico', () => {
       fixture.componentRef.setInput('studentId', 1);
       fixture.componentRef.setInput('formato', format);
       await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('app-one-rep-max-progress details').open).toBe(true);
       expect((fixture.nativeElement as HTMLElement).textContent).toContain(comparison.description);
       expect(fixture.nativeElement.querySelector('.rm-badge')).not.toBeNull();
     });

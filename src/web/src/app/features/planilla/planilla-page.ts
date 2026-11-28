@@ -409,6 +409,15 @@ export class PlanillaPage {
 
   // ─── Dictado por voz en la PWA (ADR-0011) ───────────────────────────────────
 
+  /** Descarta solo el texto local; cancelar primero evita conservar un final pendiente. */
+  clearCaptureDraft(): void {
+    if (this.capturaEnCurso() || this.mobileLocked()) return;
+    this.dictado.cancelar();
+    this.borradorCaptura.set('');
+    this.dictado.fallo.set(null);
+    this.entradaCaptura()?.nativeElement.focus();
+  }
+
   /**
    * El micrófono del navegador alimenta el MISMO borrador de captura: el
    * transcript final parece escrito por el alumno, que lo revisa antes de

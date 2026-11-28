@@ -1,0 +1,22 @@
+:host { display: block; margin: 20px 0; }
+.load-chart { --chart-text: #e2e8f0; --chart-muted: #adb5c3; --chart-border: #303744; --chart-surface: #1a1f28; --chart-track: #303744; --chart-accent: #ff8a3d; color: var(--chart-text); }
+.chart-heading { margin-bottom: 16px; }
+h2 { margin: 0 0 6px; font-size: 18px; }
+.chart-heading p, .no-load { margin: 0; color: var(--chart-muted); font-size: 12px; line-height: 1.6; }
+.exercise-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.exercise-chart { min-width: 0; padding: 16px; border: 1px solid var(--chart-border); border-radius: 10px; background: var(--chart-surface); break-inside: avoid; }
+h3 { margin: 0 0 14px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.scale { display: flex; justify-content: space-between; margin-bottom: 12px; color: var(--chart-muted); font: 11px 'JetBrains Mono', monospace; }
+ul { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.no-load { margin-bottom: 12px; }
+.series-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; }
+.series-heading > span:first-child { flex-shrink: 0; }
+.series-values { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 4px 8px; text-align: right; }
+.series-values strong { font-size: 12px; font-variant-numeric: tabular-nums; }
+.series-values small { color: var(--chart-muted); font-size: 11px; }
+.load-track { height: 10px; margin-top: 6px; overflow: hidden; border-radius: 4px; background: var(--chart-track); }
+.load-track > span { display: block; height: 100%; border-radius: inherit; background: var(--chart-accent); }
+.rm-badge { color: var(--chart-accent); font-size: 10px; }
+.paper { --chart-text: #18211f; --chart-muted: #53665a; --chart-border: #dce4df; --chart-surface: #fff; --chart-track: #e8eeea; --chart-accent: #b84b00; }
+@media (max-width: 640px) { .exercise-charts { grid-template-columns: 1fr; } .exercise-chart { padding: 14px; } }
+@media print { .load-chart { print-color-adjust: exact; } }

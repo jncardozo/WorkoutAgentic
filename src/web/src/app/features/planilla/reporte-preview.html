@@ -72,7 +72,7 @@
           <div class="metrica"><span>Carga máxima</span><strong>{{ cargaMaxima() === null ? 'Sin datos' : numero(cargaMaxima()) }} @if (cargaMaxima() !== null) { <small>kg</small> }</strong><p>Entre las cargas numéricas registradas</p></div>
         </section>
 
-        <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" />
+        <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" [expanded]="true" />
         <section class="detalle-pdf" aria-labelledby="titulo-detalle-pdf">
           <div class="titulo-seccion">
             <div><span class="indice-seccion">01</span><h2 id="titulo-detalle-pdf">Detalle de la sesión</h2></div>
@@ -99,19 +99,7 @@
           </div>
         </section>
 
-        @if (filasConCarga().length) {
-          <section class="progresion" aria-label="Progresión de cargas">
-            <div class="titulo-seccion"><div><span class="indice-seccion">02</span><h2>Cargas por serie</h2></div><span>KG</span></div>
-            <div class="barras-carga">
-              @for (fila of filasConCarga(); track fila.orden) {
-                <div class="barra-carga">
-                  <div class="barra-valor"><span>{{ numero(fila.pesoKg) }} kg</span><span>S{{ fila.nroSerie }} @if (fila.isOneRepMax) { <strong class="rm-badge"> · RM</strong> }</span></div>
-                  <div class="riel"><span [style.width]="anchoBarra(fila)"></span></div>
-                </div>
-              }
-            </div>
-          </section>
-        }
+        <app-exercise-load-chart [rows]="filas()" [paper]="true" />
 
         <footer class="pie-papel">
           <span>Documento generado desde una planilla confirmada</span>
@@ -161,7 +149,7 @@
           <footer class="pestanas-hoja"><span class="pestana-activa">▤ &nbsp;Reporte</span><span class="estado-libro">{{ fechaConfirmacion() }} · {{ filas().length }} filas</span></footer>
         </div>
 
-        <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" />
+        <app-one-rep-max-progress [progress]="planilla().oneRepMaxProgress ?? []" [expanded]="true" />
         <p class="nota-excel">La vista previa usa los mismos datos confirmados que el archivo descargable. Las celdas sin información se muestran como «—».</p>
       </section>
     </main>

@@ -47,9 +47,15 @@
                 <div class="entry-actions"><button type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar nombre' }}</button><button type="button" [disabled]="saving()" (click)="cancelRename()">Cancelar</button></div>
               </form>
             } @else {
-              <div class="entry-actions">
-                <button type="button" [disabled]="saving()" [attr.aria-label]="'Cambiar nombre de ' + title(entry)" (click)="editName(entry)">{{ entry.name ? 'Cambiar nombre' : 'Agregar nombre' }}</button>
-                <button type="button" class="delete-training" [disabled]="saving()" [attr.aria-label]="'Eliminar ' + title(entry)" (click)="requestDelete(entry)">Eliminar entrenamiento</button>
+              <div class="entry-actions icon-actions">
+                <button type="button" title="Editar nombre" [disabled]="saving()" [attr.aria-label]="'Cambiar nombre de ' + title(entry)" (click)="editName(entry)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15l-1 6 5-2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                  <span class="action-tooltip" aria-hidden="true">Editar nombre</span>
+                </button>
+                <button type="button" class="delete-training" title="Eliminar entrenamiento" [disabled]="saving()" [attr.aria-label]="'Eliminar ' + title(entry)" (click)="requestDelete(entry)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                  <span class="action-tooltip" aria-hidden="true">Eliminar entrenamiento</span>
+                </button>
               </div>
             }
           </li>

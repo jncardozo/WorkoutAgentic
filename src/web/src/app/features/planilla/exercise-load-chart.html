@@ -1,0 +1,31 @@
+<section class="load-chart" [class.paper]="paper()" aria-label="Progresión de cargas por ejercicio">
+  <header class="chart-heading">
+    <h2>Cargas por serie y ejercicio</h2>
+    <p>Cada ejercicio tiene su propia escala, desde 0 kg hasta su carga máxima de esta sesión.</p>
+  </header>
+  <div class="exercise-charts">
+    @for (group of groups(); track group.exercise) {
+      <article class="exercise-chart" [attr.aria-label]="'Cargas de ' + group.exercise">
+        <h3>{{ group.exercise }}</h3>
+        @if (group.maxKg !== null) {
+          <div class="scale" aria-hidden="true"><span>0 kg</span><span>{{ number(group.maxKg) }} kg</span></div>
+        } @else {
+          <p class="no-load">Sin cargas numéricas para graficar.</p>
+        }
+        <ul>
+          @for (row of group.rows; track row.orden) {
+            <li>
+              <div class="series-heading">
+                <span>Serie {{ row.nroSerie }} @if (row.isOneRepMax) { <strong class="rm-badge">RM</strong> }</span>
+                <span class="series-values"><strong>{{ loadLabel(row) }}</strong><small>{{ row.reps === null ? 'Reps sin registrar' : row.reps + ' reps' }}</small></span>
+              </div>
+              @if (hasLoad(row)) {
+                <div class="load-track" aria-hidden="true"><span [style.width]="width(row, group.maxKg)"></span></div>
+              }
+            </li>
+          }
+        </ul>
+      </article>
+    }
+  </div>
+</section>

@@ -819,6 +819,43 @@ describe('PlanillaPage', () => {
 
   // ─── Dictado por voz (ADR-0011) ───────────────────────────────────────────────
 
+  it('borra el borrador durante dictado, detiene el micrófono y conserva las series', async () => {
+    const dictado = {
+      soportado: true, escuchando: signal(true), parcial: signal('texto intermedio'),
+      fallo: signal<string | null>(null), remainingSeconds: signal(30),
+      escuchar: vi.fn(), detener: vi.fn(),
+      cancelar: vi.fn(() => { dictado.escuchando.set(false); dictado.parcial.set(''); }),
+    };
+    const stub = stubPlanilla(respuesta(sesion()));
+    const fixture = await montar(stub, dictado);
+    const page = fixture.componentInstance;
+    const session = page.sesion();
+    escribir(fixture, 'textarea.entrada-captura', 'Texto mal reconocido');
+    boton(fixture, 'Borrar texto').click();
+    await fixture.whenStable();
+    expect(page.borradorCaptura()).toBe('');
+    expect(dictado.cancelar).toHaveBeenCalled();
+    expect(dictado.escuchando()).toBe(false);
+    expect(page.sesion()).toBe(session);
+    expect(stub.capturarTexto).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('textarea.entrada-captura'));
+  });
+
+  it('no borra texto mientras se envía ni mientras hay cambios móviles pendientes', async () => {
+    const fixture = await montar(stubPlanilla(respuesta(sesion())));
+    const page = fixture.componentInstance;
+    page.borradorCaptura.set('Texto pendiente');
+    page.capturaEnCurso.set(true);
+    await fixture.whenStable();
+    expect(boton(fixture, 'Borrar texto').disabled).toBe(true);
+    page.clearCaptureDraft();
+    expect(page.borradorCaptura()).toBe('Texto pendiente');
+    page.capturaEnCurso.set(false);
+    page.mobileDirty.set(true);
+    page.clearCaptureDraft();
+    expect(page.borradorCaptura()).toBe('Texto pendiente');
+  });
+
   it('el micrófono vuelca lo dictado al borrador y el envío sigue el pipeline normal', async () => {
     const entregado: ((texto: string) => void)[] = [];
     const dictado = {
